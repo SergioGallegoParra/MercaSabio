@@ -19,3 +19,5 @@ web/.env*
 !web/.env.example
 web/next-env.d.ts
 web/*.tsbuildinfo
+.vercel
+web/.vercel
