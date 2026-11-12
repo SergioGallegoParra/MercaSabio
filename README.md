@@ -4,7 +4,7 @@ Arquitectura base para ingesta diaria, normalización de unidades, homologación
 
 ## Producción
 
-- Frontend (Cloudflare Workers): https://mercasabio.sdgallegop.workers.dev
+- Frontend (Cloudflare Workers): https://mercasabio.sdgp.workers.dev
 
 ## Estructura del Proyecto
 
@@ -71,5 +71,5 @@ npx wrangler secret put SUPABASE_ANON_KEY
 
 npm run build:cf    # Compila Next.js + OpenNext para Cloudflare (.open-next/)
 npm run preview     # Preview local con runtime workerd
-npm run deploy      # Compila y despliega a mercasabio.sdgallegop.workers.dev
+npm run deploy      # Compila y despliega a mercasabio.sdgp.workers.dev
 ```
