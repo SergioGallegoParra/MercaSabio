@@ -183,7 +183,7 @@ export default function RouteMap({ userLocation, stops }: RouteMapProps) {
       <div className="route-map-header">
         <div className="route-map-title">
           <Navigation size={15} />
-          <span>Ruta óptima en OpenStreetMap + OSRM</span>
+          <span>Mapa de ruta</span>
           {loadingRoute && <span className="tag tag-estimated">Calculando ruta...</span>}
           {!loadingRoute && summary && (
             <span className="tag tag-best tabular">

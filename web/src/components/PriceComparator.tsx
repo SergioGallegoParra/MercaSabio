@@ -1,12 +1,15 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   AlertTriangle,
   ArrowUp,
+  ChevronDown,
+  ChevronUp,
   LocateFixed,
   MapPin,
+  RefreshCw,
   Scale,
   Search,
   ShoppingBasket,
@@ -46,6 +49,8 @@ const copFormatter = new Intl.NumberFormat("es-CO", {
 const PAGE_SIZE = 24;
 const BASKET_STORAGE_KEY = "mercasabio_basket_v1";
 const LOCATION_STORAGE_KEY = "mercasabio_loc_v1";
+const QUICK_SEARCH_TERMS = ["Arroz", "Leche", "Aceite", "Huevos", "Café", "Azúcar", "Atún"];
+const MONITORED_CHAINS = ["Carulla", "Éxito", "Tiendas D1", "Olímpica", "Alkosto", "Ktronix", "Ara"];
 
 const PRESET_LOCATIONS = [
   { id: "bog-chapinero", label: "Bogotá · Chapinero", lat: 4.646, lng: -74.063 },
@@ -79,6 +84,13 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isBasketExpanded, setIsBasketExpanded] = useState(false);
+
+  // Controla debounce de búsqueda sin disparar fetch redundante en el montaje inicial
+  const lastFetchedRef = useRef<{ query: string; category: string }>({
+    query: "",
+    category: "",
+  });
 
   // Estado cliente del optimizador de canasta y geolocalización
   const [knownOffers, setKnownOffers] = useState<Map<string, StoreOffer>>(() => {
@@ -166,7 +178,7 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
     try {
       window.localStorage.setItem(BASKET_STORAGE_KEY, JSON.stringify(basketItems));
     } catch {
-      // Silencioso en modo incógnito / cuota llena
+      // Silencioso si almacenamiento bloqueado
     }
   }, [basketItems, basketHydrated]);
 
@@ -175,7 +187,7 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
     try {
       window.localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(userLocation));
     } catch {
-      // Silencioso en modo incógnito / cuota llena
+      // Silencioso si almacenamiento bloqueado
     }
   }, [userLocation, locationHydrated]);
 
@@ -210,6 +222,59 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
       active = false;
     };
   }, [userLocation.lat, userLocation.lng, radiusMeters]);
+
+  const fetchFiltered = useCallback(async (nextQuery: string, nextCategory: string) => {
+    const cleanQuery = nextQuery.trim().slice(0, 80);
+    lastFetchedRef.current = { query: cleanQuery, category: nextCategory };
+    setLoading(true);
+    setErrorMsg(null);
+    setVisibleCount(PAGE_SIZE);
+    try {
+      const params = new URLSearchParams();
+      if (cleanQuery) {
+        params.set("q", cleanQuery);
+      }
+      if (nextCategory) {
+        params.set("category", nextCategory);
+      }
+      const res = await fetch(`/api/search?${params.toString()}`);
+      if (!res.ok) {
+        throw new Error(`Error HTTP ${res.status}`);
+      }
+      const nextPayload = (await res.json()) as DashboardPayload;
+      setPayload(nextPayload);
+      setKnownOffers((prev) => {
+        const merged = new Map(prev);
+        for (const offer of collectOffersFromPayload(nextPayload)) {
+          merged.set(offer.storeSkuId, offer);
+        }
+        return merged;
+      });
+    } catch {
+      setErrorMsg("No fue posible actualizar la búsqueda. Intenta nuevamente.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Debounce automático de 300 ms al escribir en el buscador
+  useEffect(() => {
+    const clean = query.trim().slice(0, 80);
+    if (
+      clean === lastFetchedRef.current.query &&
+      selectedCategory === lastFetchedRef.current.category
+    ) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void fetchFiltered(clean, selectedCategory);
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [query, selectedCategory, fetchFiltered]);
 
   const rawGroups: ComparisonGroup[] = mode === "ean" ? payload.eanGroups : payload.pumGroups;
 
@@ -266,38 +331,6 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
     return basketOptimization.recommendedPlan;
   }, [selectedTier, basketOptimization]);
 
-  async function fetchFiltered(nextQuery: string, nextCategory: string) {
-    setLoading(true);
-    setErrorMsg(null);
-    setVisibleCount(PAGE_SIZE);
-    try {
-      const params = new URLSearchParams();
-      if (nextQuery.trim()) {
-        params.set("q", nextQuery.trim());
-      }
-      if (nextCategory) {
-        params.set("category", nextCategory);
-      }
-      const res = await fetch(`/api/search?${params.toString()}`);
-      if (!res.ok) {
-        throw new Error(`Error HTTP ${res.status}`);
-      }
-      const nextPayload = (await res.json()) as DashboardPayload;
-      setPayload(nextPayload);
-      setKnownOffers((prev) => {
-        const merged = new Map(prev);
-        for (const offer of collectOffersFromPayload(nextPayload)) {
-          merged.set(offer.storeSkuId, offer);
-        }
-        return merged;
-      });
-    } catch {
-      setErrorMsg("No fue posible actualizar la búsqueda. Intenta nuevamente.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void fetchFiltered(query, selectedCategory);
@@ -307,6 +340,12 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
     const next = selectedCategory === slug ? "" : slug;
     setSelectedCategory(next);
     void fetchFiltered(query, next);
+  }
+
+  function handleQuickSearch(term: string) {
+    const next = query.trim().toLowerCase() === term.toLowerCase() ? "" : term;
+    setQuery(next);
+    void fetchFiltered(next, selectedCategory);
   }
 
   function handleClearFilters() {
@@ -372,6 +411,13 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
     );
   }
 
+  function scrollToBasketOptimizer() {
+    setIsBasketExpanded(true);
+    window.requestAnimationFrame(() => {
+      document.getElementById("basket-optimizer")?.scrollIntoView({ behavior: "smooth" });
+    });
+  }
+
   const basketKeys = new Set(basketItems.map((i) => i.itemKey));
   const plansToRender: Array<{ label: string; plan: BasketPlan | null }> = [
     { label: "1 tienda (mínima fricción)", plan: basketOptimization.bestOneStore },
@@ -379,444 +425,641 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
     { label: "3 tiendas (máximo cruce)", plan: basketOptimization.bestThreeStores },
   ];
   const hasActiveFilters = query.trim() !== "" || selectedCategory !== "" || onlyComparable;
+  const showFullBasket = basketItems.length > 0 || isBasketExpanded;
+  const locationPresetValue =
+    PRESET_LOCATIONS.find(
+      (p) =>
+        Math.abs(p.lat - userLocation.lat) < 0.002 &&
+        Math.abs(p.lng - userLocation.lng) < 0.002
+    )?.id ?? "custom";
 
   return (
-    <main className="container">
-      <section className="hero">
-        <div className="hero-top">
-          <div>
-            <span className="hero-badge">
-              <Sparkles size={13} />
-              Precios verificados hoy · Ahorro por unidad (PUM) y ruta cercana
+    <div className="app-shell">
+      <header className="site-navbar">
+        <div className="navbar-inner">
+          <a
+            href="#top"
+            className="brand-link"
+            onClick={(e) => {
+              e.preventDefault();
+              handleClearFilters();
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          >
+            <span className="brand-logo" aria-hidden="true">
+              MS
             </span>
-            <h1>MercaSabio · Comparador de Precios Colombia</h1>
-            <p>
-              Compara productos idénticos por código EAN-13 o equivalentes por gramo y mililitro
-              (PUM) entre supermercados y formatos hard discount.
-            </p>
-          </div>
+            <span className="brand-wordmark">MercaSabio</span>
+            <span className="brand-country">COL</span>
+          </a>
 
-          <div className="kpi-row">
-            <div className="kpi-card">
-              <div className="kpi-label">Cadenas</div>
-              <div className="kpi-value tabular">{payload.storesCount}</div>
+          <form className="navbar-search-form" onSubmit={handleSearchSubmit}>
+            <div className="search-input-wrap">
+              <Search size={16} className="search-icon" />
+              <input
+                type="search"
+                className="search-input navbar-search-input"
+                maxLength={80}
+                aria-label="Buscar producto, marca o EAN"
+                placeholder="Buscar arroz, leche, aceite o código EAN-13..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {loading && (
+                <RefreshCw
+                  size={15}
+                  className="search-spinner spin"
+                  aria-label="Actualizando resultados"
+                />
+              )}
+              {query !== "" && !loading && (
+                <button
+                  type="button"
+                  className="search-clear-inline"
+                  aria-label="Limpiar búsqueda"
+                  onClick={() => {
+                    setQuery("");
+                    void fetchFiltered("", selectedCategory);
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
-            <div className="kpi-card">
-              <div className="kpi-label">SKUs Activos</div>
-              <div className="kpi-value tabular">{payload.totalSkus.toLocaleString("es-CO")}</div>
-            </div>
-            <div className="kpi-card">
-              <div className="kpi-label">Comparativas</div>
-              <div className="kpi-value tabular">{groups.length}</div>
-            </div>
-          </div>
-        </div>
-      </section>
+            <button type="submit" className="btn-primary navbar-search-submit" disabled={loading}>
+              Buscar
+            </button>
+          </form>
 
-      {payload.isDemoData && (
-        <div className="demo-banner" role="status">
-          <AlertTriangle size={18} />
-          <span>
-            Mostrando datos de demostración locales. Configura <code>SUPABASE_URL</code> y{" "}
-            <code>SUPABASE_ANON_KEY</code> para consultar ofertas en vivo.
-          </span>
-        </div>
-      )}
+          <div className="navbar-actions">
+            <div className="nav-location-wrap">
+              <MapPin size={14} className="nav-loc-icon" aria-hidden="true" />
+              <select
+                aria-label="Zona de referencia en barra superior"
+                className="nav-location-select"
+                value={locationPresetValue}
+                onChange={(e) => {
+                  const chosen = PRESET_LOCATIONS.find((p) => p.id === e.target.value);
+                  if (chosen) {
+                    setUserLocation({
+                      lat: chosen.lat,
+                      lng: chosen.lng,
+                      label: chosen.label,
+                    });
+                  }
+                }}
+              >
+                {PRESET_LOCATIONS.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.label}
+                  </option>
+                ))}
+                <option value="custom" disabled>
+                  {userLocation.label}
+                </option>
+              </select>
+            </div>
 
-      <section className="controls-panel" aria-label="Controles de búsqueda y comparación">
-        <form className="search-row" onSubmit={handleSearchSubmit}>
-          <div className="search-input-wrap">
-            <Search size={17} className="search-icon" />
-            <input
-              type="search"
-              className="search-input"
-              maxLength={80}
-              placeholder="Buscar por producto, marca o código EAN (ej. arroz, leche, 7702001001234)..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-          <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? "Buscando..." : "Buscar"}
-          </button>
-          {hasActiveFilters && (
             <button
               type="button"
-              className="btn-clear"
-              onClick={handleClearFilters}
-              disabled={loading}
+              className={`nav-basket-btn ${basketItems.length > 0 ? "has-items" : ""}`}
+              onClick={scrollToBasketOptimizer}
             >
-              <X size={15} /> Limpiar
+              <ShoppingBasket size={16} />
+              <span>Mi Canasta</span>
+              <span className="nav-basket-badge tabular">{basketItems.length}</span>
+              {activePlan && basketItems.length > 0 && (
+                <span className="nav-basket-total tabular">
+                  · {copFormatter.format(activePlan.totalNominalCost)}
+                </span>
+              )}
             </button>
-          )}
-        </form>
-
-        <div className="mode-switch" role="tablist" aria-label="Modo de comparación">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "ean"}
-            className={`mode-btn ${mode === "ean" ? "active" : ""}`}
-            onClick={() => {
-              setMode("ean");
-              setVisibleCount(PAGE_SIZE);
-            }}
-          >
-            <Tag size={16} />
-            Comparar misma marca (EAN)
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "pum"}
-            className={`mode-btn ${mode === "pum" ? "active" : ""}`}
-            onClick={() => {
-              setMode("pum");
-              setVisibleCount(PAGE_SIZE);
-            }}
-          >
-            <Scale size={16} />
-            Comparar equivalente más barato por gramo/ml (Marca Propia)
-          </button>
+          </div>
         </div>
+        {loading && <div className="loading-progress-bar" aria-hidden="true" />}
+      </header>
 
-        <div className="sort-filter-bar">
-          <div className="sort-group">
-            <label htmlFor="sort-select" className="sort-label">
-              Ordenar por:
-            </label>
-            <select
-              id="sort-select"
-              className="geo-select"
-              value={sortBy}
-              onChange={(e) => {
-                setSortBy(e.target.value as SortOption);
+      <main id="top" className="container">
+        <section className="hero-compact">
+          <div className="hero-top">
+            <div>
+              <span className="hero-badge">
+                <Sparkles size={12} />
+                Precios verificados hoy · PUM por gramo y ruta cercana
+              </span>
+              <h1>Compara tu mercado y paga lo justo en Colombia</h1>
+              <p>
+                Homologación exacta por código EAN-13 y comparación por Precio por Unidad de Medida
+                (PUM) entre supermercados y formato hard discount.
+              </p>
+
+              <div className="quick-terms-row" aria-label="Búsquedas rápidas">
+                <span className="quick-terms-label">Populares:</span>
+                {QUICK_SEARCH_TERMS.map((term) => {
+                  const isActive = query.trim().toLowerCase() === term.toLowerCase();
+                  return (
+                    <button
+                      key={term}
+                      type="button"
+                      className={`quick-term-chip ${isActive ? "active" : ""}`}
+                      onClick={() => handleQuickSearch(term)}
+                    >
+                      {term}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="kpi-row">
+              <div className="kpi-card">
+                <div className="kpi-label">Cadenas</div>
+                <div className="kpi-value tabular">{payload.storesCount}</div>
+              </div>
+              <div className="kpi-card">
+                <div className="kpi-label">SKUs Activos</div>
+                <div className="kpi-value tabular">{payload.totalSkus.toLocaleString("es-CO")}</div>
+              </div>
+              <div className="kpi-card">
+                <div className="kpi-label">Comparativas</div>
+                <div className="kpi-value tabular">{groups.length}</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {payload.isDemoData && (
+          <div className="demo-banner" role="status">
+            <AlertTriangle size={18} />
+            <span>
+              Mostrando datos de demostración locales. Configura <code>SUPABASE_URL</code> y{" "}
+              <code>SUPABASE_ANON_KEY</code> para consultar ofertas en vivo.
+            </span>
+          </div>
+        )}
+
+        <section className="toolbar-panel" aria-label="Modo de comparación y filtros">
+          <div className="mode-switch" role="tablist" aria-label="Modo de comparación">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "ean"}
+              className={`mode-btn ${mode === "ean" ? "active" : ""}`}
+              onClick={() => {
+                setMode("ean");
                 setVisibleCount(PAGE_SIZE);
               }}
             >
-              <option value="stores">Más cadenas comparadas</option>
-              <option value="savings">Mayor % de ahorro</option>
-              <option value="price">Menor precio nominal</option>
-              <option value="pum">Menor PUM Real (gramo/ml)</option>
-            </select>
-          </div>
-
-          <button
-            type="button"
-            className={`pill ${onlyComparable ? "active" : ""}`}
-            onClick={() => {
-              setOnlyComparable((prev) => !prev);
-              setVisibleCount(PAGE_SIZE);
-            }}
-          >
-            Solo comparables en 2+ tiendas
-          </button>
-        </div>
-
-        {payload.categories.length > 0 && (
-          <div className="category-pills" aria-label="Categorías canónicas">
+              <Tag size={15} />
+              Misma marca (EAN)
+            </button>
             <button
               type="button"
-              className={`pill ${selectedCategory === "" ? "active" : ""}`}
-              onClick={() => handleCategoryClick("")}
+              role="tab"
+              aria-selected={mode === "pum"}
+              className={`mode-btn ${mode === "pum" ? "active" : ""}`}
+              onClick={() => {
+                setMode("pum");
+                setVisibleCount(PAGE_SIZE);
+              }}
             >
-              Todas las categorías
+              <Scale size={15} />
+              Equivalente más barato por gramo/ml (PUM)
             </button>
-            {payload.categories.map((cat) => (
+          </div>
+
+          {payload.categories.length > 0 && (
+            <div className="category-pills" aria-label="Categorías canónicas">
               <button
-                key={cat.slug}
                 type="button"
-                className={`pill ${selectedCategory === cat.slug ? "active" : ""}`}
-                onClick={() => handleCategoryClick(cat.slug)}
+                className={`pill ${selectedCategory === "" ? "active" : ""}`}
+                onClick={() => handleCategoryClick("")}
               >
-                {cat.name}
+                Todas las categorías
               </button>
-            ))}
+              {payload.categories.map((cat) => (
+                <button
+                  key={cat.slug}
+                  type="button"
+                  className={`pill ${selectedCategory === cat.slug ? "active" : ""}`}
+                  onClick={() => handleCategoryClick(cat.slug)}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="sort-filter-bar">
+            <div className="sort-left-controls">
+              <button
+                type="button"
+                className={`pill ${onlyComparable ? "active" : ""}`}
+                onClick={() => {
+                  setOnlyComparable((prev) => !prev);
+                  setVisibleCount(PAGE_SIZE);
+                }}
+              >
+                Solo comparables en 2+ tiendas
+              </button>
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  className="btn-clear-inline"
+                  onClick={handleClearFilters}
+                  disabled={loading}
+                >
+                  <X size={13} /> Limpiar filtros
+                </button>
+              )}
+            </div>
+
+            <div className="sort-right-controls">
+              <span className="results-counter tabular">
+                {groups.length} {groups.length === 1 ? "producto" : "productos"}
+              </span>
+
+              <div className="sort-group">
+                <label htmlFor="sort-select" className="sort-label">
+                  Ordenar:
+                </label>
+                <select
+                  id="sort-select"
+                  className="geo-select"
+                  value={sortBy}
+                  onChange={(e) => {
+                    setSortBy(e.target.value as SortOption);
+                    setVisibleCount(PAGE_SIZE);
+                  }}
+                >
+                  <option value="stores">Más cadenas comparadas</option>
+                  <option value="savings">Mayor % de ahorro</option>
+                  <option value="price">Menor precio nominal</option>
+                  <option value="pum">Menor PUM Real (gramo/ml)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="basket-optimizer"
+          className={showFullBasket ? "basket-panel" : "basket-empty-banner"}
+          aria-label="Optimizador de canasta y ruta cercana"
+        >
+          {!showFullBasket ? (
+            <div className="basket-compact-row">
+              <div className="basket-compact-info">
+                <MapPin size={15} className="accent-icon" />
+                <span>
+                  <strong>Ruta de ahorro ({nearbyBranches.length} sedes</strong> a{" "}
+                  {(radiusMeters / 1000).toFixed(1)} km en {userLocation.label}): agrega
+                  productos con <strong>+ Canasta</strong> para calcular si te conviene comprar en
+                  1, 2 o 3 tiendas.
+                </span>
+              </div>
+
+              <div className="basket-compact-actions">
+                <button
+                  type="button"
+                  className="pill active"
+                  onClick={handleRequestGeolocation}
+                  disabled={locLoading}
+                >
+                  <LocateFixed size={13} /> {locLoading ? "Ubicando..." : "Usar mi GPS"}
+                </button>
+                <select
+                  aria-label="Radio de búsqueda"
+                  className="geo-select"
+                  value={radiusMeters}
+                  onChange={(e) => setRadiusMeters(Number(e.target.value))}
+                >
+                  <option value={1500}>1.5 km</option>
+                  <option value={2000}>2.0 km</option>
+                  <option value={5000}>5.0 km</option>
+                </select>
+                <button
+                  type="button"
+                  className="pill"
+                  onClick={() => setIsBasketExpanded(true)}
+                >
+                  Configurar ruta <ChevronDown size={13} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="basket-header">
+                <div>
+                  <h2 className="basket-title">
+                    <ShoppingBasket size={18} />
+                    Optimizador de Canasta Cercana ({basketItems.length} productos)
+                  </h2>
+                  <p className="group-subtitle">
+                    Compara cuánto cuesta tu mercado completo en 1, 2 o 3 tiendas cercanas a tu
+                    ubicación.
+                  </p>
+                </div>
+
+                <div className="geo-controls">
+                  <button
+                    type="button"
+                    className="pill active"
+                    onClick={handleRequestGeolocation}
+                    disabled={locLoading}
+                  >
+                    <LocateFixed size={13} /> {locLoading ? "Ubicando..." : "Usar mi GPS"}
+                  </button>
+
+                  <select
+                    aria-label="Radio de búsqueda"
+                    className="geo-select"
+                    value={radiusMeters}
+                    onChange={(e) => setRadiusMeters(Number(e.target.value))}
+                  >
+                    <option value={1500}>Radio 1.5 km</option>
+                    <option value={2000}>Radio 2.0 km</option>
+                    <option value={5000}>Radio 5.0 km</option>
+                  </select>
+
+                  <select
+                    aria-label="Criterio de optimización"
+                    className="geo-select"
+                    value={basketObjective}
+                    onChange={(e) =>
+                      setBasketObjective(e.target.value === "real_pum" ? "real_pum" : "nominal")
+                    }
+                  >
+                    <option value="nominal">Optimizar por precio nominal</option>
+                    <option value="real_pum">Optimizar por PUM Real Ajustado</option>
+                  </select>
+
+                  {basketItems.length === 0 && (
+                    <button
+                      type="button"
+                      className="pill"
+                      onClick={() => setIsBasketExpanded(false)}
+                    >
+                      Minimizar <ChevronUp size={13} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="nearby-strip">
+                <MapPin size={14} />
+                <span>
+                  <strong>{nearbyBranches.length}</strong> sedes cercanas en{" "}
+                  {(radiusMeters / 1000).toFixed(1)} km ({userLocation.label})
+                  {nearbyBranches.length > 0 &&
+                    `: ${nearbyBranches
+                      .slice(0, 5)
+                      .map((b) => `${b.branchName} (${Math.round(b.distanceMeters)} m)`)
+                      .join(" · ")}`}
+                </span>
+              </div>
+
+              {locError && (
+                <div className="demo-banner" role="status">
+                  <AlertTriangle size={16} />
+                  <span>{locError}</span>
+                </div>
+              )}
+
+              {basketItems.length === 0 ? (
+                <p className="group-subtitle">
+                  Haz clic en <strong>+ Canasta</strong> en cualquier producto de abajo para comparar
+                  compras en 1, 2 o 3 tiendas cercanas y trazar tu ruta en el mapa.
+                </p>
+              ) : (
+                <div className="basket-body">
+                  <div className="basket-items-list">
+                    {basketItems.map((item) => (
+                      <div key={item.itemKey} className="basket-chip">
+                        <span>{item.label}</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={20}
+                          aria-label={`Cantidad para ${item.label}`}
+                          className="basket-qty"
+                          value={item.quantity ?? 1}
+                          onChange={(e) => handleQuantityChange(item.itemKey, Number(e.target.value))}
+                        />
+                        <button
+                          type="button"
+                          aria-label={`Quitar ${item.label}`}
+                          className="basket-remove"
+                          onClick={() =>
+                            setBasketItems((prev) =>
+                              prev.filter((i) => i.itemKey !== item.itemKey)
+                            )
+                          }
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="basket-workspace">
+                    <div className="plans-grid">
+                      {plansToRender.map(({ label, plan }) => {
+                        if (!plan) return null;
+                        const isSelected = activePlan?.storeCount === plan.storeCount;
+                        return (
+                          <button
+                            key={plan.storeCount}
+                            type="button"
+                            className={`plan-card ${isSelected ? "selected" : ""} ${
+                              !plan.worthExtraStop ? "unjustified" : ""
+                            }`}
+                            onClick={() => setSelectedTier(plan.storeCount)}
+                          >
+                            <div className="plan-card-top">
+                              <strong>{label}</strong>
+                              {basketOptimization.recommendedPlan?.storeCount ===
+                                plan.storeCount && (
+                                <span className="tag tag-best">Recomendado</span>
+                              )}
+                            </div>
+                            <div className="plan-price tabular">
+                              {copFormatter.format(plan.totalNominalCost)}
+                            </div>
+                            <div className="plan-meta tabular">
+                              Costo real uso: {copFormatter.format(plan.totalYieldAdjustedCost)} ·{" "}
+                              {plan.coveredItems}/{plan.requestedItems} ítems
+                            </div>
+                            {plan.storeCount > 1 && (
+                              <div className="plan-savings tabular">
+                                Ahorro nominal: {copFormatter.format(plan.nominalSavingsCop)} (
+                                {plan.nominalSavingsPct}%) · PUM Real:{" "}
+                                {copFormatter.format(plan.realAdjustedSavingsCop)} (
+                                {plan.realAdjustedSavingsPct}%)
+                              </div>
+                            )}
+                            {plan.filterReason && (
+                              <div className="plan-filter-note">{plan.filterReason}</div>
+                            )}
+                            <div className="plan-stores-list">
+                              {plan.storeStops
+                                .map(
+                                  (s) =>
+                                    `${s.storeName} (${s.allocations.length} prod · ${Math.round(
+                                      s.branch.distanceMeters
+                                    )} m)`
+                                )
+                                .join(" → ")}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {activePlan && activePlan.storeStops.length > 0 && (
+                      <RouteMap
+                        userLocation={userLocation}
+                        stops={activePlan.storeStops.map((s) => ({
+                          ...s.branch,
+                          storeName: s.storeName,
+                        }))}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+
+        {errorMsg && (
+          <div className="demo-banner" role="alert">
+            <AlertTriangle size={18} />
+            <span>{errorMsg}</span>
           </div>
         )}
-      </section>
 
-      <section
-        id="basket-optimizer"
-        className="basket-panel"
-        aria-label="Optimizador de canasta y ruta cercana"
-      >
-        <div className="basket-header">
-          <div>
-            <h2 className="basket-title">
-              <ShoppingBasket size={18} />
-              Optimizador de Canasta Cercana ({basketItems.length} productos)
-            </h2>
-            <p className="group-subtitle">
-              Compara cuánto cuesta tu mercado completo en 1, 2 o 3 tiendas cercanas a tu ubicación.
+        {loading ? (
+          <section className="groups-grid" aria-label="Cargando comparativas">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} className="skeleton-card" aria-hidden="true">
+                <div className="skeleton-top">
+                  <div className="skeleton-thumb shimmer" />
+                  <div className="skeleton-lines">
+                    <div className="skeleton-line w-35 shimmer" />
+                    <div className="skeleton-line w-85 shimmer" />
+                    <div className="skeleton-line w-55 shimmer" />
+                  </div>
+                </div>
+                <div className="skeleton-row shimmer" />
+                <div className="skeleton-row shimmer" />
+              </div>
+            ))}
+          </section>
+        ) : groups.length === 0 ? (
+          <div className="empty-state">
+            No se encontraron productos para esta búsqueda. Intenta limpiar los filtros o cambiar el
+            modo de comparación.
+          </div>
+        ) : (
+          <>
+            <section className="groups-grid" aria-label="Resultados de comparación">
+              {visibleGroups.map((group) => (
+                <ProductCard
+                  key={`${mode}:${group.groupId}`}
+                  group={group}
+                  mode={mode}
+                  bankPromotions={payload.bankPromotions}
+                  currentDay={currentDay}
+                  inBasket={basketKeys.has(`${mode}:${group.groupId}`)}
+                  onToggleBasket={handleToggleBasket}
+                />
+              ))}
+            </section>
+
+            {visibleCount < groups.length && (
+              <div className="pagination-wrap">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+                >
+                  Mostrar {Math.min(PAGE_SIZE, groups.length - visibleCount)} productos más (
+                  {groups.length - visibleCount} restantes)
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {basketItems.length > 0 && (
+          <aside className="floating-basket-bar" aria-label="Resumen flotante de canasta">
+            <div className="floating-basket-summary">
+              <ShoppingBasket size={16} />
+              <span>
+                <strong>{basketItems.length}</strong>{" "}
+                {basketItems.length === 1 ? "producto" : "productos"}
+              </span>
+              {activePlan && (
+                <>
+                  <span className="muted-inline">·</span>
+                  <strong className="tabular">
+                    {copFormatter.format(activePlan.totalNominalCost)}
+                  </strong>
+                  {activePlan.nominalSavingsCop > 0 && (
+                    <span className="tag tag-best tabular">
+                      Ahorras {copFormatter.format(activePlan.nominalSavingsCop)}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="btn-primary floating-basket-cta"
+              onClick={scrollToBasketOptimizer}
+            >
+              Ver ruta óptima <ArrowUp size={14} />
+            </button>
+          </aside>
+        )}
+      </main>
+
+      <footer className="site-footer">
+        <div className="footer-inner">
+          <div className="footer-col">
+            <h3>Sobre MercaSabio</h3>
+            <p>
+              Homologamos productos idénticos por código de barras EAN-13 y comparamos equivalentes
+              por Precio por Unidad de Medida (PUM nominal y PUM ajustado por rendimiento real) para
+              detectar el verdadero ahorro en tu mercado.
             </p>
           </div>
 
-          <div className="geo-controls">
-            <button
-              type="button"
-              className="pill active"
-              onClick={handleRequestGeolocation}
-              disabled={locLoading}
-            >
-              <LocateFixed size={13} /> {locLoading ? "Ubicando..." : "Usar mi GPS"}
-            </button>
-
-            <select
-              aria-label="Zona de referencia"
-              className="geo-select"
-              value={
-                PRESET_LOCATIONS.find(
-                  (p) =>
-                    Math.abs(p.lat - userLocation.lat) < 0.002 &&
-                    Math.abs(p.lng - userLocation.lng) < 0.002
-                )?.id ?? "custom"
-              }
-              onChange={(e) => {
-                const chosen = PRESET_LOCATIONS.find((p) => p.id === e.target.value);
-                if (chosen) {
-                  setUserLocation({
-                    lat: chosen.lat,
-                    lng: chosen.lng,
-                    label: chosen.label,
-                  });
-                }
-              }}
-            >
-              {PRESET_LOCATIONS.map((preset) => (
-                <option key={preset.id} value={preset.id}>
-                  {preset.label}
-                </option>
-              ))}
-              <option value="custom" disabled>
-                {userLocation.label}
-              </option>
-            </select>
-
-            <select
-              aria-label="Radio de búsqueda"
-              className="geo-select"
-              value={radiusMeters}
-              onChange={(e) => setRadiusMeters(Number(e.target.value))}
-            >
-              <option value={1500}>Radio 1.5 km</option>
-              <option value={2000}>Radio 2.0 km</option>
-              <option value={5000}>Radio 5.0 km</option>
-            </select>
-
-            <select
-              aria-label="Criterio de optimización"
-              className="geo-select"
-              value={basketObjective}
-              onChange={(e) =>
-                setBasketObjective(e.target.value === "real_pum" ? "real_pum" : "nominal")
-              }
-            >
-              <option value="nominal">Optimizar por precio nominal</option>
-              <option value="real_pum">Optimizar por PUM Real Ajustado</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="nearby-strip">
-          <MapPin size={14} />
-          <span>
-            <strong>{nearbyBranches.length}</strong> sedes cercanas en{" "}
-            {(radiusMeters / 1000).toFixed(1)} km ({userLocation.label})
-            {nearbyBranches.length > 0 &&
-              `: ${nearbyBranches
-                .slice(0, 5)
-                .map((b) => `${b.branchName} (${Math.round(b.distanceMeters)} m)`)
-                .join(" · ")}`}
-          </span>
-        </div>
-
-        {locError && (
-          <div className="demo-banner" role="status">
-            <AlertTriangle size={16} />
-            <span>{locError}</span>
-          </div>
-        )}
-
-        {basketItems.length === 0 ? (
-          <p className="group-subtitle">
-            Haz clic en <strong>+ Añadir a canasta</strong> en cualquier producto de abajo para
-            comparar compras en 1, 2 o 3 tiendas cercanas y trazar tu ruta en el mapa.
-          </p>
-        ) : (
-          <div className="basket-body">
-            <div className="basket-items-list">
-              {basketItems.map((item) => (
-                <div key={item.itemKey} className="basket-chip">
-                  <span>{item.label}</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={20}
-                    aria-label={`Cantidad para ${item.label}`}
-                    className="basket-qty"
-                    value={item.quantity ?? 1}
-                    onChange={(e) => handleQuantityChange(item.itemKey, Number(e.target.value))}
-                  />
-                  <button
-                    type="button"
-                    aria-label={`Quitar ${item.label}`}
-                    className="basket-remove"
-                    onClick={() =>
-                      setBasketItems((prev) => prev.filter((i) => i.itemKey !== item.itemKey))
-                    }
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
+          <div className="footer-col">
+            <h3>Cadenas monitoreadas</h3>
+            <div className="footer-chains">
+              {MONITORED_CHAINS.map((chain) => (
+                <span key={chain} className="meta-pill">
+                  {chain}
+                </span>
               ))}
             </div>
-
-            <div className="plans-grid">
-              {plansToRender.map(({ label, plan }) => {
-                if (!plan) return null;
-                const isSelected = activePlan?.storeCount === plan.storeCount;
-                return (
-                  <button
-                    key={plan.storeCount}
-                    type="button"
-                    className={`plan-card ${isSelected ? "selected" : ""} ${
-                      !plan.worthExtraStop ? "unjustified" : ""
-                    }`}
-                    onClick={() => setSelectedTier(plan.storeCount)}
-                  >
-                    <div className="plan-card-top">
-                      <strong>{label}</strong>
-                      {basketOptimization.recommendedPlan?.storeCount === plan.storeCount && (
-                        <span className="tag tag-best">Recomendado</span>
-                      )}
-                    </div>
-                    <div className="plan-price tabular">
-                      {copFormatter.format(plan.totalNominalCost)}
-                    </div>
-                    <div className="plan-meta tabular">
-                      Costo real uso: {copFormatter.format(plan.totalYieldAdjustedCost)} ·{" "}
-                      {plan.coveredItems}/{plan.requestedItems} ítems
-                    </div>
-                    {plan.storeCount > 1 && (
-                      <div className="plan-savings tabular">
-                        Ahorro nominal: {copFormatter.format(plan.nominalSavingsCop)} (
-                        {plan.nominalSavingsPct}%) · PUM Real:{" "}
-                        {copFormatter.format(plan.realAdjustedSavingsCop)} (
-                        {plan.realAdjustedSavingsPct}%)
-                      </div>
-                    )}
-                    {plan.filterReason && (
-                      <div className="plan-filter-note">{plan.filterReason}</div>
-                    )}
-                    <div className="plan-stores-list">
-                      {plan.storeStops
-                        .map(
-                          (s) =>
-                            `${s.storeName} (${s.allocations.length} prod · ${Math.round(
-                              s.branch.distanceMeters
-                            )} m)`
-                        )
-                        .join(" → ")}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {activePlan && activePlan.storeStops.length > 0 && (
-              <RouteMap
-                userLocation={userLocation}
-                stops={activePlan.storeStops.map((s) => ({
-                  ...s.branch,
-                  storeName: s.storeName,
-                }))}
-              />
-            )}
-          </div>
-        )}
-      </section>
-
-      {errorMsg && (
-        <div className="demo-banner" role="alert">
-          <AlertTriangle size={18} />
-          <span>{errorMsg}</span>
-        </div>
-      )}
-
-      {groups.length === 0 ? (
-        <div className="empty-state">
-          No se encontraron productos para esta búsqueda. Intenta limpiar los filtros o cambiar el
-          modo de comparación.
-        </div>
-      ) : (
-        <>
-          <section
-            className={`groups-grid ${loading ? "is-loading" : ""}`}
-            aria-label="Resultados de comparación"
-          >
-            {visibleGroups.map((group) => (
-              <ProductCard
-                key={`${mode}:${group.groupId}`}
-                group={group}
-                mode={mode}
-                bankPromotions={payload.bankPromotions}
-                currentDay={currentDay}
-                inBasket={basketKeys.has(`${mode}:${group.groupId}`)}
-                onToggleBasket={handleToggleBasket}
-              />
-            ))}
-          </section>
-
-          {visibleCount < groups.length && (
-            <div className="pagination-wrap">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
-              >
-                Mostrar {Math.min(PAGE_SIZE, groups.length - visibleCount)} productos más (
-                {groups.length - visibleCount} restantes)
-              </button>
-            </div>
-          )}
-        </>
-      )}
-
-      {basketItems.length > 0 && (
-        <aside className="floating-basket-bar" aria-label="Resumen flotante de canasta">
-          <div className="floating-basket-summary">
-            <ShoppingBasket size={16} />
-            <span>
-              <strong>{basketItems.length}</strong>{" "}
-              {basketItems.length === 1 ? "producto" : "productos"}
-            </span>
-            {activePlan && (
-              <>
-                <span className="muted-inline">·</span>
-                <strong className="tabular">
-                  {copFormatter.format(activePlan.totalNominalCost)}
-                </strong>
-                {activePlan.nominalSavingsCop > 0 && (
-                  <span className="tag tag-best tabular">
-                    Ahorras {copFormatter.format(activePlan.nominalSavingsCop)}
-                  </span>
-                )}
-              </>
-            )}
           </div>
 
-          <button
-            type="button"
-            className="btn-primary floating-basket-cta"
-            onClick={() =>
-              document.getElementById("basket-optimizer")?.scrollIntoView({ behavior: "smooth" })
-            }
-          >
-            Ver ruta óptima <ArrowUp size={14} />
-          </button>
-        </aside>
-      )}
-    </main>
+          <div className="footer-col">
+            <h3>Transparencia y aviso legal</h3>
+            <p>
+              Los precios se actualizan periódicamente a partir de catálogos públicos y pueden variar
+              en tienda física según ciudad o disponibilidad. Los botones marcados como{" "}
+              <code>rel=&quot;sponsored&quot;</code> corresponden a enlaces de afiliado y alianzas
+              bancarias que ayudan a financiar la plataforma sin costo adicional para ti.
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }
