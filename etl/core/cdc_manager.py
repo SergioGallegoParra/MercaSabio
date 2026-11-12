@@ -13,6 +13,7 @@ import httpx
 
 from etl.core.entity_resolver import EntityResolver, ResolutionGateway
 from etl.core.models import CDCStats, CachedPriceState, ScrapedProduct
+from etl.core.shrinkflation_detector import ShrinkflationDetector, detect_shrinkflation
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,14 @@ class DatabaseGateway(ResolutionGateway, Protocol):
     async def insert_price_records(self, rows: list[dict[str, Any]]) -> int: ...
 
     async def touch_store_skus_verified(self, store_sku_ids: list[str]) -> int: ...
+
+    async def flag_shrinkflation(
+        self,
+        master_product_id: str,
+        *,
+        previous_net_content: Decimal,
+        current_net_content: Decimal,
+    ) -> None: ...
 
     async def aclose(self) -> None: ...
 
@@ -148,7 +157,7 @@ class SupabaseGateway:
     async def fetch_latest_prices(self, store_id: str) -> list[dict[str, Any]]:
         return await self._fetch_all_pages(
             "v_latest_prices",
-            "store_sku_id,master_product_id,raw_sale_price,calibrated_price,in_stock",
+            "store_sku_id,master_product_id,normalized_name,raw_sale_price,calibrated_price,net_content,unit_measure,pum_price,in_stock",
             filters={"store_id": store_id},
         )
 
@@ -262,6 +271,28 @@ class SupabaseGateway:
                 updated += len(chunk)
         return updated
 
+    async def flag_shrinkflation(
+        self,
+        master_product_id: str,
+        *,
+        previous_net_content: Decimal,
+        current_net_content: Decimal,
+    ) -> None:
+        await self._execute(
+            lambda client: (
+                client.table("master_products")
+                .update(
+                    {
+                        "shrinkflation_alert": True,
+                        "previous_net_content": str(previous_net_content),
+                        "net_content": str(current_net_content),
+                    }
+                )
+                .eq("id", master_product_id)
+                .execute()
+            )
+        )
+
 
 class InMemoryGateway:
     """Gateway en memoria para pruebas unitarias y simulaciones dry-run sin BD externa."""
@@ -289,11 +320,16 @@ class InMemoryGateway:
             sku_id = rec["store_sku_id"]
             if sku_id in sku_by_id:
                 sku_row = sku_by_id[sku_id]
+                master_row = self.master_products.get(sku_row["master_product_id"] or "")
                 latest[sku_id] = {
                     "store_sku_id": sku_id,
                     "master_product_id": sku_row["master_product_id"],
+                    "normalized_name": master_row.get("normalized_name") if master_row else None,
                     "raw_sale_price": rec["raw_sale_price"],
                     "calibrated_price": rec["calibrated_price"],
+                    "net_content": master_row.get("net_content") if master_row else None,
+                    "unit_measure": master_row.get("unit_measure") if master_row else None,
+                    "pum_price": rec.get("pum_price"),
                     "in_stock": rec["in_stock"],
                 }
         return list(latest.values())
@@ -382,6 +418,22 @@ class InMemoryGateway:
         self.verified_touches.extend(store_sku_ids)
         return len(store_sku_ids)
 
+    async def flag_shrinkflation(
+        self,
+        master_product_id: str,
+        *,
+        previous_net_content: Decimal,
+        current_net_content: Decimal,
+    ) -> None:
+        if master_product_id in self.master_products:
+            self.master_products[master_product_id].update(
+                {
+                    "shrinkflation_alert": True,
+                    "previous_net_content": str(previous_net_content),
+                    "net_content": str(current_net_content),
+                }
+            )
+
 
 class CDCManager:
     """Ejecuta Change Data Capture en memoria para evitar snapshots duplicados."""
@@ -427,6 +479,20 @@ class CDCManager:
                 raw_sale_price=Decimal(str(row["raw_sale_price"])).quantize(Decimal("0.01")),
                 calibrated_price=Decimal(str(row["calibrated_price"])).quantize(Decimal("0.01")),
                 in_stock=bool(row["in_stock"]),
+                net_content=(
+                    Decimal(str(row["net_content"])).quantize(Decimal("0.01"))
+                    if row.get("net_content") is not None
+                    else None
+                ),
+                unit_measure=(str(row["unit_measure"]) if row.get("unit_measure") else None),
+                pum_price=(
+                    Decimal(str(row["pum_price"])).quantize(Decimal("0.0001"))
+                    if row.get("pum_price") is not None
+                    else None
+                ),
+                normalized_name=(
+                    str(row["normalized_name"]) if row.get("normalized_name") else None
+                ),
             )
 
         self._initialized = True
@@ -471,6 +537,7 @@ class CDCManager:
         price_inserts: list[dict[str, Any]] = []
         unchanged_sku_ids: list[str] = []
         changed_sku_ids: list[str] = []
+        shrinkflation_findings = []
 
         for product in batch_items:
             self.stats.total_processed += 1
@@ -479,8 +546,30 @@ class CDCManager:
 
             if (
                 cached is not None
+                and cached.master_product_id
+                and cached.net_content is not None
+                and cached.unit_measure is not None
+            ):
+                finding = detect_shrinkflation(
+                    master_product_id=cached.master_product_id,
+                    normalized_name=cached.normalized_name or product.normalized_name,
+                    previous_net_content=cached.net_content,
+                    current_net_content=product.net_content,
+                    previous_unit_measure=cached.unit_measure,
+                    current_unit_measure=product.unit_measure,
+                    previous_price=cached.calibrated_price,
+                    current_price=product.calibrated_price,
+                    previous_pum=cached.pum_price,
+                    current_pum=product.pum_price,
+                )
+                if finding is not None:
+                    shrinkflation_findings.append(finding)
+
+            if (
+                cached is not None
                 and cached.raw_sale_price == product.raw_sale_price
                 and cached.in_stock == product.in_stock
+                and (cached.pum_price is None or cached.pum_price == product.pum_price)
             ):
                 self.stats.unchanged_skipped += 1
                 unchanged_sku_ids.append(store_sku_id)
@@ -529,6 +618,16 @@ class CDCManager:
                 raw_sale_price=product.raw_sale_price,
                 calibrated_price=product.calibrated_price,
                 in_stock=product.in_stock,
+                net_content=product.net_content,
+                unit_measure=product.unit_measure.value,
+                pum_price=product.pum_price,
+                normalized_name=product.normalized_name,
+            )
+
+        if shrinkflation_findings and hasattr(self._gateway, "flag_shrinkflation"):
+            detector = ShrinkflationDetector(self._gateway)
+            self.stats.shrinkflation_alerts += await detector.persist_findings(
+                shrinkflation_findings
             )
 
         if price_inserts:

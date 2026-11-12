@@ -135,6 +135,10 @@ class CachedPriceState:
     raw_sale_price: Decimal
     calibrated_price: Decimal
     in_stock: bool
+    net_content: Decimal | None = None
+    unit_measure: str | None = None
+    pum_price: Decimal | None = None
+    normalized_name: str | None = None
 
 
 class CDCStats(BaseModel):
@@ -150,6 +154,7 @@ class CDCStats(BaseModel):
     master_matches_canonical: int = 0
     master_created: int = 0
     verified_touched: int = 0
+    shrinkflation_alerts: int = 0
 
     @property
     def inserted_price_records(self) -> int:

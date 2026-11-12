@@ -14,10 +14,13 @@ build/
 *.egg-info/
 supabase/.temp/
 web/.next/
+web/.open-next/
+web/.wrangler/
 web/node_modules/
 web/.env*
 !web/.env.example
+web/.dev.vars
+web/.dev.vars.*
 web/next-env.d.ts
+web/cloudflare-env.d.ts
 web/*.tsbuildinfo
-.vercel
-web/.vercel

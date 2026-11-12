@@ -1,9 +1,11 @@
-import { getPool } from "@/lib/db";
+import { getSupabaseConfig, supabaseRestGet, supabaseRpc } from "@/lib/supabase";
 import type {
+  BankPromotion,
   CanonicalCategoryOption,
   CompareMode,
   ComparisonGroup,
   DashboardPayload,
+  NearbyStoreBranch,
   StoreOffer,
   UnitMeasure,
 } from "@/lib/types";
@@ -15,6 +17,7 @@ interface LatestPriceRow {
   channel_type: string;
   markup_discount_factor: string | number;
   master_product_id: string;
+  canonical_category_id: number | null;
   raw_name: string;
   raw_url: string | null;
   normalized_name: string;
@@ -32,7 +35,37 @@ interface LatestPriceRow {
   image_url: string | null;
   canonical_slug: string | null;
   canonical_name: string | null;
+  positive_votes: number;
+  total_votes: number;
+  avg_yield_factor: string | number;
+  invima_registry: string | null;
+  actual_manufacturer: string | null;
+  shrinkflation_alert: boolean;
+  previous_net_content: string | number | null;
   captured_at: string | Date;
+}
+
+interface BankPromotionRow {
+  id: number;
+  bank_name: string;
+  store_id: string | null;
+  canonical_category_id: number | null;
+  discount_pct: string | number;
+  valid_days: number[];
+  affiliate_url: string;
+  terms_short: string | null;
+  active: boolean;
+}
+
+interface NearbyStoreRow {
+  branch_id: string;
+  store_id: string;
+  branch_name: string;
+  city: string;
+  address: string | null;
+  lat: number;
+  lng: number;
+  distance_meters: number;
 }
 
 const DEMO_CATEGORIES: CanonicalCategoryOption[] = [
@@ -43,308 +76,398 @@ const DEMO_CATEGORIES: CanonicalCategoryOption[] = [
   { id: 5, slug: "huevos-aa-30und", name: "Huevos AA 30 Unidades", baseUnit: "und" },
 ];
 
-const DEMO_OFFERS: StoreOffer[] = [
+type DemoOfferSeed = Omit<
+  StoreOffer,
+  | "canonicalCategoryId"
+  | "positiveVotes"
+  | "totalVotes"
+  | "avgYieldFactor"
+  | "invimaRegistry"
+  | "actualManufacturer"
+  | "shrinkflationAlert"
+  | "previousNetContent"
+> &
+  Partial<
+    Pick<
+      StoreOffer,
+      | "canonicalCategoryId"
+      | "positiveVotes"
+      | "totalVotes"
+      | "avgYieldFactor"
+      | "invimaRegistry"
+      | "actualManufacturer"
+      | "shrinkflationAlert"
+      | "previousNetContent"
+    >
+  >;
+
+function buildDemoOffer(seed: DemoOfferSeed): StoreOffer {
+  return {
+    canonicalCategoryId: null,
+    positiveVotes: 24,
+    totalVotes: 27,
+    avgYieldFactor: 1.0,
+    invimaRegistry: null,
+    actualManufacturer: null,
+    shrinkflationAlert: false,
+    previousNetContent: null,
+    ...seed,
+  };
+}
+
+const DEMO_BANK_PROMOTIONS: BankPromotion[] = [
   {
-    storeSkuId: "demo-ex-arroz",
+    id: 1,
+    bankName: "Tarjeta Éxito",
     storeId: "exito",
-    storeName: "Éxito",
-    channelType: "vtex_io",
-    masterProductId: "mp-arroz-diana-1000",
-    rawName: "Arroz Blanco Diana 1000 g",
-    rawUrl: "https://www.exito.com",
-    rawListPrice: 5200,
-    rawSalePrice: 4650,
-    calibratedPrice: 4650,
-    pumPrice: 4.65,
-    inStock: true,
-    sourceOrigin: "vtex_api",
-    isEstimatedPhysicalPrice: false,
-    isPrivateLabel: false,
-    brand: "Diana",
-    ean: "7702001001234",
-    netContent: 1000,
-    unitMeasure: "g",
-    canonicalSlug: "arroz-blanco-1000g",
-    canonicalName: "Arroz Blanco 1000 g",
-    imageUrl: null,
-    capturedAt: "2026-11-11T03:00:00Z",
+    canonicalCategoryId: null,
+    discountPct: 15,
+    validDays: [0, 1, 2, 3, 4, 5, 6],
+    affiliateUrl: "https://www.tarjetaexito.com/?utm_source=mercasabio&utm_medium=affiliate",
+    termsShort: "15% de descuento pagando con Tarjeta Éxito",
+    active: true,
   },
   {
-    storeSkuId: "demo-ol-arroz",
-    storeId: "olimpica",
-    storeName: "Olímpica",
-    channelType: "vtex_legacy",
-    masterProductId: "mp-arroz-diana-1000",
-    rawName: "Arroz Blanco Diana Bolsa x 1000 g",
-    rawUrl: "https://www.olimpica.com",
-    rawListPrice: 4950,
-    rawSalePrice: 4490,
-    calibratedPrice: 4490,
-    pumPrice: 4.49,
-    inStock: true,
-    sourceOrigin: "vtex_api",
-    isEstimatedPhysicalPrice: false,
-    isPrivateLabel: false,
-    brand: "Diana",
-    ean: "7702001001234",
-    netContent: 1000,
-    unitMeasure: "g",
-    canonicalSlug: "arroz-blanco-1000g",
-    canonicalName: "Arroz Blanco 1000 g",
-    imageUrl: null,
-    capturedAt: "2026-11-11T03:00:00Z",
-  },
-  {
-    storeSkuId: "demo-ca-arroz",
-    storeId: "carulla",
-    storeName: "Carulla",
-    channelType: "vtex_io",
-    masterProductId: "mp-arroz-diana-1000",
-    rawName: "Arroz Diana Tradicional 1000 g",
-    rawUrl: "https://www.carulla.com",
-    rawListPrice: 5300,
-    rawSalePrice: 5100,
-    calibratedPrice: 5100,
-    pumPrice: 5.1,
-    inStock: true,
-    sourceOrigin: "vtex_api",
-    isEstimatedPhysicalPrice: false,
-    isPrivateLabel: false,
-    brand: "Diana",
-    ean: "7702001001234",
-    netContent: 1000,
-    unitMeasure: "g",
-    canonicalSlug: "arroz-blanco-1000g",
-    canonicalName: "Arroz Blanco 1000 g",
-    imageUrl: null,
-    capturedAt: "2026-11-11T03:00:00Z",
-  },
-  {
-    storeSkuId: "demo-ra-arroz",
-    storeId: "rappi",
-    storeName: "Rappi Agregador",
-    channelType: "aggregator",
-    masterProductId: "mp-arroz-diana-1000",
-    rawName: "Arroz Blanco Diana 1000 g",
-    rawUrl: null,
-    rawListPrice: 5600,
-    rawSalePrice: 5400,
-    calibratedPrice: 4860,
-    pumPrice: 4.86,
-    inStock: true,
-    sourceOrigin: "rappi_api",
-    isEstimatedPhysicalPrice: true,
-    isPrivateLabel: false,
-    brand: "Diana",
-    ean: "7702001001234",
-    netContent: 1000,
-    unitMeasure: "g",
-    canonicalSlug: "arroz-blanco-1000g",
-    canonicalName: "Arroz Blanco 1000 g",
-    imageUrl: null,
-    capturedAt: "2026-11-11T03:00:00Z",
-  },
-  {
-    storeSkuId: "demo-d1-arroz",
+    id: 2,
+    bankName: "Nu Colombia",
     storeId: "d1",
-    storeName: "Tiendas D1",
-    channelType: "vtex_graphql",
-    masterProductId: "mp-arroz-d1-molinero",
-    rawName: "Arroz Blanco El Molinero 1000 g",
-    rawUrl: "https://domicilios.tiendasd1.com",
-    rawListPrice: 3890,
-    rawSalePrice: 3890,
-    calibratedPrice: 3890,
-    pumPrice: 3.89,
-    inStock: true,
-    sourceOrigin: "vtex_graphql",
-    isEstimatedPhysicalPrice: false,
-    isPrivateLabel: true,
-    brand: "El Molinero",
-    ean: null,
-    netContent: 1000,
-    unitMeasure: "g",
-    canonicalSlug: "arroz-blanco-1000g",
-    canonicalName: "Arroz Blanco 1000 g",
-    imageUrl: null,
-    capturedAt: "2026-11-11T03:00:00Z",
+    canonicalCategoryId: null,
+    discountPct: 5,
+    validDays: [0, 1, 2, 3, 4, 5, 6],
+    affiliateUrl: "https://nu.com.co/?utm_source=mercasabio&utm_medium=affiliate",
+    termsShort: "5% de ahorro sugerido con Tarjeta Nu",
+    active: true,
   },
   {
-    storeSkuId: "demo-ara-arroz",
-    storeId: "ara",
-    storeName: "Tiendas Ara",
-    channelType: "app_pdf",
-    masterProductId: "mp-arroz-ara-cultivo",
-    rawName: "Arroz Blanco El Cultivo 1000 g",
-    rawUrl: "https://aratiendas.com",
-    rawListPrice: 4190,
-    rawSalePrice: 3790,
-    calibratedPrice: 3790,
-    pumPrice: 3.79,
-    inStock: true,
-    sourceOrigin: "pdf_folleto",
-    isEstimatedPhysicalPrice: false,
-    isPrivateLabel: true,
-    brand: "El Cultivo",
-    ean: null,
-    netContent: 1000,
-    unitMeasure: "g",
-    canonicalSlug: "arroz-blanco-1000g",
-    canonicalName: "Arroz Blanco 1000 g",
-    imageUrl: null,
-    capturedAt: "2026-11-11T03:00:00Z",
-  },
-  {
-    storeSkuId: "demo-ex-leche",
-    storeId: "exito",
-    storeName: "Éxito",
-    channelType: "vtex_io",
-    masterProductId: "mp-leche-alqueria-1100",
-    rawName: "Leche Entera Alquería Bolsa 1.1 L",
-    rawUrl: "https://www.exito.com",
-    rawListPrice: 5800,
-    rawSalePrice: 5450,
-    calibratedPrice: 5450,
-    pumPrice: 4.9545,
-    inStock: true,
-    sourceOrigin: "vtex_api",
-    isEstimatedPhysicalPrice: false,
-    isPrivateLabel: false,
-    brand: "Alquería",
-    ean: "7702177001012",
-    netContent: 1100,
-    unitMeasure: "ml",
-    canonicalSlug: "leche-entera-1000ml",
-    canonicalName: "Leche Entera 1000 ml",
-    imageUrl: null,
-    capturedAt: "2026-11-11T03:00:00Z",
-  },
-  {
-    storeSkuId: "demo-ca-leche",
-    storeId: "carulla",
-    storeName: "Carulla",
-    channelType: "vtex_io",
-    masterProductId: "mp-leche-alqueria-1100",
-    rawName: "Leche Entera Alquería 1100 ml",
-    rawUrl: "https://www.carulla.com",
-    rawListPrice: 5900,
-    rawSalePrice: 5900,
-    calibratedPrice: 5900,
-    pumPrice: 5.3636,
-    inStock: true,
-    sourceOrigin: "vtex_api",
-    isEstimatedPhysicalPrice: false,
-    isPrivateLabel: false,
-    brand: "Alquería",
-    ean: "7702177001012",
-    netContent: 1100,
-    unitMeasure: "ml",
-    canonicalSlug: "leche-entera-1000ml",
-    canonicalName: "Leche Entera 1000 ml",
-    imageUrl: null,
-    capturedAt: "2026-11-11T03:00:00Z",
-  },
-  {
-    storeSkuId: "demo-d1-leche",
-    storeId: "d1",
-    storeName: "Tiendas D1",
-    channelType: "vtex_graphql",
-    masterProductId: "mp-leche-latti-1000",
-    rawName: "Leche Entera UHT Latti 1000 ml",
-    rawUrl: "https://domicilios.tiendasd1.com",
-    rawListPrice: 3290,
-    rawSalePrice: 3290,
-    calibratedPrice: 3290,
-    pumPrice: 3.29,
-    inStock: true,
-    sourceOrigin: "vtex_graphql",
-    isEstimatedPhysicalPrice: false,
-    isPrivateLabel: true,
-    brand: "Latti",
-    ean: null,
-    netContent: 1000,
-    unitMeasure: "ml",
-    canonicalSlug: "leche-entera-1000ml",
-    canonicalName: "Leche Entera 1000 ml",
-    imageUrl: null,
-    capturedAt: "2026-11-11T03:00:00Z",
-  },
-  {
-    storeSkuId: "demo-ak-aceite",
-    storeId: "alkosto",
-    storeName: "Alkosto",
-    channelType: "sap_hybris",
-    masterProductId: "mp-aceite-premier-900",
-    rawName: "Aceite Girasol Premier 900 ml",
-    rawUrl: "https://www.alkosto.com",
-    rawListPrice: 14500,
-    rawSalePrice: 12900,
-    calibratedPrice: 12900,
-    pumPrice: 14.3333,
-    inStock: true,
-    sourceOrigin: "hybris_api",
-    isEstimatedPhysicalPrice: false,
-    isPrivateLabel: false,
-    brand: "Premier",
-    ean: "7702001009991",
-    netContent: 900,
-    unitMeasure: "ml",
-    canonicalSlug: "aceite-vegetal-900ml",
-    canonicalName: "Aceite Vegetal 900 ml",
-    imageUrl: null,
-    capturedAt: "2026-11-11T03:00:00Z",
-  },
-  {
-    storeSkuId: "demo-ol-aceite",
+    id: 3,
+    bankName: "Banco de Bogotá / Aval",
     storeId: "olimpica",
-    storeName: "Olímpica",
-    channelType: "vtex_legacy",
-    masterProductId: "mp-aceite-premier-900",
-    rawName: "Aceite Vegetal Premier 900 cc",
-    rawUrl: "https://www.olimpica.com",
-    rawListPrice: 14200,
-    rawSalePrice: 13490,
-    calibratedPrice: 13490,
-    pumPrice: 14.9889,
-    inStock: true,
-    sourceOrigin: "vtex_api",
-    isEstimatedPhysicalPrice: false,
-    isPrivateLabel: false,
-    brand: "Premier",
-    ean: "7702001009991",
-    netContent: 900,
-    unitMeasure: "ml",
-    canonicalSlug: "aceite-vegetal-900ml",
-    canonicalName: "Aceite Vegetal 900 ml",
-    imageUrl: null,
-    capturedAt: "2026-11-11T03:00:00Z",
-  },
-  {
-    storeSkuId: "demo-ara-aceite",
-    storeId: "ara",
-    storeName: "Tiendas Ara",
-    channelType: "app_pdf",
-    masterProductId: "mp-aceite-loma-900",
-    rawName: "Aceite Vegetal Loma Blanca 900 ml",
-    rawUrl: "https://aratiendas.com",
-    rawListPrice: 11500,
-    rawSalePrice: 9900,
-    calibratedPrice: 9900,
-    pumPrice: 11.0,
-    inStock: true,
-    sourceOrigin: "pdf_folleto",
-    isEstimatedPhysicalPrice: false,
-    isPrivateLabel: true,
-    brand: "Loma Blanca",
-    ean: null,
-    netContent: 900,
-    unitMeasure: "ml",
-    canonicalSlug: "aceite-vegetal-900ml",
-    canonicalName: "Aceite Vegetal 900 ml",
-    imageUrl: null,
-    capturedAt: "2026-11-11T03:00:00Z",
+    canonicalCategoryId: null,
+    discountPct: 10,
+    validDays: [0, 1, 2, 3, 4, 5, 6],
+    affiliateUrl: "https://www.bancodebogota.com/tarjetas?utm_source=mercasabio&utm_medium=affiliate",
+    termsShort: "10% con Tarjeta Silver Olímpica",
+    active: true,
   },
 ];
+
+const DEMO_BRANCHES: Array<Omit<NearbyStoreBranch, "distanceMeters">> = [
+  {
+    branchId: "demo-br-exito-chap",
+    storeId: "exito",
+    branchName: "Éxito Chapinero",
+    city: "Bogotá",
+    address: "Calle 52 #13-70",
+    lat: 4.6401,
+    lng: -74.0642,
+  },
+  {
+    branchId: "demo-br-olimpica-chap",
+    storeId: "olimpica",
+    branchName: "Olímpica Chapinero",
+    city: "Bogotá",
+    address: "Cra. 13 #63-45",
+    lat: 4.6498,
+    lng: -74.0628,
+  },
+  {
+    branchId: "demo-br-d1-chap",
+    storeId: "d1",
+    branchName: "D1 Chapinero Alto",
+    city: "Bogotá",
+    address: "Calle 60 #9-18",
+    lat: 4.6462,
+    lng: -74.0615,
+  },
+  {
+    branchId: "demo-br-ara-chap",
+    storeId: "ara",
+    branchName: "Ara Calle 57",
+    city: "Bogotá",
+    address: "Cra. 13 #57-32",
+    lat: 4.6438,
+    lng: -74.0648,
+  },
+  {
+    branchId: "demo-br-carulla-85",
+    storeId: "carulla",
+    branchName: "Carulla Calle 85",
+    city: "Bogotá",
+    address: "Cra. 15 #85-24",
+    lat: 4.6695,
+    lng: -74.0548,
+  },
+];
+
+const DEMO_OFFERS: StoreOffer[] = (
+  [
+    {
+      storeSkuId: "demo-ex-arroz",
+      storeId: "exito",
+      storeName: "Éxito",
+      channelType: "vtex_io",
+      masterProductId: "mp-arroz-diana-1000",
+      canonicalCategoryId: 1,
+      rawName: "Arroz Blanco Diana 1000 g",
+      rawUrl: "https://www.exito.com",
+      rawListPrice: 5200,
+      rawSalePrice: 4650,
+      calibratedPrice: 4650,
+      pumPrice: 4.65,
+      inStock: true,
+      sourceOrigin: "vtex_api",
+      isEstimatedPhysicalPrice: false,
+      isPrivateLabel: false,
+      brand: "Diana",
+      ean: "7702001001234",
+      netContent: 1000,
+      unitMeasure: "g",
+      canonicalSlug: "arroz-blanco-1000g",
+      canonicalName: "Arroz Blanco 1000 g",
+      imageUrl: null,
+      positiveVotes: 42,
+      totalVotes: 44,
+      avgYieldFactor: 0.9,
+      capturedAt: "2026-11-11T03:00:00Z",
+    },
+    {
+      storeSkuId: "demo-ol-arroz",
+      storeId: "olimpica",
+      storeName: "Olímpica",
+      channelType: "vtex_legacy",
+      masterProductId: "mp-arroz-diana-1000",
+      canonicalCategoryId: 1,
+      rawName: "Arroz Blanco Diana Bolsa x 1000 g",
+      rawUrl: "https://www.olimpica.com",
+      rawListPrice: 4950,
+      rawSalePrice: 4490,
+      calibratedPrice: 4490,
+      pumPrice: 4.49,
+      inStock: true,
+      sourceOrigin: "vtex_api",
+      isEstimatedPhysicalPrice: false,
+      isPrivateLabel: false,
+      brand: "Diana",
+      ean: "7702001001234",
+      netContent: 1000,
+      unitMeasure: "g",
+      canonicalSlug: "arroz-blanco-1000g",
+      canonicalName: "Arroz Blanco 1000 g",
+      imageUrl: null,
+      positiveVotes: 42,
+      totalVotes: 44,
+      avgYieldFactor: 0.9,
+      capturedAt: "2026-11-11T03:00:00Z",
+    },
+    {
+      storeSkuId: "demo-ca-arroz",
+      storeId: "carulla",
+      storeName: "Carulla",
+      channelType: "vtex_io",
+      masterProductId: "mp-arroz-diana-1000",
+      canonicalCategoryId: 1,
+      rawName: "Arroz Diana Tradicional 1000 g",
+      rawUrl: "https://www.carulla.com",
+      rawListPrice: 5300,
+      rawSalePrice: 5100,
+      calibratedPrice: 5100,
+      pumPrice: 5.1,
+      inStock: true,
+      sourceOrigin: "vtex_api",
+      isEstimatedPhysicalPrice: false,
+      isPrivateLabel: false,
+      brand: "Diana",
+      ean: "7702001001234",
+      netContent: 1000,
+      unitMeasure: "g",
+      canonicalSlug: "arroz-blanco-1000g",
+      canonicalName: "Arroz Blanco 1000 g",
+      imageUrl: null,
+      positiveVotes: 42,
+      totalVotes: 44,
+      avgYieldFactor: 0.9,
+      capturedAt: "2026-11-11T03:00:00Z",
+    },
+    {
+      storeSkuId: "demo-d1-arroz",
+      storeId: "d1",
+      storeName: "Tiendas D1",
+      channelType: "vtex_graphql",
+      masterProductId: "mp-arroz-d1-molinero",
+      canonicalCategoryId: 1,
+      rawName: "Arroz Blanco El Molinero 1000 g",
+      rawUrl: "https://domicilios.tiendasd1.com",
+      rawListPrice: 3890,
+      rawSalePrice: 3890,
+      calibratedPrice: 3890,
+      pumPrice: 3.89,
+      inStock: true,
+      sourceOrigin: "vtex_graphql",
+      isEstimatedPhysicalPrice: false,
+      isPrivateLabel: true,
+      brand: "El Molinero",
+      ean: null,
+      netContent: 1000,
+      unitMeasure: "g",
+      canonicalSlug: "arroz-blanco-1000g",
+      canonicalName: "Arroz Blanco 1000 g",
+      imageUrl: null,
+      positiveVotes: 18,
+      totalVotes: 21,
+      avgYieldFactor: 1.0,
+      invimaRegistry: "NSA-0008412-2020",
+      actualManufacturer: "Molinos Roa Florhuila S.A.",
+      capturedAt: "2026-11-11T03:00:00Z",
+    },
+    {
+      storeSkuId: "demo-ara-arroz",
+      storeId: "ara",
+      storeName: "Tiendas Ara",
+      channelType: "app_pdf",
+      masterProductId: "mp-arroz-ara-cultivo",
+      canonicalCategoryId: 1,
+      rawName: "Arroz Blanco El Cultivo 1000 g",
+      rawUrl: "https://aratiendas.com",
+      rawListPrice: 4190,
+      rawSalePrice: 3790,
+      calibratedPrice: 3790,
+      pumPrice: 3.79,
+      inStock: true,
+      sourceOrigin: "pdf_folleto",
+      isEstimatedPhysicalPrice: false,
+      isPrivateLabel: true,
+      brand: "El Cultivo",
+      ean: null,
+      netContent: 1000,
+      unitMeasure: "g",
+      canonicalSlug: "arroz-blanco-1000g",
+      canonicalName: "Arroz Blanco 1000 g",
+      imageUrl: null,
+      positiveVotes: 14,
+      totalVotes: 17,
+      avgYieldFactor: 1.0,
+      capturedAt: "2026-11-11T03:00:00Z",
+    },
+    {
+      storeSkuId: "demo-ex-leche",
+      storeId: "exito",
+      storeName: "Éxito",
+      channelType: "vtex_io",
+      masterProductId: "mp-leche-alqueria-1100",
+      canonicalCategoryId: 2,
+      rawName: "Leche Entera Alquería Bolsa 1.1 L",
+      rawUrl: "https://www.exito.com",
+      rawListPrice: 5800,
+      rawSalePrice: 5450,
+      calibratedPrice: 5450,
+      pumPrice: 4.9545,
+      inStock: true,
+      sourceOrigin: "vtex_api",
+      isEstimatedPhysicalPrice: false,
+      isPrivateLabel: false,
+      brand: "Alquería",
+      ean: "7702177001012",
+      netContent: 1100,
+      unitMeasure: "ml",
+      canonicalSlug: "leche-entera-1000ml",
+      canonicalName: "Leche Entera 1000 ml",
+      imageUrl: null,
+      positiveVotes: 31,
+      totalVotes: 32,
+      avgYieldFactor: 0.95,
+      capturedAt: "2026-11-11T03:00:00Z",
+    },
+    {
+      storeSkuId: "demo-d1-leche",
+      storeId: "d1",
+      storeName: "Tiendas D1",
+      channelType: "vtex_graphql",
+      masterProductId: "mp-leche-latti-1000",
+      canonicalCategoryId: 2,
+      rawName: "Leche Entera UHT Latti 1000 ml",
+      rawUrl: "https://domicilios.tiendasd1.com",
+      rawListPrice: 3290,
+      rawSalePrice: 3290,
+      calibratedPrice: 3290,
+      pumPrice: 3.29,
+      inStock: true,
+      sourceOrigin: "vtex_graphql",
+      isEstimatedPhysicalPrice: false,
+      isPrivateLabel: true,
+      brand: "Latti",
+      ean: null,
+      netContent: 1000,
+      unitMeasure: "ml",
+      canonicalSlug: "leche-entera-1000ml",
+      canonicalName: "Leche Entera 1000 ml",
+      imageUrl: null,
+      positiveVotes: 25,
+      totalVotes: 28,
+      avgYieldFactor: 1.0,
+      capturedAt: "2026-11-11T03:00:00Z",
+    },
+    {
+      storeSkuId: "demo-ol-aceite",
+      storeId: "olimpica",
+      storeName: "Olímpica",
+      channelType: "vtex_legacy",
+      masterProductId: "mp-aceite-premier-900",
+      canonicalCategoryId: 3,
+      rawName: "Aceite Vegetal Premier 900 cc",
+      rawUrl: "https://www.olimpica.com",
+      rawListPrice: 14200,
+      rawSalePrice: 13490,
+      calibratedPrice: 13490,
+      pumPrice: 14.9889,
+      inStock: true,
+      sourceOrigin: "vtex_api",
+      isEstimatedPhysicalPrice: false,
+      isPrivateLabel: false,
+      brand: "Premier",
+      ean: "7702001009991",
+      netContent: 900,
+      unitMeasure: "ml",
+      canonicalSlug: "aceite-vegetal-900ml",
+      canonicalName: "Aceite Vegetal 900 ml",
+      imageUrl: null,
+      shrinkflationAlert: true,
+      previousNetContent: 1000,
+      positiveVotes: 11,
+      totalVotes: 20,
+      avgYieldFactor: 1.0,
+      capturedAt: "2026-11-11T03:00:00Z",
+    },
+    {
+      storeSkuId: "demo-ara-aceite",
+      storeId: "ara",
+      storeName: "Tiendas Ara",
+      channelType: "app_pdf",
+      masterProductId: "mp-aceite-loma-900",
+      canonicalCategoryId: 3,
+      rawName: "Aceite Vegetal Loma Blanca 900 ml",
+      rawUrl: "https://aratiendas.com",
+      rawListPrice: 11500,
+      rawSalePrice: 9900,
+      calibratedPrice: 9900,
+      pumPrice: 11.0,
+      inStock: true,
+      sourceOrigin: "pdf_folleto",
+      isEstimatedPhysicalPrice: false,
+      isPrivateLabel: true,
+      brand: "Loma Blanca",
+      ean: null,
+      netContent: 900,
+      unitMeasure: "ml",
+      canonicalSlug: "aceite-vegetal-900ml",
+      canonicalName: "Aceite Vegetal 900 ml",
+      imageUrl: null,
+      positiveVotes: 19,
+      totalVotes: 22,
+      avgYieldFactor: 0.9,
+      capturedAt: "2026-11-11T03:00:00Z",
+    },
+  ] satisfies DemoOfferSeed[]
+).map(buildDemoOffer);
 
 function mapRowToOffer(row: LatestPriceRow): StoreOffer {
   const calibratedPrice = Number(row.calibrated_price);
@@ -361,6 +484,7 @@ function mapRowToOffer(row: LatestPriceRow): StoreOffer {
     storeName: row.store_name,
     channelType: row.channel_type,
     masterProductId: row.master_product_id,
+    canonicalCategoryId: row.canonical_category_id ?? null,
     rawName: row.raw_name,
     rawUrl: row.raw_url,
     rawListPrice: Number(row.raw_list_price),
@@ -378,8 +502,35 @@ function mapRowToOffer(row: LatestPriceRow): StoreOffer {
     canonicalSlug: row.canonical_slug,
     canonicalName: row.canonical_name,
     imageUrl: row.image_url,
+    positiveVotes: Number(row.positive_votes ?? 0),
+    totalVotes: Number(row.total_votes ?? 0),
+    avgYieldFactor: Number(row.avg_yield_factor ?? 1) || 1,
+    invimaRegistry: row.invima_registry ?? null,
+    actualManufacturer: row.actual_manufacturer ?? null,
+    shrinkflationAlert: Boolean(row.shrinkflation_alert),
+    previousNetContent:
+      row.previous_net_content !== null && row.previous_net_content !== undefined
+        ? Number(row.previous_net_content)
+        : null,
     capturedAt:
       row.captured_at instanceof Date ? row.captured_at.toISOString() : String(row.captured_at),
+  };
+}
+
+function mapBankPromotionRow(row: BankPromotionRow): BankPromotion {
+  return {
+    id: Number(row.id),
+    bankName: row.bank_name,
+    storeId: row.store_id ?? null,
+    canonicalCategoryId:
+      row.canonical_category_id !== null && row.canonical_category_id !== undefined
+        ? Number(row.canonical_category_id)
+        : null,
+    discountPct: Number(row.discount_pct),
+    validDays: Array.isArray(row.valid_days) ? row.valid_days.map(Number) : [],
+    affiliateUrl: row.affiliate_url,
+    termsShort: row.terms_short ?? null,
+    active: Boolean(row.active),
   };
 }
 
@@ -407,7 +558,7 @@ export function buildComparisonGroups(
         return a.inStock ? -1 : 1;
       }
       return mode === "pum"
-        ? a.pumPrice - b.pumPrice
+        ? a.pumPrice * a.avgYieldFactor - b.pumPrice * b.avgYieldFactor
         : a.calibratedPrice - b.calibratedPrice;
     });
 
@@ -417,6 +568,7 @@ export function buildComparisonGroups(
 
     const bestPrice = Math.min(...referencePool.map((o) => o.calibratedPrice));
     const bestPum = Math.min(...referencePool.map((o) => o.pumPrice));
+    const bestRealPum = Math.min(...referencePool.map((o) => o.pumPrice * o.avgYieldFactor));
     const highestPrice = Math.max(...referencePool.map((o) => o.calibratedPrice));
     const highestPum = Math.max(...referencePool.map((o) => o.pumPrice));
 
@@ -439,12 +591,16 @@ export function buildComparisonGroups(
         ? `Equivalentes por ${anchor.unitMeasure} (${sorted.length} ofertas)`
         : `${anchor.brand ?? "Marca comercial"} · ${anchor.netContent} ${anchor.unitMeasure}`;
 
+    const mostVotedAnchor =
+      [...sorted].sort((a, b) => b.totalVotes - a.totalVotes)[0] ?? anchor;
+
     groups.push({
       groupId,
       title,
       subtitle,
       brand: anchor.brand,
       ean: anchor.ean,
+      canonicalCategoryId: anchor.canonicalCategoryId,
       canonicalSlug: anchor.canonicalSlug,
       canonicalName: anchor.canonicalName,
       netContent: anchor.netContent,
@@ -452,8 +608,17 @@ export function buildComparisonGroups(
       imageUrl: sorted.find((o) => o.imageUrl)?.imageUrl ?? null,
       bestPrice,
       bestPum,
+      bestRealPum,
       highestPrice,
       savingsPct,
+      positiveVotes: mostVotedAnchor.positiveVotes,
+      totalVotes: mostVotedAnchor.totalVotes,
+      avgYieldFactor: mostVotedAnchor.avgYieldFactor,
+      invimaRegistry: sorted.find((o) => o.invimaRegistry)?.invimaRegistry ?? null,
+      actualManufacturer: sorted.find((o) => o.actualManufacturer)?.actualManufacturer ?? null,
+      shrinkflationAlert: sorted.some((o) => o.shrinkflationAlert),
+      previousNetContent:
+        sorted.find((o) => o.previousNetContent !== null)?.previousNetContent ?? null,
       offers: sorted,
     });
   }
@@ -467,9 +632,9 @@ export async function getDashboardData(options?: {
 }): Promise<DashboardPayload> {
   const queryText = options?.query?.trim() ?? "";
   const categorySlug = options?.categorySlug?.trim() ?? "";
-  const pool = getPool();
+  const supabaseConfig = getSupabaseConfig();
 
-  if (!pool) {
+  if (!supabaseConfig) {
     const filtered = DEMO_OFFERS.filter((offer) => {
       if (categorySlug && offer.canonicalSlug !== categorySlug) {
         return false;
@@ -487,6 +652,7 @@ export async function getDashboardData(options?: {
       eanGroups: buildComparisonGroups(filtered, "ean"),
       pumGroups: buildComparisonGroups(filtered, "pum"),
       categories: DEMO_CATEGORIES,
+      bankPromotions: DEMO_BANK_PROMOTIONS,
       storesCount: new Set(DEMO_OFFERS.map((o) => o.storeId)).size,
       totalSkus: DEMO_OFFERS.length,
       isDemoData: true,
@@ -494,86 +660,91 @@ export async function getDashboardData(options?: {
     };
   }
 
-  const conditions: string[] = ["v.master_product_id IS NOT NULL"];
-  const params: unknown[] = [];
-
-  if (categorySlug) {
-    params.push(categorySlug);
-    conditions.push(`cc.slug = $${params.length}`);
-  }
-
-  if (queryText) {
-    params.push(queryText);
-    const exactIdx = params.length;
-    params.push(`%${queryText.toLowerCase()}%`);
-    const likeIdx = params.length;
-    conditions.push(
-      `(mp.ean = $${exactIdx} OR mp.normalized_name ILIKE $${likeIdx} OR ss.raw_name ILIKE $${likeIdx} OR extensions.similarity(mp.normalized_name, lower($${exactIdx})) >= 0.25)`
-    );
-  }
-
-  const sql = `
-    SELECT
-      v.store_sku_id,
-      v.store_id,
-      s.name AS store_name,
-      s.channel_type,
-      s.markup_discount_factor,
-      v.master_product_id,
-      ss.raw_name,
-      ss.raw_url,
-      v.normalized_name,
-      v.brand,
-      mp.ean,
-      v.net_content,
-      v.unit_measure,
-      v.calibrated_price,
-      v.raw_list_price,
-      v.raw_sale_price,
-      v.pum_price,
-      v.in_stock,
-      v.source_origin,
-      v.is_private_label,
-      mp.image_url,
-      cc.slug AS canonical_slug,
-      cc.name AS canonical_name,
-      v.captured_at
-    FROM v_latest_prices v
-    JOIN stores s ON s.id = v.store_id
-    JOIN store_skus ss ON ss.id = v.store_sku_id
-    JOIN master_products mp ON mp.id = v.master_product_id
-    LEFT JOIN canonical_categories cc ON cc.id = v.canonical_category_id
-    WHERE ${conditions.join(" AND ")}
-    ORDER BY v.captured_at DESC
-    LIMIT 240
-  `;
-
-  const [offersRes, categoriesRes, statsRes] = await Promise.all([
-    pool.query<LatestPriceRow>(sql, params),
-    pool.query<{ id: number; slug: string; name: string; base_unit: UnitMeasure }>(
-      "SELECT id, slug, name, base_unit FROM canonical_categories ORDER BY name ASC"
+  const [offerRows, categoryRows, promoRows, statsRows] = await Promise.all([
+    supabaseRpc<LatestPriceRow[]>(supabaseConfig, "search_latest_offers", {
+      p_query: queryText,
+      p_category_slug: categorySlug,
+      p_limit: 240,
+    }),
+    supabaseRestGet<{ id: number; slug: string; name: string; base_unit: UnitMeasure }[]>(
+      supabaseConfig,
+      "canonical_categories?select=id,slug,name,base_unit&order=name.asc"
     ),
-    pool.query<{ stores_count: string; total_skus: string }>(
-      "SELECT COUNT(DISTINCT store_id)::text AS stores_count, COUNT(*)::text AS total_skus FROM v_latest_prices"
+    supabaseRestGet<BankPromotionRow[]>(
+      supabaseConfig,
+      "bank_promotions?select=id,bank_name,store_id,canonical_category_id,discount_pct,valid_days,affiliate_url,terms_short,active&active=eq.true"
+    ),
+    supabaseRpc<{ stores_count: number; total_skus: number }[]>(
+      supabaseConfig,
+      "get_catalog_stats",
+      {}
     ),
   ]);
 
-  const offers = offersRes.rows.map(mapRowToOffer);
-  const categories: CanonicalCategoryOption[] = categoriesRes.rows.map((row) => ({
+  const offers = offerRows.map(mapRowToOffer);
+  const categories: CanonicalCategoryOption[] = categoryRows.map((row) => ({
     id: row.id,
     slug: row.slug,
     name: row.name,
     baseUnit: row.base_unit,
   }));
+  const bankPromotions = promoRows.map(mapBankPromotionRow);
 
-  const statsRow = statsRes.rows[0];
+  const statsRow = statsRows[0];
   return {
     eanGroups: buildComparisonGroups(offers, "ean"),
     pumGroups: buildComparisonGroups(offers, "pum"),
     categories,
+    bankPromotions,
     storesCount: Number(statsRow?.stores_count ?? 0),
     totalSkus: Number(statsRow?.total_skus ?? offers.length),
     isDemoData: false,
     generatedAt: new Date().toISOString(),
   };
+}
+
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const r = 6_371_000;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export async function getNearbyStores(params: {
+  lat: number;
+  lng: number;
+  radiusMeters?: number;
+}): Promise<NearbyStoreBranch[]> {
+  const radiusMeters = params.radiusMeters ?? 2000;
+  const supabaseConfig = getSupabaseConfig();
+
+  if (!supabaseConfig) {
+    return DEMO_BRANCHES.map((branch) => ({
+      ...branch,
+      distanceMeters: Math.round(haversineMeters(params.lat, params.lng, branch.lat, branch.lng)),
+    }))
+      .filter((branch) => branch.distanceMeters <= radiusMeters)
+      .sort((a, b) => a.distanceMeters - b.distanceMeters);
+  }
+
+  const rows = await supabaseRpc<NearbyStoreRow[]>(supabaseConfig, "get_nearby_stores", {
+    user_lat: params.lat,
+    user_lng: params.lng,
+    radius_meters: radiusMeters,
+  });
+
+  return rows.map((row) => ({
+    branchId: row.branch_id,
+    storeId: row.store_id,
+    branchName: row.branch_name,
+    city: row.city,
+    address: row.address ?? null,
+    lat: Number(row.lat),
+    lng: Number(row.lng),
+    distanceMeters: Number(row.distance_meters),
+  }));
 }

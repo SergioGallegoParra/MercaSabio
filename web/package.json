@@ -5,22 +5,29 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:cf": "opennextjs-cloudflare build",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/ecosystem.test.ts"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.20.17",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.511.0",
     "next": "^15.3.0",
-    "pg": "^8.14.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^22.14.0",
-    "@types/pg": "^8.11.11",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "wrangler": "^4.161.0"
   }
 }
