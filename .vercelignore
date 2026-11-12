@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+web/.env*
+!web/.env.example
+web/.next
+web/node_modules
+supabase/.temp
+.venv
+venv
+__pycache__
+.git
