@@ -106,6 +106,42 @@ class BaseScraperTests(unittest.IsolatedAsyncioTestCase):
         # 4 peticiones a 20 req/s => ranuras en 0, 50ms, 100ms, 150ms (~>= 0.12s considerando reloj)
         self.assertGreaterEqual(elapsed, 0.12)
 
+    async def test_resets_internal_client_on_remote_protocol_error(self) -> None:
+        attempts = 0
+        built_clients = 0
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise httpx.RemoteProtocolError("GOAWAY stream terminated", request=request)
+            return httpx.Response(200, json={"recovered": True})
+
+        class _ResettableDummyScraper(_DummyScraper):
+            def _build_client(self) -> httpx.AsyncClient:
+                nonlocal built_clients
+                built_clients += 1
+                return httpx.AsyncClient(
+                    base_url=self.config.base_url,
+                    transport=httpx.MockTransport(handler),
+                )
+
+        config = ScraperConfig(
+            store_id="carulla",
+            base_url="https://www.carulla.com",
+            channel_type="vtex_io",
+            source_origin="vtex_api",
+            requests_per_second=50.0,
+            max_retries=2,
+            backoff_base_seconds=0.01,
+        )
+        async with _ResettableDummyScraper(config) as scraper:
+            data = await scraper.get_json("/api/test")
+
+        self.assertEqual(data, {"recovered": True})
+        self.assertEqual(attempts, 2)
+        self.assertEqual(built_clients, 2)
+
 
 if __name__ == "__main__":
     unittest.main()

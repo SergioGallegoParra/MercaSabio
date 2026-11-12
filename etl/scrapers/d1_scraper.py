@@ -11,9 +11,9 @@ from typing import Any
 
 import httpx
 
-from etl.core.base_scraper import BaseScraper
+from etl.core.base_scraper import BaseScraper, ScraperHTTPError
 from etl.core.models import ScrapedProduct, ScraperConfig
-from etl.scrapers.vtex_scraper import parse_vtex_product_payload
+from etl.scrapers.vtex_scraper import VtexScraper, parse_vtex_product_payload
 
 logger = logging.getLogger(__name__)
 
@@ -94,15 +94,15 @@ def build_vtex_segment_cookie(
 
 
 def default_d1_config(**overrides: Any) -> ScraperConfig:
-    """Genera configuración predeterminada para Tiendas D1 (VTEX IO / GraphQL)."""
+    """Genera configuración predeterminada para Tiendas D1 (VTEX IO / GraphQL + REST)."""
     segment = os.environ.get("D1_VTEX_SEGMENT", "").strip() or build_vtex_segment_cookie()
     headers = {"Cookie": f"vtex_segment={segment}"}
     base = ScraperConfig(
         store_id="d1",
-        base_url="https://domicilios.tiendasd1.com",
+        base_url="https://www.d1.com.co",
         channel_type="vtex_graphql",
         source_origin="vtex_graphql",
-        requests_per_second=1.5,
+        requests_per_second=2.0,
         max_concurrency=2,
         default_headers=headers,
     )
@@ -126,6 +126,28 @@ class D1Scraper(BaseScraper):
         super().__init__(cfg, client=client)
 
     async def iter_batches(self) -> AsyncIterator[list[ScrapedProduct]]:
+        """Intenta GraphQL con `vtex_segment` y hace fallback automático al catálogo REST VTEX."""
+        yielded_any = False
+        try:
+            async for batch in self._iter_graphql_batches():
+                yielded_any = True
+                yield batch
+            return
+        except (ScraperHTTPError, ValueError) as exc:
+            if yielded_any:
+                raise
+            logger.warning(
+                "[%s] GraphQL VTEX no disponible (%s); cambiando a catálogo REST VTEX con vtex_segment.",
+                self.config.store_id,
+                exc,
+            )
+
+        rest_config = self.config.model_copy(update={"source_origin": "vtex_api"})
+        vtex_fallback = VtexScraper(rest_config, client=self.client)
+        async for batch in vtex_fallback.iter_batches():
+            yield batch
+
+    async def _iter_graphql_batches(self) -> AsyncIterator[list[ScrapedProduct]]:
         """Pagina consultas GraphQL por facetas de categoría devolviendo lotes validados."""
         facets_list = self._resolve_facet_queries()
         seen_skus: set[str] = set()
@@ -146,8 +168,21 @@ class D1Scraper(BaseScraper):
                         "query": D1_PRODUCT_SEARCH_QUERY,
                         "variables": variables,
                     },
+                    accepted_statuses=frozenset({200, 206, 400, 500}),
                 )
+                if response.status_code not in {200, 206}:
+                    raise ScraperHTTPError(
+                        response.status_code,
+                        str(response.url),
+                        response.text[:200],
+                    )
                 payload = response.json()
+                if payload.get("errors") and not (payload.get("data") or {}).get("productSearch"):
+                    raise ScraperHTTPError(
+                        500,
+                        str(response.url),
+                        str(payload.get("errors"))[:200],
+                    )
                 search_data = (payload.get("data") or {}).get("productSearch") or {}
                 raw_products = search_data.get("products") or []
                 if not isinstance(raw_products, list) or not raw_products:

@@ -239,6 +239,129 @@ class AdditionalScrapersTests(unittest.IsolatedAsyncioTestCase):
             infer_canonical_category_slug("arroz con leche alpina 200 g", Decimal("200"), UnitMeasure.G)
         )
 
+    async def test_d1_falls_back_to_vtex_rest_when_graphql_returns_500(self) -> None:
+        seen_cookies: list[str] = []
+        segment = build_vtex_segment_cookie(postal_code="110111")
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen_cookies.append(request.headers.get("Cookie", ""))
+            if request.url.path == "/_v/private/graphql/v1":
+                return httpx.Response(
+                    500,
+                    json={"errors": [{"message": "Must provide Source. Received: undefined"}]},
+                )
+            if request.url.path == "/api/catalog_system/pub/category/tree/3":
+                return httpx.Response(200, json=[{"id": 1, "name": "Despensa", "children": []}])
+            if request.url.path == "/api/catalog_system/pub/products/search":
+                return httpx.Response(
+                    206,
+                    json=[
+                        {
+                            "productId": "1092",
+                            "productName": "Arroz Diana 500 g",
+                            "brand": "DIANA",
+                            "link": "/arroz-diana-500g/p",
+                            "categories": ["/Despensa/"],
+                            "items": [
+                                {
+                                    "itemId": "1092",
+                                    "name": "500 g",
+                                    "nameComplete": "Arroz Diana 500 g",
+                                    "ean": "7702511000014",
+                                    "measurementUnit": "un",
+                                    "unitMultiplier": 1.0,
+                                    "images": [],
+                                    "sellers": [
+                                        {
+                                            "sellerId": "1",
+                                            "commertialOffer": {
+                                                "Price": 1990,
+                                                "ListPrice": 1990,
+                                                "AvailableQuantity": 10,
+                                                "IsAvailable": True,
+                                            },
+                                        }
+                                    ],
+                                }
+                            ],
+                        }
+                    ],
+                )
+            return httpx.Response(404)
+
+        cfg = default_d1_config(requests_per_second=50.0)
+        async with httpx.AsyncClient(base_url=cfg.base_url, transport=httpx.MockTransport(handler)) as client:
+            scraper = D1Scraper(cfg, client=client, vtex_segment=segment)
+            products = await scraper.scrape_all()
+
+        self.assertEqual(len(products), 1)
+        self.assertEqual(products[0].ean, "7702511000014")
+        self.assertEqual(products[0].raw_sale_price, Decimal("1990.00"))
+        self.assertFalse(products[0].is_private_label)
+        self.assertTrue(all(f"vtex_segment={segment}" in c for c in seen_cookies))
+
+    async def test_hybris_falls_back_to_algolia_when_occ_returns_404(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path.startswith("/occ/v2/"):
+                return httpx.Response(404, text="<html>Not found</html>")
+            if request.url.path == "/search":
+                return httpx.Response(
+                    200,
+                    text=(
+                        "algolia : { applicationId : 'QX5IPS1B1Q', "
+                        "apiKey : 'publicSearchKey123', indexName : 'alkostoIndexAlgoliaPRD' }"
+                    ),
+                )
+            if request.url.host == "qx5ips1b1q-dsn.algolia.net":
+                self.assertEqual(request.headers.get("X-Algolia-Application-Id"), "QX5IPS1B1Q")
+                self.assertEqual(request.headers.get("X-Algolia-API-Key"), "publicSearchKey123")
+                body = json.loads(request.content.decode("utf-8"))
+                params_str = body["params"]
+                if "facets=" in params_str:
+                    return httpx.Response(
+                        200,
+                        json={
+                            "facets": {"hierarchicalcategory_string_mv.lvl0": {"Electrohogar": 1}},
+                            "nbHits": 1,
+                        },
+                    )
+                return httpx.Response(
+                    200,
+                    json={
+                        "nbPages": 1,
+                        "hits": [
+                            {
+                                "objectID": "010942229599",
+                                "code_string": "010942229599",
+                                "name_text_es": "Cafetera KRUPS 1500 ml",
+                                "marca_text": "KRUPS",
+                                "pricevalue_cop_double": 1899900.0,
+                                "discountprice_double": 1599900.0,
+                                "instockflag_boolean": True,
+                                "stocklevelstatus_string": "inStock",
+                                "url_es_string": "/cafetera-krups/p/010942229599",
+                                "img-820wx820h_string": "https://cdn.dam.alkosto.com/p/1.webp",
+                                "categoryname_text_es_mv": ["Electrohogar"],
+                            }
+                        ],
+                    },
+                )
+            return httpx.Response(404)
+
+        async with httpx.AsyncClient(
+            base_url="https://www.alkosto.com",
+            transport=httpx.MockTransport(handler),
+        ) as client:
+            scraper = HybrisScraper.for_store("alkosto", client=client, requests_per_second=50.0)
+            products = await scraper.scrape_all()
+
+        self.assertEqual(len(products), 1)
+        self.assertEqual(products[0].external_sku, "010942229599")
+        self.assertEqual(products[0].ean, "010942229599")
+        self.assertEqual(products[0].raw_list_price, Decimal("1899900.00"))
+        self.assertEqual(products[0].raw_sale_price, Decimal("1599900.00"))
+        self.assertEqual(products[0].source_origin, "algolia_api")
+
 
 if __name__ == "__main__":
     unittest.main()

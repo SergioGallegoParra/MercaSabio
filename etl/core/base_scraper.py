@@ -122,6 +122,13 @@ class BaseScraper(ABC):
             await self._client.aclose()
             self._client = None
 
+    async def _reset_client(self, failed_client: httpx.AsyncClient) -> None:
+        """Cierra y descarta el cliente HTTP interno si una conexión quedó terminada (p. ej. GOAWAY HTTP/2)."""
+        if self._external_client or self._client is not failed_client:
+            return
+        self._client = None
+        await failed_client.aclose()
+
     def _pick_user_agent(self) -> str:
         if self.config.rotate_user_agent:
             return random.choice(self._user_agents)
@@ -173,8 +180,9 @@ class BaseScraper(ABC):
 
             async with self._semaphore:
                 await self._rate_limiter.acquire()
+                used_client = self.client
                 try:
-                    response = await self.client.request(
+                    response = await used_client.request(
                         method=method.upper(),
                         url=path_or_url,
                         params=params,
@@ -183,6 +191,8 @@ class BaseScraper(ABC):
                     )
                 except (httpx.TimeoutException, httpx.TransportError) as exc:
                     last_exc = exc
+                    if isinstance(exc, httpx.RemoteProtocolError):
+                        await self._reset_client(used_client)
                     if attempt >= self.config.max_retries:
                         break
                     delay = self._compute_retry_delay(attempt)

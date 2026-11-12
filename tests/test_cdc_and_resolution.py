@@ -7,6 +7,8 @@ from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any
 
+import httpx
+
 from etl.core.cdc_manager import CDCManager, InMemoryGateway, SupabaseGateway
 from etl.core.models import ScrapedProduct, UnitMeasure
 from etl.core.normalizer import compute_pum, normalize_product_name
@@ -220,6 +222,80 @@ class CDCAndResolutionTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(len(rows), 1250)
         self.assertEqual(requested_ranges, [(0, 999), (1000, 1999)])
+
+    async def test_supabase_gateway_recycles_client_and_retries_remote_protocol_error(self) -> None:
+        calls = 0
+        closed_sessions = 0
+        created_clients = 0
+
+        class _FakeSession:
+            async def aclose(self) -> None:
+                nonlocal closed_sessions
+                closed_sessions += 1
+
+        class _FakeQuery:
+            def __init__(self, fail_first: bool) -> None:
+                self._fail_first = fail_first
+
+            def select(self, cols: str) -> _FakeQuery:
+                return self
+
+            def eq(self, col: str, val: Any) -> _FakeQuery:
+                return self
+
+            def range(self, start: int, end: int) -> _FakeQuery:
+                return self
+
+            async def execute(self) -> SimpleNamespace:
+                nonlocal calls
+                calls += 1
+                if self._fail_first and calls == 1:
+                    raise httpx.RemoteProtocolError("ConnectionTerminated last_stream_id:19999")
+                return SimpleNamespace(data=[{"slug": "arroz-blanco-1000g", "id": 1}])
+
+        async def fake_factory() -> SimpleNamespace:
+            nonlocal created_clients
+            created_clients += 1
+            return SimpleNamespace(
+                postgrest=SimpleNamespace(session=_FakeSession()),
+                table=lambda name: _FakeQuery(fail_first=(created_clients == 1)),
+            )
+
+        initial_client = await fake_factory()
+        gateway = SupabaseGateway(
+            initial_client,
+            client_factory=fake_factory,
+            max_requests_before_recycle=10,
+        )
+        categories = await gateway.fetch_canonical_categories()
+
+        self.assertEqual(categories, {"arroz-blanco-1000g": 1})
+        self.assertEqual(calls, 2)
+        self.assertEqual(closed_sessions, 1)
+        self.assertEqual(created_clients, 2)
+
+    async def test_cdc_skips_out_of_range_numeric_pum(self) -> None:
+        gateway = InMemoryGateway()
+        cdc = CDCManager(gateway, "olimpica")
+        await cdc.initialize()
+        valid = _make_product("olimpica", "ol-ok", "Televisor 100 und", "1899000.00", net_content="1.00", unit=UnitMeasure.UND)
+        extreme = ScrapedProduct(
+            store_id="olimpica",
+            external_sku="ol-overflow",
+            raw_name="Referencia Corrupta 1 g",
+            normalized_name="referencia corrupta 1 g",
+            raw_list_price=Decimal("9999999999999.00"),
+            raw_sale_price=Decimal("9999999999999.00"),
+            calibrated_price=Decimal("9999999999999.00"),
+            net_content=Decimal("1.00"),
+            unit_measure=UnitMeasure.G,
+            pum_price=Decimal("9999999999999.0000"),
+            in_stock=True,
+            source_origin="vtex_api",
+        )
+        await cdc.process_batch([valid, extreme])
+        self.assertEqual(len(gateway.price_records), 1)
+        self.assertEqual(gateway.price_records[0]["pum_price"], "1899000.0000")
 
 
 if __name__ == "__main__":

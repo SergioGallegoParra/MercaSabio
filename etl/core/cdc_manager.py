@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from collections.abc import Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from decimal import Decimal
-from typing import Any, Protocol
+from typing import Any, Protocol, TypeVar
 from uuid import uuid4
+
+import httpx
 
 from etl.core.entity_resolver import EntityResolver, ResolutionGateway
 from etl.core.models import CDCStats, CachedPriceState, ScrapedProduct
@@ -15,6 +18,10 @@ logger = logging.getLogger(__name__)
 
 POSTGREST_PAGE_SIZE = 1000
 WRITE_CHUNK_SIZE = 500
+MAX_REQUESTS_PER_CLIENT = 4000
+_MAX_DB_PRICE = Decimal("999999999999.99")
+_MAX_DB_PUM = Decimal("9999999999.9999")
+_T = TypeVar("_T")
 
 
 def _chunked(items: list[Any], size: int) -> Iterable[list[Any]]:
@@ -39,23 +46,79 @@ class DatabaseGateway(ResolutionGateway, Protocol):
 
 
 class SupabaseGateway:
-    """Adaptador oficial basado en `supabase.AsyncClient` con paginación PostgREST."""
+    """Adaptador oficial basado en `supabase.AsyncClient` con paginación PostgREST y reconexión HTTP/2."""
 
-    def __init__(self, client: Any) -> None:
+    def __init__(
+        self,
+        client: Any,
+        *,
+        client_factory: Callable[[], Awaitable[Any]] | None = None,
+        max_requests_before_recycle: int = MAX_REQUESTS_PER_CLIENT,
+        max_retries: int = 4,
+    ) -> None:
         self._client = client
+        self._client_factory = client_factory
+        self._max_requests_before_recycle = max_requests_before_recycle
+        self._max_retries = max_retries
+        self._request_count = 0
 
     @classmethod
     async def from_credentials(cls, supabase_url: str, supabase_key: str) -> SupabaseGateway:
         from supabase import acreate_client
 
-        client = await acreate_client(supabase_url, supabase_key)
-        return cls(client)
+        async def factory() -> Any:
+            return await acreate_client(supabase_url, supabase_key)
+
+        client = await factory()
+        return cls(client, client_factory=factory)
 
     async def aclose(self) -> None:
         postgrest = getattr(self._client, "postgrest", None)
         session = getattr(postgrest, "session", None)
         if session is not None and hasattr(session, "aclose"):
             await session.aclose()
+
+    async def _reset_client(self) -> None:
+        """Cierra la sesión PostgREST actual y abre un cliente nuevo (reinicia streams HTTP/2)."""
+        if self._client_factory is None:
+            return
+        await self.aclose()
+        self._client = await self._client_factory()
+        self._request_count = 0
+
+    async def _execute(self, operation: Callable[[Any], Awaitable[_T]]) -> _T:
+        """Ejecuta una llamada PostgREST con reciclado preventivo de sesión y reintentos de red."""
+        for attempt in range(self._max_retries + 1):
+            if (
+                self._client_factory is not None
+                and self._max_requests_before_recycle > 0
+                and self._request_count >= self._max_requests_before_recycle
+            ):
+                logger.info(
+                    "Reciclando sesión PostgREST tras %d peticiones para evitar límite HTTP/2.",
+                    self._request_count,
+                )
+                await self._reset_client()
+
+            self._request_count += 1
+            try:
+                return await operation(self._client)
+            except (httpx.TimeoutException, httpx.TransportError) as exc:
+                if attempt >= self._max_retries:
+                    raise
+                if isinstance(exc, httpx.RemoteProtocolError):
+                    await self._reset_client()
+                delay = 0.5 * (2**attempt)
+                logger.warning(
+                    "Error de transporte PostgREST (%s); reintento %d/%d en %.2fs",
+                    type(exc).__name__,
+                    attempt + 1,
+                    self._max_retries,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+
+        raise RuntimeError("Reintentos PostgREST agotados inesperadamente.")
 
     async def _fetch_all_pages(
         self,
@@ -67,11 +130,14 @@ class SupabaseGateway:
         rows: list[dict[str, Any]] = []
         offset = 0
         while True:
-            query = self._client.table(table_or_view).select(columns)
-            if filters:
-                for col, val in filters.items():
-                    query = query.eq(col, val)
-            response = await query.range(offset, offset + POSTGREST_PAGE_SIZE - 1).execute()
+            def _run(client: Any) -> Awaitable[Any]:
+                query = client.table(table_or_view).select(columns)
+                if filters:
+                    for col, val in filters.items():
+                        query = query.eq(col, val)
+                return query.range(offset, offset + POSTGREST_PAGE_SIZE - 1).execute()
+
+            response = await self._execute(_run)
             batch = response.data or []
             rows.extend(batch)
             if len(batch) < POSTGREST_PAGE_SIZE:
@@ -100,11 +166,13 @@ class SupabaseGateway:
     async def fetch_master_products_by_eans(self, eans: list[str]) -> dict[str, str]:
         mapping: dict[str, str] = {}
         for chunk in _chunked(eans, 200):
-            response = (
-                await self._client.table("master_products")
-                .select("id,ean")
-                .in_("ean", chunk)
-                .execute()
+            response = await self._execute(
+                lambda client, c=chunk: (
+                    client.table("master_products")
+                    .select("id,ean")
+                    .in_("ean", c)
+                    .execute()
+                )
             )
             for row in response.data or []:
                 if row.get("ean") and row.get("id"):
@@ -118,15 +186,17 @@ class SupabaseGateway:
         unit_measure: str,
         threshold: float = 0.65,
     ) -> str | None:
-        response = await self._client.rpc(
-            "match_master_product_trgm",
-            {
-                "p_target_name": normalized_name,
-                "p_net_content": str(net_content),
-                "p_unit_measure": unit_measure,
-                "p_threshold": threshold,
-            },
-        ).execute()
+        response = await self._execute(
+            lambda client: client.rpc(
+                "match_master_product_trgm",
+                {
+                    "p_target_name": normalized_name,
+                    "p_net_content": str(net_content),
+                    "p_unit_measure": unit_measure,
+                    "p_threshold": threshold,
+                },
+            ).execute()
+        )
         data = response.data or []
         if data:
             return str(data[0]["id"])
@@ -136,10 +206,12 @@ class SupabaseGateway:
         ean = payload.get("ean")
         if ean:
             # Concurrencia segura cuando dos trabajos de la matriz descubren el mismo EAN a la vez
-            response = (
-                await self._client.table("master_products")
-                .upsert(payload, on_conflict="ean", ignore_duplicates=True)
-                .execute()
+            response = await self._execute(
+                lambda client: (
+                    client.table("master_products")
+                    .upsert(payload, on_conflict="ean", ignore_duplicates=True)
+                    .execute()
+                )
             )
             if response.data:
                 return str(response.data[0]["id"])
@@ -147,16 +219,20 @@ class SupabaseGateway:
             if ean in existing:
                 return existing[ean]
 
-        response = await self._client.table("master_products").insert(payload).execute()
+        response = await self._execute(
+            lambda client: client.table("master_products").insert(payload).execute()
+        )
         return str(response.data[0]["id"])
 
     async def upsert_store_skus(self, rows: list[dict[str, Any]]) -> dict[str, str]:
         mapping: dict[str, str] = {}
         for chunk in _chunked(rows, WRITE_CHUNK_SIZE):
-            response = (
-                await self._client.table("store_skus")
-                .upsert(chunk, on_conflict="store_id,external_sku")
-                .execute()
+            response = await self._execute(
+                lambda client, c=chunk: (
+                    client.table("store_skus")
+                    .upsert(c, on_conflict="store_id,external_sku")
+                    .execute()
+                )
             )
             for row in response.data or []:
                 mapping[row["external_sku"]] = str(row["id"])
@@ -165,17 +241,21 @@ class SupabaseGateway:
     async def insert_price_records(self, rows: list[dict[str, Any]]) -> int:
         inserted = 0
         for chunk in _chunked(rows, WRITE_CHUNK_SIZE):
-            response = await self._client.table("price_records").insert(chunk).execute()
+            response = await self._execute(
+                lambda client, c=chunk: client.table("price_records").insert(c).execute()
+            )
             inserted += len(response.data or chunk)
         return inserted
 
     async def touch_store_skus_verified(self, store_sku_ids: list[str]) -> int:
         updated = 0
         for chunk in _chunked(store_sku_ids, WRITE_CHUNK_SIZE):
-            response = await self._client.rpc(
-                "touch_store_skus_verified",
-                {"p_sku_ids": chunk},
-            ).execute()
+            response = await self._execute(
+                lambda client, c=chunk: client.rpc(
+                    "touch_store_skus_verified",
+                    {"p_sku_ids": c},
+                ).execute()
+            )
             if isinstance(response.data, int):
                 updated += response.data
             else:
@@ -404,6 +484,21 @@ class CDCManager:
             ):
                 self.stats.unchanged_skipped += 1
                 unchanged_sku_ids.append(store_sku_id)
+                continue
+
+            if (
+                product.raw_list_price > _MAX_DB_PRICE
+                or product.raw_sale_price > _MAX_DB_PRICE
+                or product.calibrated_price > _MAX_DB_PRICE
+                or product.pum_price > _MAX_DB_PUM
+            ):
+                logger.warning(
+                    "[%s] SKU %s omitido por valor fuera de rango NUMERIC(14,4): precio=%s, pum=%s",
+                    self.store_id,
+                    product.external_sku,
+                    product.raw_sale_price,
+                    product.pum_price,
+                )
                 continue
 
             if cached is None:
