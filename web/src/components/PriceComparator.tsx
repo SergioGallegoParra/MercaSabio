@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   AlertTriangle,
+  ArrowRightLeft,
   ArrowUp,
   ChevronDown,
   ChevronUp,
@@ -48,6 +49,7 @@ const copFormatter = new Intl.NumberFormat("es-CO", {
 
 const PAGE_SIZE = 24;
 const BASKET_STORAGE_KEY = "mercasabio_basket_v1";
+const SUBSTITUTES_STORAGE_KEY = "mercasabio_sub_rules_v1";
 const LOCATION_STORAGE_KEY = "mercasabio_loc_v1";
 const QUICK_SEARCH_TERMS = ["Arroz", "Leche", "Aceite", "Huevos", "Café", "Azúcar", "Atún"];
 const MONITORED_CHAINS = ["Carulla", "Tiendas D1", "Olímpica", "Éxito", "Ara"];
@@ -70,6 +72,12 @@ function collectOffersFromPayload(payload: DashboardPayload): StoreOffer[] {
     for (const offer of group.offers) {
       seen.set(offer.storeSkuId, offer);
     }
+    for (const m of [...(group.directCompetitors ?? []), ...(group.similarCompetitors ?? [])]) {
+      seen.set(m.offer.storeSkuId, m.offer);
+    }
+    for (const b of group.bulkOptions ?? []) {
+      seen.set(b.offer.storeSkuId, b.offer);
+    }
   }
   return [...seen.values()];
 }
@@ -81,6 +89,8 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("stores");
   const [onlyComparable, setOnlyComparable] = useState(false);
+  const [globalSubstitutes, setGlobalSubstitutes] = useState(true);
+  const [substituteOverrides, setSubstituteOverrides] = useState<Record<string, boolean>>({});
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -145,6 +155,30 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
     }
 
     try {
+      const savedSubRules = window.localStorage.getItem(SUBSTITUTES_STORAGE_KEY);
+      if (savedSubRules) {
+        const parsed = JSON.parse(savedSubRules) as {
+          globalSubstitutes?: unknown;
+          overrides?: Record<string, unknown>;
+        };
+        if (typeof parsed.globalSubstitutes === "boolean") {
+          setGlobalSubstitutes(parsed.globalSubstitutes);
+        }
+        if (parsed.overrides && typeof parsed.overrides === "object") {
+          const cleanOverrides: Record<string, boolean> = {};
+          for (const [k, v] of Object.entries(parsed.overrides)) {
+            if (typeof v === "boolean") {
+              cleanOverrides[k] = v;
+            }
+          }
+          setSubstituteOverrides(cleanOverrides);
+        }
+      }
+    } catch {
+      // Ignora almacenamiento local corrupto
+    }
+
+    try {
       const savedLocation = window.localStorage.getItem(LOCATION_STORAGE_KEY);
       if (savedLocation) {
         const parsed = JSON.parse(savedLocation) as {
@@ -181,6 +215,18 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
       // Silencioso si almacenamiento bloqueado
     }
   }, [basketItems, basketHydrated]);
+
+  useEffect(() => {
+    if (!basketHydrated) return;
+    try {
+      window.localStorage.setItem(
+        SUBSTITUTES_STORAGE_KEY,
+        JSON.stringify({ globalSubstitutes, overrides: substituteOverrides })
+      );
+    } catch {
+      // Silencioso si almacenamiento bloqueado
+    }
+  }, [globalSubstitutes, substituteOverrides, basketHydrated]);
 
   useEffect(() => {
     if (!locationHydrated) return;
@@ -278,8 +324,38 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
 
   const rawGroups: ComparisonGroup[] = mode === "ean" ? payload.eanGroups : payload.pumGroups;
 
+  const basketItemSubstitutesMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    for (const item of basketItems) {
+      map.set(item.itemKey, item.allowSubstitutes ?? globalSubstitutes);
+    }
+    return map;
+  }, [basketItems, globalSubstitutes]);
+
+  const getGroupAllowsSubstitutes = useCallback(
+    (itemKey: string) => {
+      if (basketItemSubstitutesMap.has(itemKey)) {
+        return Boolean(basketItemSubstitutesMap.get(itemKey));
+      }
+      if (itemKey in substituteOverrides) {
+        return Boolean(substituteOverrides[itemKey]);
+      }
+      return globalSubstitutes;
+    },
+    [basketItemSubstitutesMap, substituteOverrides, globalSubstitutes]
+  );
+
   const groups: ComparisonGroup[] = useMemo(() => {
-    const storeCount = (g: ComparisonGroup) => new Set(g.offers.map((o) => o.storeId)).size;
+    const storeCount = (g: ComparisonGroup) => {
+      const key = `${mode}:${g.groupId}`;
+      const allowSub = getGroupAllowsSubstitutes(key);
+      const stores = new Set(g.offers.map((o) => o.storeId));
+      if (allowSub) {
+        for (const m of g.directCompetitors ?? []) stores.add(m.offer.storeId);
+        for (const m of g.similarCompetitors ?? []) stores.add(m.offer.storeId);
+      }
+      return stores.size;
+    };
     const base = onlyComparable ? rawGroups.filter((g) => storeCount(g) >= 2) : rawGroups;
 
     return [...base].sort((a, b) => {
@@ -298,7 +374,7 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
         b.savingsPct - a.savingsPct
       );
     });
-  }, [rawGroups, onlyComparable, sortBy]);
+  }, [rawGroups, mode, onlyComparable, sortBy, getGroupAllowsSubstitutes]);
 
   const visibleGroups = useMemo(
     () => groups.slice(0, visibleCount),
@@ -358,24 +434,60 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
 
   function handleToggleBasket(group: ComparisonGroup) {
     const itemKey = `${mode}:${group.groupId}`;
+    const allowSub = getGroupAllowsSubstitutes(itemKey);
     setBasketItems((prev) => {
       const exists = prev.some((item) => item.itemKey === itemKey);
       if (exists) {
         return prev.filter((item) => item.itemKey !== itemKey);
       }
-      const anchorMasterId = group.offers[0]?.masterProductId ?? null;
+      const anchorOffer = group.offers[0] ?? null;
       return [
         ...prev,
         {
           itemKey,
           label: group.title,
-          masterProductId: mode === "ean" ? anchorMasterId : null,
+          masterProductId: mode === "ean" ? (anchorOffer?.masterProductId ?? null) : null,
           canonicalSlug: group.canonicalSlug,
           matchMode: mode,
           quantity: 1,
+          allowSubstitutes: allowSub,
+          subtypeFamily: group.signature?.subtypeFamily ?? null,
+          broadFamily: group.signature?.broadFamily ?? null,
+          targetNetContent: group.signature?.effectiveNetContent ?? group.netContent,
+          targetUnitMeasure: group.signature?.effectiveUnitMeasure ?? group.unitMeasure,
+          anchorStoreSkuId: anchorOffer?.storeSkuId ?? null,
+          anchorBrand: group.brand ?? anchorOffer?.brand ?? null,
+          ean: group.ean,
         },
       ];
     });
+  }
+
+  function handleToggleGroupSubstitutes(group: ComparisonGroup) {
+    const itemKey = `${mode}:${group.groupId}`;
+    const next = !getGroupAllowsSubstitutes(itemKey);
+    setSubstituteOverrides((prev) => ({ ...prev, [itemKey]: next }));
+    setBasketItems((prev) =>
+      prev.map((item) => (item.itemKey === itemKey ? { ...item, allowSubstitutes: next } : item))
+    );
+  }
+
+  function handleToggleBasketItemSubstitutes(itemKey: string) {
+    setBasketItems((prev) =>
+      prev.map((item) => {
+        if (item.itemKey !== itemKey) return item;
+        const next = !(item.allowSubstitutes ?? globalSubstitutes);
+        setSubstituteOverrides((o) => ({ ...o, [itemKey]: next }));
+        return { ...item, allowSubstitutes: next };
+      })
+    );
+  }
+
+  function handleToggleGlobalSubstitutes() {
+    const next = !globalSubstitutes;
+    setGlobalSubstitutes(next);
+    setSubstituteOverrides({});
+    setBasketItems((prev) => prev.map((item) => ({ ...item, allowSubstitutes: next })));
   }
 
   function handleQuantityChange(itemKey: string, nextQty: number) {
@@ -663,6 +775,17 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
                 Solo comparables en 2+ tiendas
               </button>
 
+              <button
+                type="button"
+                aria-pressed={globalSubstitutes}
+                className={`pill ${globalSubstitutes ? "active" : ""}`}
+                onClick={handleToggleGlobalSubstitutes}
+                title="Activa o desactiva la comparación automática con sustitutos equivalentes y selecciona producto por producto"
+              >
+                <ArrowRightLeft size={13} />
+                {globalSubstitutes ? "Sustitutos: Activos (todos)" : "Sustitutos: Desactivados"}
+              </button>
+
               {hasActiveFilters && (
                 <button
                   type="button"
@@ -835,32 +958,49 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
               ) : (
                 <div className="basket-body">
                   <div className="basket-items-list">
-                    {basketItems.map((item) => (
-                      <div key={item.itemKey} className="basket-chip">
-                        <span>{item.label}</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={20}
-                          aria-label={`Cantidad para ${item.label}`}
-                          className="basket-qty"
-                          value={item.quantity ?? 1}
-                          onChange={(e) => handleQuantityChange(item.itemKey, Number(e.target.value))}
-                        />
-                        <button
-                          type="button"
-                          aria-label={`Quitar ${item.label}`}
-                          className="basket-remove"
-                          onClick={() =>
-                            setBasketItems((prev) =>
-                              prev.filter((i) => i.itemKey !== item.itemKey)
-                            )
-                          }
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    ))}
+                    {basketItems.map((item) => {
+                      const allowSub = item.allowSubstitutes ?? globalSubstitutes;
+                      return (
+                        <div key={item.itemKey} className="basket-chip">
+                          <span>{item.label}</span>
+                          <button
+                            type="button"
+                            aria-pressed={allowSub}
+                            className={`basket-sub-pill ${allowSub ? "is-sub" : ""}`}
+                            onClick={() => handleToggleBasketItemSubstitutes(item.itemKey)}
+                            title={
+                              allowSub
+                                ? "Este producto permite sustitutos equivalentes en otras tiendas; clic para exigir exacto"
+                                : "Este producto exige coincidencia exacta; clic para permitir sustitutos"
+                            }
+                          >
+                            <ArrowRightLeft size={11} />
+                            {allowSub ? "Con sustitutos" : "Solo exacto"}
+                          </button>
+                          <input
+                            type="number"
+                            min={1}
+                            max={20}
+                            aria-label={`Cantidad para ${item.label}`}
+                            className="basket-qty"
+                            value={item.quantity ?? 1}
+                            onChange={(e) => handleQuantityChange(item.itemKey, Number(e.target.value))}
+                          />
+                          <button
+                            type="button"
+                            aria-label={`Quitar ${item.label}`}
+                            className="basket-remove"
+                            onClick={() =>
+                              setBasketItems((prev) =>
+                                prev.filter((i) => i.itemKey !== item.itemKey)
+                              )
+                            }
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   <div className="basket-workspace">
@@ -912,6 +1052,26 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
                                 )
                                 .join(" → ")}
                             </div>
+                            {isSelected && (
+                              <div className="plan-allocations-detail">
+                                {plan.storeStops.map((stop) => (
+                                  <div key={stop.storeId} className="plan-stop-detail">
+                                    <strong>{stop.storeName}:</strong>{" "}
+                                    {stop.allocations.map((alloc, i) => (
+                                      <span key={alloc.itemKey} className="plan-alloc-item">
+                                        {i > 0 ? " · " : ""}
+                                        {alloc.isSubstitute ? (
+                                          <span className="tag tag-estimated">Sustituto</span>
+                                        ) : (
+                                          <span className="tag tag-best">Exacto</span>
+                                        )}{" "}
+                                        {alloc.offer.rawName} ({copFormatter.format(alloc.nominalCost)})
+                                      </span>
+                                    ))}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </button>
                         );
                       })}
@@ -965,17 +1125,22 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
         ) : (
           <>
             <section className="groups-grid" aria-label="Resultados de comparación">
-              {visibleGroups.map((group) => (
-                <ProductCard
-                  key={`${mode}:${group.groupId}`}
-                  group={group}
-                  mode={mode}
-                  bankPromotions={payload.bankPromotions}
-                  currentDay={currentDay}
-                  inBasket={basketKeys.has(`${mode}:${group.groupId}`)}
-                  onToggleBasket={handleToggleBasket}
-                />
-              ))}
+              {visibleGroups.map((group) => {
+                const itemKey = `${mode}:${group.groupId}`;
+                return (
+                  <ProductCard
+                    key={itemKey}
+                    group={group}
+                    mode={mode}
+                    bankPromotions={payload.bankPromotions}
+                    currentDay={currentDay}
+                    inBasket={basketKeys.has(itemKey)}
+                    allowSubstitutes={getGroupAllowsSubstitutes(itemKey)}
+                    onToggleBasket={handleToggleBasket}
+                    onToggleSubstitutes={handleToggleGroupSubstitutes}
+                  />
+                );
+              })}
             </section>
 
             {visibleCount < groups.length && (

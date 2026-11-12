@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { optimizeBasket } from "../src/lib/basketOptimizer.ts";
+import { buildMultiTierComparisonGroups } from "../src/lib/comparisonEngine.ts";
 import {
   buildStoreAffiliateUrl,
   cleanProductTitle,
@@ -353,4 +354,323 @@ test("isMercadoOffer e isGroceryStoreId excluyen tiendas y productos ajenos al m
     }),
     true
   );
+});
+
+test("buildMultiTierComparisonGroups elimina duplicados intra-tienda y separa marcas fusionadas", () => {
+  const offers: StoreOffer[] = [
+    makeOffer({
+      storeSkuId: "ca-cafe-1",
+      storeId: "carulla",
+      storeName: "Carulla",
+      masterProductId: "mp-amor",
+      rawName: "Café AMOR PERFECTO molido (350 gr)",
+      brand: "AMOR PERFECTO",
+      ean: "7709375032007",
+      netContent: 350,
+      unitMeasure: "g",
+      calibratedPrice: 36720,
+      pumPrice: 104.91,
+    }),
+    makeOffer({
+      storeSkuId: "ca-cafe-2",
+      storeId: "carulla",
+      storeName: "Carulla",
+      masterProductId: "mp-amor",
+      rawName: "Café AMOR PERFECTO molido (350 gr)",
+      brand: "AMOR PERFECTO",
+      ean: "7709375032007",
+      netContent: 350,
+      unitMeasure: "g",
+      calibratedPrice: 36280,
+      pumPrice: 103.66,
+    }),
+    // Falsa fusión trgm de 2 pesos dentro de Carulla/D1 almacenados erróneamente como 1 und
+    makeOffer({
+      storeSkuId: "d1-albar-450",
+      storeId: "d1",
+      storeName: "Tiendas D1",
+      masterProductId: "mp-albar-merged",
+      rawName: "Arroz Económico Albar 450 Grs",
+      brand: "ALBAR",
+      ean: "7700304985838",
+      netContent: 1,
+      unitMeasure: "und",
+      calibratedPrice: 1300,
+      pumPrice: 1300,
+    }),
+    makeOffer({
+      storeSkuId: "d1-albar-2000",
+      storeId: "d1",
+      storeName: "Tiendas D1",
+      masterProductId: "mp-albar-merged",
+      rawName: "Arroz Económico Albar 2000 Grs",
+      brand: "ALBAR",
+      ean: "7700304985838",
+      netContent: 1,
+      unitMeasure: "und",
+      calibratedPrice: 5550,
+      pumPrice: 5550,
+    }),
+  ];
+
+  const groups = buildMultiTierComparisonGroups(offers, "ean");
+  const amorGroup = groups.find((g) => g.brand === "AMOR PERFECTO");
+  assert.ok(amorGroup);
+  assert.equal(amorGroup.offers.length, 1);
+  assert.equal(amorGroup.offers[0].calibratedPrice, 36280);
+
+  const albar450 = groups.find((g) => g.offers[0].storeSkuId === "d1-albar-450");
+  const albar2000 = groups.find((g) => g.offers[0].storeSkuId === "d1-albar-2000");
+  assert.ok(albar450);
+  assert.ok(albar2000);
+  assert.notEqual(albar450.groupId, albar2000.groupId);
+  assert.equal(albar450.netContent, 450);
+  assert.equal(albar450.unitMeasure, "g");
+  assert.equal(albar2000.netContent, 2000);
+  assert.equal(albar2000.unitMeasure, "g");
+});
+
+test("buildMultiTierComparisonGroups genera comparación directa, alternativa parecida y al por mayor", () => {
+  const offers: StoreOffer[] = [
+    // Arroz 2500g distinto EAN entre D1 y Carulla -> Tier 1 Competencia Directa
+    makeOffer({
+      storeSkuId: "d1-arroz-2500",
+      storeId: "d1",
+      storeName: "Tiendas D1",
+      masterProductId: "mp-albar-2500",
+      rawName: "Arroz Estandar Albar 2500 g",
+      brand: "ALBAR",
+      ean: "7700304944743",
+      netContent: 2500,
+      unitMeasure: "g",
+      calibratedPrice: 8150,
+      pumPrice: 3.26,
+    }),
+    makeOffer({
+      storeSkuId: "ca-arroz-2500",
+      storeId: "carulla",
+      storeName: "Carulla",
+      masterProductId: "mp-frescampo-2500",
+      rawName: "Arroz FRESCAMPO blanco (2500 gr)",
+      brand: "FRESCAMPO",
+      ean: "7701002013489",
+      netContent: 2500,
+      unitMeasure: "g",
+      calibratedPrice: 8470,
+      pumPrice: 3.388,
+    }),
+    // Café 300g en D1 vs Café 1000g en Carulla -> Tier 2 Similar Competitor + Tier 3 Por Mayor
+    makeOffer({
+      storeSkuId: "d1-cafe-300",
+      storeId: "d1",
+      storeName: "Tiendas D1",
+      masterProductId: "mp-sello-300",
+      rawName: "Café Sello Rojo 300 g",
+      brand: "SELLO ROJO",
+      ean: "7702032109227",
+      netContent: 300,
+      unitMeasure: "g",
+      calibratedPrice: 15350,
+      pumPrice: 51.1667,
+    }),
+    makeOffer({
+      storeSkuId: "ca-cafe-1000",
+      storeId: "carulla",
+      storeName: "Carulla",
+      masterProductId: "mp-sello-1000",
+      rawName: "Café SELLO ROJO tostado y molido (1000 gr)",
+      brand: "SELLO ROJO",
+      ean: "7702032109999",
+      netContent: 1000,
+      unitMeasure: "g",
+      calibratedPrice: 38900,
+      pumPrice: 38.9,
+    }),
+    // Antipasto de atún NO debe contaminar Atún en agua
+    makeOffer({
+      storeSkuId: "d1-atun-agua",
+      storeId: "d1",
+      storeName: "Tiendas D1",
+      masterProductId: "mp-atun-170",
+      rawName: "Atún en agua Carlo Forte 170 g",
+      brand: "CARLO FORTE",
+      ean: "7700304930951",
+      netContent: 170,
+      unitMeasure: "g",
+      calibratedPrice: 4450,
+      pumPrice: 26.1765,
+    }),
+    makeOffer({
+      storeSkuId: "ca-antipasto-250",
+      storeId: "carulla",
+      storeName: "Carulla",
+      masterProductId: "mp-antipasto",
+      rawName: "Antipasto FRESCAMPO con atún (250 gr)",
+      brand: "FRESCAMPO",
+      ean: "7701001918952",
+      netContent: 250,
+      unitMeasure: "g",
+      calibratedPrice: 15400,
+      pumPrice: 61.6,
+    }),
+  ];
+
+  const groups = buildMultiTierComparisonGroups(offers, "ean");
+
+  const d1Arroz = groups.find((g) => g.offers[0].storeSkuId === "d1-arroz-2500");
+  assert.ok(d1Arroz);
+  assert.equal(d1Arroz.directCompetitors?.length, 1);
+  assert.equal(d1Arroz.directCompetitors?.[0].offer.storeId, "carulla");
+  assert.equal(d1Arroz.directCompetitors?.[0].offer.storeSkuId, "ca-arroz-2500");
+
+  const d1Cafe = groups.find((g) => g.offers[0].storeSkuId === "d1-cafe-300");
+  assert.ok(d1Cafe);
+  assert.equal(d1Cafe.directCompetitors?.length, 0);
+  assert.equal(d1Cafe.similarCompetitors?.length, 1);
+  assert.equal(d1Cafe.similarCompetitors?.[0].offer.storeSkuId, "ca-cafe-1000");
+  assert.equal(d1Cafe.bulkOptions?.length, 1);
+  assert.equal(d1Cafe.bulkOptions?.[0].offer.storeSkuId, "ca-cafe-1000");
+  assert.ok((d1Cafe.bulkOptions?.[0].pumSavingsPct ?? 0) > 20);
+  assert.ok((d1Cafe.bulkOptions?.[0].totalSavingsOnBulkCop ?? 0) > 10000);
+
+  const d1Atun = groups.find((g) => g.offers[0].storeSkuId === "d1-atun-agua");
+  assert.ok(d1Atun);
+  assert.equal(d1Atun.directCompetitors?.length, 0);
+});
+
+test("optimizeBasket respeta allowSubstitutes selectivo por producto (uno con sustitutos y otro solo exacto)", () => {
+  const branches: NearbyStoreBranch[] = [
+    {
+      branchId: "b-ca",
+      storeId: "carulla",
+      branchName: "Carulla 85",
+      city: "Bogotá",
+      address: "Cra 15 #85",
+      lat: 4.668,
+      lng: -74.054,
+      distanceMeters: 250,
+    },
+    {
+      branchId: "b-d1",
+      storeId: "d1",
+      branchName: "D1 85",
+      city: "Bogotá",
+      address: "Cra 15 #84",
+      lat: 4.667,
+      lng: -74.055,
+      distanceMeters: 280,
+    },
+  ];
+
+  const offers: StoreOffer[] = [
+    // Item 1: Arroz 1000g (D1 tiene sustituto Albar más barato; Carulla tiene Diana)
+    makeOffer({
+      storeSkuId: "ca-diana-1000",
+      storeId: "carulla",
+      storeName: "Carulla",
+      masterProductId: "mp-arroz-diana",
+      rawName: "Arroz DIANA blanco (1000 gr)",
+      brand: "DIANA",
+      ean: "7702511000001",
+      netContent: 1000,
+      unitMeasure: "g",
+      calibratedPrice: 5200,
+      pumPrice: 5.2,
+    }),
+    makeOffer({
+      storeSkuId: "d1-albar-1000",
+      storeId: "d1",
+      storeName: "Tiendas D1",
+      masterProductId: "mp-arroz-albar",
+      rawName: "Arroz blanco ALBAR (1000 gr)",
+      brand: "ALBAR",
+      ean: "7700304000001",
+      netContent: 1000,
+      unitMeasure: "g",
+      calibratedPrice: 3600,
+      pumPrice: 3.6,
+    }),
+    // Item 2: Café Sello Rojo 300g SOLO exacto (D1 tiene otra marca más barata pero usuario prohíbe sustituir)
+    makeOffer({
+      storeSkuId: "ca-sello-300",
+      storeId: "carulla",
+      storeName: "Carulla",
+      masterProductId: "mp-cafe-sello",
+      rawName: "Café SELLO ROJO molido (300 gr)",
+      brand: "SELLO ROJO",
+      ean: "7702032109227",
+      netContent: 300,
+      unitMeasure: "g",
+      calibratedPrice: 16500,
+      pumPrice: 55,
+    }),
+    makeOffer({
+      storeSkuId: "d1-viejo-300",
+      storeId: "d1",
+      storeName: "Tiendas D1",
+      masterProductId: "mp-cafe-viejo",
+      rawName: "Café VIEJO MOLINO molido (300 gr)",
+      brand: "VIEJO MOLINO",
+      ean: "7700304841999",
+      netContent: 300,
+      unitMeasure: "g",
+      calibratedPrice: 11200,
+      pumPrice: 37.33,
+    }),
+  ];
+
+  const result = optimizeBasket({
+    items: [
+      {
+        itemKey: "item-arroz",
+        label: "Arroz DIANA blanco 1000g",
+        masterProductId: "mp-arroz-diana",
+        canonicalSlug: "arroz-blanco-1000g",
+        matchMode: "ean",
+        quantity: 1,
+        allowSubstitutes: true,
+        subtypeFamily: "arroz_blanco",
+        broadFamily: "arroz",
+        targetNetContent: 1000,
+        targetUnitMeasure: "g",
+        anchorStoreSkuId: "ca-diana-1000",
+        anchorBrand: "DIANA",
+        ean: "7702511000001",
+      },
+      {
+        itemKey: "item-cafe",
+        label: "Café SELLO ROJO molido 300g",
+        masterProductId: "mp-cafe-sello",
+        canonicalSlug: "cafe-molido-500g",
+        matchMode: "ean",
+        quantity: 1,
+        allowSubstitutes: false,
+        subtypeFamily: "cafe_molido",
+        broadFamily: "cafe",
+        targetNetContent: 300,
+        targetUnitMeasure: "g",
+        anchorStoreSkuId: "ca-sello-300",
+        anchorBrand: "SELLO ROJO",
+        ean: "7702032109227",
+      },
+    ],
+    offers,
+    nearbyBranches: branches,
+    options: { minExtraSavingsCop: 1000, minExtraSavingsPct: 1 },
+  });
+
+  assert.ok(result.bestTwoStores);
+  const allocations = result.bestTwoStores.storeStops.flatMap((s) => s.allocations);
+  const arrozAlloc = allocations.find((a) => a.itemKey === "item-arroz");
+  const cafeAlloc = allocations.find((a) => a.itemKey === "item-cafe");
+
+  assert.ok(arrozAlloc);
+  assert.equal(arrozAlloc.offer.storeId, "d1");
+  assert.equal(arrozAlloc.offer.storeSkuId, "d1-albar-1000");
+  assert.equal(arrozAlloc.isSubstitute, true);
+
+  assert.ok(cafeAlloc);
+  assert.equal(cafeAlloc.offer.storeId, "carulla");
+  assert.equal(cafeAlloc.offer.storeSkuId, "ca-sello-300");
+  assert.equal(cafeAlloc.isSubstitute, false);
 });

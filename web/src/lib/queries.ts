@@ -1,3 +1,4 @@
+import { buildMultiTierComparisonGroups } from "@/lib/comparisonEngine";
 import { cleanProductTitle, isGroceryStoreId, isMercadoOffer } from "@/lib/productInsights";
 import { getSupabaseConfig, supabaseRestGet, supabaseRpc } from "@/lib/supabase";
 import type {
@@ -545,100 +546,7 @@ export function buildComparisonGroups(
       offer.calibratedPrice > 0 &&
       isMercadoOffer(offer)
   );
-  const buckets = new Map<string, StoreOffer[]>();
-
-  for (const offer of validOffers) {
-    const key =
-      mode === "ean"
-        ? offer.masterProductId
-        : offer.canonicalSlug ?? `mp:${offer.masterProductId}`;
-
-    const list = buckets.get(key) ?? [];
-    list.push(offer);
-    buckets.set(key, list);
-  }
-
-  const groups: ComparisonGroup[] = [];
-  for (const [groupId, groupOffers] of buckets.entries()) {
-    const sorted = [...groupOffers].sort((a, b) => {
-      if (a.inStock !== b.inStock) {
-        return a.inStock ? -1 : 1;
-      }
-      return mode === "pum"
-        ? a.pumPrice * a.avgYieldFactor - b.pumPrice * b.avgYieldFactor
-        : a.calibratedPrice - b.calibratedPrice;
-    });
-
-    const anchor = sorted[0];
-    const activeOffers = sorted.filter((o) => o.inStock);
-    const referencePool = activeOffers.length > 0 ? activeOffers : sorted;
-
-    const bestPrice = Math.min(...referencePool.map((o) => o.calibratedPrice));
-    const bestPum = Math.min(...referencePool.map((o) => o.pumPrice));
-    const bestRealPum = Math.min(...referencePool.map((o) => o.pumPrice * o.avgYieldFactor));
-    const highestPrice = Math.max(...referencePool.map((o) => o.calibratedPrice));
-    const highestPum = Math.max(...referencePool.map((o) => o.pumPrice));
-
-    const savingsPct =
-      mode === "pum"
-        ? highestPum > 0
-          ? Math.round(((highestPum - bestPum) / highestPum) * 100)
-          : 0
-        : highestPrice > 0
-          ? Math.round(((highestPrice - bestPrice) / highestPrice) * 100)
-          : 0;
-
-    const title =
-      mode === "pum" && anchor.canonicalName
-        ? anchor.canonicalName
-        : anchor.rawName;
-
-    const subtitle =
-      mode === "pum"
-        ? `Equivalentes por ${anchor.unitMeasure} (${sorted.length} ofertas)`
-        : `${anchor.brand ?? "Marca comercial"} · ${anchor.netContent} ${anchor.unitMeasure}`;
-
-    const mostVotedAnchor =
-      [...sorted].sort((a, b) => b.totalVotes - a.totalVotes)[0] ?? anchor;
-
-    groups.push({
-      groupId,
-      title,
-      subtitle,
-      brand: anchor.brand,
-      ean: anchor.ean,
-      canonicalCategoryId: anchor.canonicalCategoryId,
-      canonicalSlug: anchor.canonicalSlug,
-      canonicalName: anchor.canonicalName,
-      netContent: anchor.netContent,
-      unitMeasure: anchor.unitMeasure,
-      imageUrl: sorted.find((o) => o.imageUrl)?.imageUrl ?? null,
-      bestPrice,
-      bestPum,
-      bestRealPum,
-      highestPrice,
-      savingsPct,
-      positiveVotes: mostVotedAnchor.positiveVotes,
-      totalVotes: mostVotedAnchor.totalVotes,
-      avgYieldFactor: mostVotedAnchor.avgYieldFactor,
-      invimaRegistry: sorted.find((o) => o.invimaRegistry)?.invimaRegistry ?? null,
-      actualManufacturer: sorted.find((o) => o.actualManufacturer)?.actualManufacturer ?? null,
-      shrinkflationAlert: sorted.some((o) => o.shrinkflationAlert),
-      previousNetContent:
-        sorted.find((o) => o.previousNetContent !== null)?.previousNetContent ?? null,
-      offers: sorted,
-    });
-  }
-
-  const distinctStoresCount = (group: ComparisonGroup) =>
-    new Set(group.offers.map((offer) => offer.storeId)).size;
-
-  return groups.sort(
-    (a, b) =>
-      distinctStoresCount(b) - distinctStoresCount(a) ||
-      b.offers.length - a.offers.length ||
-      b.savingsPct - a.savingsPct
-  );
+  return buildMultiTierComparisonGroups(validOffers, mode);
 }
 
 export async function getDashboardData(options?: {
@@ -679,7 +587,7 @@ export async function getDashboardData(options?: {
     supabaseRpc<LatestPriceRow[]>(supabaseConfig, "search_latest_offers", {
       p_query: queryText,
       p_category_slug: categorySlug,
-      p_limit: 240,
+      p_limit: 400,
     }),
     supabaseRestGet<{ id: number; slug: string; name: string; base_unit: UnitMeasure }[]>(
       supabaseConfig,

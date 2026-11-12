@@ -61,6 +61,46 @@ export interface ComparisonGroup {
   shrinkflationAlert: boolean;
   previousNetContent: number | null;
   offers: StoreOffer[];
+  signature?: ProductSignatureSummary;
+  directCompetitors?: TieredCompetitorMatch[];
+  similarCompetitors?: TieredCompetitorMatch[];
+  bulkOptions?: BulkComparisonOption[];
+  substitutesCount?: number;
+}
+
+export type TieredMatchType = "exact_ean" | "equivalent_size" | "similar_competitor";
+
+export interface ProductSignatureSummary {
+  broadFamily: string;
+  subtypeFamily: string;
+  familyLabel: string;
+  effectiveNetContent: number;
+  effectiveUnitMeasure: UnitMeasure;
+  effectivePum: number;
+}
+
+export interface TieredCompetitorMatch {
+  offer: StoreOffer;
+  matchType: TieredMatchType;
+  weightDiffPct: number;
+  priceDiffCop: number;
+  pumDiffPct: number;
+  reasonLabel: string;
+  effectiveNetContent: number;
+  effectiveUnitMeasure: UnitMeasure;
+  effectivePum: number;
+}
+
+export interface BulkComparisonOption {
+  offer: StoreOffer;
+  effectiveNetContent: number;
+  effectiveUnitMeasure: UnitMeasure;
+  effectivePum: number;
+  sizeRatio: number;
+  pumSavingsPct: number;
+  equivalentAnchorTotalCop: number;
+  totalSavingsOnBulkCop: number;
+  savingsLabel: string;
 }
 
 export interface CanonicalCategoryOption {

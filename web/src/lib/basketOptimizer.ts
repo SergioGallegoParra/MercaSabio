@@ -1,4 +1,13 @@
-import type { CompareMode, NearbyStoreBranch, StoreOffer } from "@/lib/types";
+import {
+  extractProductSignature,
+  normalizeComparableText,
+} from "./comparisonEngine.ts";
+import type {
+  CompareMode,
+  NearbyStoreBranch,
+  StoreOffer,
+  UnitMeasure,
+} from "@/lib/types";
 
 export interface BasketItemInput {
   itemKey: string;
@@ -7,7 +16,17 @@ export interface BasketItemInput {
   canonicalSlug?: string | null;
   matchMode?: CompareMode;
   quantity?: number;
+  allowSubstitutes?: boolean;
+  subtypeFamily?: string | null;
+  broadFamily?: string | null;
+  targetNetContent?: number | null;
+  targetUnitMeasure?: UnitMeasure | null;
+  anchorStoreSkuId?: string | null;
+  anchorBrand?: string | null;
+  ean?: string | null;
 }
+
+export type BasketMatchKind = "exact" | "substitute_direct" | "substitute_similar";
 
 export interface BasketAllocation {
   itemKey: string;
@@ -19,6 +38,8 @@ export interface BasketAllocation {
   yieldAdjustedCost: number;
   nominalPum: number;
   realAdjustedPum: number;
+  isSubstitute: boolean;
+  matchKind: BasketMatchKind;
 }
 
 export interface BasketStoreStop {
@@ -63,24 +84,90 @@ export interface BasketOptimizeOptions {
   objective?: "nominal" | "real_pum";
 }
 
-function resolveCandidateOffers(item: BasketItemInput, offers: StoreOffer[]): StoreOffer[] {
-  const mode = item.matchMode ?? "ean";
-  if (mode === "pum" && item.canonicalSlug) {
-    const byCategory = offers.filter((o) => o.canonicalSlug === item.canonicalSlug);
-    if (byCategory.length > 0) {
-      return byCategory;
+interface TaggedCandidate {
+  offer: StoreOffer;
+  matchKind: BasketMatchKind;
+  effectivePum: number;
+  weightDistance: number;
+}
+
+function isCloseWeight(candidateQty: number, targetQty: number | null | undefined, tolerance = 0.45): boolean {
+  if (!targetQty || targetQty <= 0 || candidateQty <= 0) return true;
+  const ratio = candidateQty / targetQty;
+  return ratio >= 1 - tolerance && ratio <= 1 + tolerance;
+}
+
+function resolveCandidateOffers(item: BasketItemInput, offers: StoreOffer[]): TaggedCandidate[] {
+  const allowSubstitutes = item.allowSubstitutes ?? item.matchMode === "pum";
+  const anchorBrandNorm = item.anchorBrand ? normalizeComparableText(item.anchorBrand) : null;
+  const results = new Map<string, TaggedCandidate>();
+
+  for (const offer of offers) {
+    const sig = extractProductSignature(offer);
+    const targetQty = item.targetNetContent ?? null;
+    const weightDistance =
+      targetQty && targetQty > 0 && sig.effectiveNetContent > 0
+        ? Math.abs(Math.log(sig.effectiveNetContent / targetQty))
+        : 0;
+
+    // 1) Coincidencia exacta verificada (SKU ancla, EAN igual con peso cercano, o masterProductId coherente)
+    const matchesSku = Boolean(item.anchorStoreSkuId && offer.storeSkuId === item.anchorStoreSkuId);
+    const matchesEan = Boolean(
+      item.ean &&
+        offer.ean === item.ean &&
+        (!item.targetUnitMeasure || sig.effectiveUnitMeasure === item.targetUnitMeasure) &&
+        isCloseWeight(sig.effectiveNetContent, targetQty, 0.15)
+    );
+    const matchesMaster = Boolean(
+      item.masterProductId &&
+        offer.masterProductId === item.masterProductId &&
+        (!anchorBrandNorm || sig.brandKey === anchorBrandNorm || offer.ean === item.ean) &&
+        isCloseWeight(sig.effectiveNetContent, targetQty, 0.15)
+    );
+
+    if (matchesSku || matchesEan || matchesMaster) {
+      results.set(offer.storeSkuId, {
+        offer: { ...offer, netContent: sig.effectiveNetContent, unitMeasure: sig.effectiveUnitMeasure, pumPrice: sig.effectivePum },
+        matchKind: "exact",
+        effectivePum: sig.effectivePum,
+        weightDistance,
+      });
+      continue;
     }
-  }
-  if (item.masterProductId) {
-    const byMaster = offers.filter((o) => o.masterProductId === item.masterProductId);
-    if (byMaster.length > 0) {
-      return byMaster;
+
+    if (!allowSubstitutes) {
+      continue;
     }
+
+    // 2) Sustitutos permitidos para este producto
+    if (item.targetUnitMeasure && sig.effectiveUnitMeasure !== item.targetUnitMeasure) {
+      continue;
+    }
+
+    const sameSubtype = Boolean(
+      (item.subtypeFamily && sig.subtypeFamily === item.subtypeFamily) ||
+        (item.canonicalSlug && (sig.inferredCanonicalSlug === item.canonicalSlug || offer.canonicalSlug === item.canonicalSlug))
+    );
+    const sameBroad = Boolean(item.broadFamily && sig.broadFamily === item.broadFamily);
+
+    if (!sameSubtype && !sameBroad) {
+      continue;
+    }
+
+    const matchKind: BasketMatchKind =
+      sameSubtype && isCloseWeight(sig.effectiveNetContent, targetQty, 0.45)
+        ? "substitute_direct"
+        : "substitute_similar";
+
+    results.set(offer.storeSkuId, {
+      offer: { ...offer, netContent: sig.effectiveNetContent, unitMeasure: sig.effectiveUnitMeasure, pumPrice: sig.effectivePum },
+      matchKind,
+      effectivePum: sig.effectivePum,
+      weightDistance,
+    });
   }
-  if (item.canonicalSlug) {
-    return offers.filter((o) => o.canonicalSlug === item.canonicalSlug);
-  }
-  return [];
+
+  return [...results.values()];
 }
 
 function combinationsOfSize<T>(items: T[], size: number): T[][] {
@@ -99,18 +186,26 @@ function combinationsOfSize<T>(items: T[], size: number): T[][] {
   return result;
 }
 
-function scoreAllocation(offer: StoreOffer, quantity: number, objective: "nominal" | "real_pum"): number {
+function scoreAllocation(
+  candidate: TaggedCandidate,
+  quantity: number,
+  objective: "nominal" | "real_pum"
+): number {
+  const { offer, matchKind, effectivePum, weightDistance } = candidate;
   const yieldFactor = offer.avgYieldFactor > 0 ? offer.avgYieldFactor : 1;
   if (objective === "real_pum") {
-    return offer.pumPrice * yieldFactor;
+    const tierPenalty = matchKind === "substitute_similar" ? 1.08 : 1;
+    return effectivePum * yieldFactor * tierPenalty;
   }
-  return offer.calibratedPrice * quantity;
+  // En modo nominal penalizamos saltos extremos de tamaño (>50% lejos) solo cuando hay tamaño cercano
+  const sizePenalty = matchKind === "exact" ? 1 : 1 + Math.min(weightDistance, 1.5) * 0.25;
+  return offer.calibratedPrice * quantity * sizePenalty;
 }
 
 function evaluateStoreCombination(
   storeIds: string[],
   storeCount: 1 | 2 | 3,
-  itemPools: Array<{ item: BasketItemInput; quantity: number; byStore: Map<string, StoreOffer[]> }>,
+  itemPools: Array<{ item: BasketItemInput; quantity: number; byStore: Map<string, TaggedCandidate[]> }>,
   nearestBranchByStore: Map<string, NearbyStoreBranch>,
   objective: "nominal" | "real_pum"
 ): BasketPlan | null {
@@ -122,7 +217,7 @@ function evaluateStoreCombination(
   let totalRealAdjustedPum = 0;
 
   for (const pool of itemPools) {
-    let chosenOffer: StoreOffer | null = null;
+    let chosenCandidate: TaggedCandidate | null = null;
     let bestMetric = Number.POSITIVE_INFINITY;
 
     for (const storeId of storeIds) {
@@ -132,15 +227,16 @@ function evaluateStoreCombination(
         const metric = scoreAllocation(candidate, pool.quantity, objective);
         if (metric < bestMetric) {
           bestMetric = metric;
-          chosenOffer = candidate;
+          chosenCandidate = candidate;
         }
       }
     }
 
-    if (!chosenOffer) {
+    if (!chosenCandidate) {
       continue;
     }
 
+    const chosenOffer = chosenCandidate.offer;
     const branch = nearestBranchByStore.get(chosenOffer.storeId);
     if (!branch) {
       continue;
@@ -150,7 +246,7 @@ function evaluateStoreCombination(
     const yieldFactor = chosenOffer.avgYieldFactor > 0 ? chosenOffer.avgYieldFactor : 1;
     const nominalCost = chosenOffer.calibratedPrice * pool.quantity;
     const yieldAdjustedCost = nominalCost * yieldFactor;
-    const nominalPum = chosenOffer.pumPrice;
+    const nominalPum = chosenCandidate.effectivePum;
     const realAdjustedPum = nominalPum * yieldFactor;
 
     totalNominalCost += nominalCost;
@@ -183,6 +279,8 @@ function evaluateStoreCombination(
       yieldAdjustedCost,
       nominalPum,
       realAdjustedPum,
+      isSubstitute: chosenCandidate.matchKind !== "exact",
+      matchKind: chosenCandidate.matchKind,
     });
   }
 
@@ -334,11 +432,11 @@ export function optimizeBasket(params: {
   const itemPools = items.map((item) => {
     const quantity = Math.max(1, Math.round(item.quantity ?? 1));
     const candidates = resolveCandidateOffers(item, nearbyOffers);
-    const byStore = new Map<string, StoreOffer[]>();
+    const byStore = new Map<string, TaggedCandidate[]>();
     for (const candidate of candidates) {
-      const list = byStore.get(candidate.storeId) ?? [];
+      const list = byStore.get(candidate.offer.storeId) ?? [];
       list.push(candidate);
-      byStore.set(candidate.storeId, list);
+      byStore.set(candidate.offer.storeId, list);
     }
     if (byStore.size === 0) {
       uncoveredItems.push(item.label);

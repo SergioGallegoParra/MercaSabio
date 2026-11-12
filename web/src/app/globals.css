@@ -696,13 +696,55 @@ body {
 .basket-chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 7px;
   background: var(--surface-elevated);
   border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 4px 10px;
+  border-radius: 12px;
+  padding: 5px 10px;
   font-size: 0.79rem;
   font-weight: 500;
+}
+
+.basket-sub-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.71rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.basket-sub-pill.is-sub {
+  background: var(--info-bg);
+  border-color: #bae6fd;
+  color: var(--info-text);
+}
+
+.plan-allocations-detail {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.plan-stop-detail {
+  line-height: 1.45;
+}
+
+.plan-alloc-item {
+  display: inline;
 }
 
 .basket-qty {
@@ -1036,6 +1078,39 @@ body {
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
+}
+
+.card-hero-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.sub-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-elevated);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 0.71rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sub-toggle-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.sub-toggle-btn.is-enabled {
+  background: var(--info-bg);
+  border-color: #bae6fd;
+  color: var(--info-text);
 }
 
 .basket-toggle-btn {
@@ -1378,6 +1453,164 @@ body {
   text-decoration: underline;
 }
 
+/* ─── Multi-Tier & Bulk Comparison Sections ─── */
+.tier-section,
+.bulk-section {
+  border-top: 1px solid var(--border);
+  background: #f8fafc;
+  padding: 10px 16px 12px;
+}
+
+.tier-section-similar {
+  background: #fffbeb;
+}
+
+.bulk-section {
+  background: linear-gradient(180deg, #f0fdfa 0%, #ffffff 100%);
+}
+
+.tier-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--info-text);
+  margin-bottom: 7px;
+  letter-spacing: -0.01em;
+}
+
+.tier-section-similar .tier-section-header {
+  color: var(--warn-text);
+}
+
+.bulk-header {
+  color: var(--accent-text);
+}
+
+.tier-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tier-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.78rem;
+}
+
+.tier-row-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.tier-store-badge {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.69rem;
+  font-weight: 700;
+}
+
+.tier-store-bulk {
+  background: var(--accent-soft);
+  border-color: #99f6e4;
+  color: var(--accent-text);
+}
+
+.tier-row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.tier-sku-title {
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.tier-reason {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  margin-top: 2px;
+}
+
+.bulk-savings-note {
+  color: var(--accent-text);
+  font-size: 0.73rem;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.tier-row-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.tier-price-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.25;
+}
+
+.tier-price-stack strong {
+  font-size: 0.84rem;
+  color: var(--text);
+}
+
+.tier-price-stack span {
+  font-size: 0.69rem;
+  color: var(--text-muted);
+}
+
+.tier-locked-banner {
+  border-top: 1px solid var(--border);
+  padding: 9px 16px;
+  background: var(--surface-elevated);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.tier-unlock-btn {
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  color: var(--accent-text);
+  border-radius: 7px;
+  padding: 4px 9px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tier-unlock-btn:hover {
+  background: var(--accent-soft);
+}
+
 .pagination-wrap {
   margin-top: 22px;
   display: flex;
@@ -1614,6 +1847,25 @@ body {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
+  }
+
+  .card-hero-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .tier-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tier-row-right {
+    justify-content: space-between;
+  }
+
+  .tier-price-stack {
+    align-items: flex-start;
   }
 
   .best-price-box {
