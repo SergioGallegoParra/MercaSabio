@@ -538,9 +538,12 @@ export function buildComparisonGroups(
   offers: StoreOffer[],
   mode: CompareMode
 ): ComparisonGroup[] {
+  const validOffers = offers.filter(
+    (offer) => Number.isFinite(offer.calibratedPrice) && offer.calibratedPrice > 0
+  );
   const buckets = new Map<string, StoreOffer[]>();
 
-  for (const offer of offers) {
+  for (const offer of validOffers) {
     const key =
       mode === "ean"
         ? offer.masterProductId
@@ -623,7 +626,15 @@ export function buildComparisonGroups(
     });
   }
 
-  return groups.sort((a, b) => b.offers.length - a.offers.length || b.savingsPct - a.savingsPct);
+  const distinctStoresCount = (group: ComparisonGroup) =>
+    new Set(group.offers.map((offer) => offer.storeId)).size;
+
+  return groups.sort(
+    (a, b) =>
+      distinctStoresCount(b) - distinctStoresCount(a) ||
+      b.offers.length - a.offers.length ||
+      b.savingsPct - a.savingsPct
+  );
 }
 
 export async function getDashboardData(options?: {
