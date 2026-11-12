@@ -19,9 +19,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MercaSabio · Comparador de Precios Retail Colombia",
+  title: "MercaSabio · Comparador de Precios de Mercado en Colombia",
   description:
-    "Compara precios reales y Precio por Unidad de Medida (PUM) entre Éxito, Carulla, Olímpica, D1, Ara, Alkosto y Ktronix.",
+    "Compara precios reales y Precio por Unidad de Medida (PUM) en productos de mercado y canasta familiar entre Carulla, Tiendas D1, Olímpica, Éxito y Ara.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

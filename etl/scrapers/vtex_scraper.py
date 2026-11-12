@@ -12,6 +12,11 @@ import httpx
 from etl.core.base_scraper import BaseScraper, ScraperHTTPError
 from etl.core.calibrator import apply_calibration
 from etl.core.canonical_mapper import infer_canonical_category_slug, is_store_private_label
+from etl.core.grocery_filter import (
+    is_mercado_category_name,
+    is_mercado_product,
+    is_priority_grocery_category_name,
+)
 from etl.core.models import ScrapedProduct, ScraperConfig
 from etl.core.normalizer import (
     compute_pum,
@@ -114,24 +119,35 @@ class VtexScraper(BaseScraper):
 
     @classmethod
     def _flatten_category_tree(cls, nodes: list[dict[str, Any]]) -> list[str]:
-        """Convierte nodos hoja del árbol VTEX en filtros `fq=C:/id1/id2/.../`."""
-        filters: list[str] = []
+        """Convierte nodos hoja de mercado del árbol VTEX en filtros `fq=C:/id1/id2/.../`."""
+        priority_filters: list[str] = []
+        regular_filters: list[str] = []
 
-        def walk(node: dict[str, Any], prefix: list[str]) -> None:
+        def walk(node: dict[str, Any], prefix: list[str], is_priority_branch: bool) -> None:
             node_id = node.get("id")
             if node_id is None:
                 return
+            node_name = node.get("name")
+            if isinstance(node_name, str) and not is_mercado_category_name(node_name):
+                return
+            branch_priority = is_priority_branch or (
+                isinstance(node_name, str) and is_priority_grocery_category_name(node_name)
+            )
             current_path = [*prefix, str(node_id)]
             children = node.get("children") or []
             if children:
                 for child in children:
-                    walk(child, current_path)
+                    walk(child, current_path, branch_priority)
             else:
-                filters.append(f"C:/{'/'.join(current_path)}/")
+                fq = f"C:/{'/'.join(current_path)}/"
+                if branch_priority:
+                    priority_filters.append(fq)
+                else:
+                    regular_filters.append(fq)
 
         for root in nodes:
-            walk(root, [])
-        return filters
+            walk(root, [], False)
+        return [*priority_filters, *regular_filters]
 
     async def iter_batches(self) -> AsyncIterator[list[ScrapedProduct]]:
         """Itera por categorías y páginas de 50 SKUs emitiendo lotes validados."""
@@ -188,6 +204,14 @@ def parse_vtex_product_payload(
     brand = raw_product.get("brand")
     raw_url = _build_vtex_product_url(raw_product, config.base_url)
     category_path = _extract_vtex_category_path(raw_product)
+    if not is_mercado_product(
+        config.store_id,
+        product_name,
+        brand=str(brand) if brand is not None else None,
+        raw_url=raw_url,
+        category_path=category_path,
+    ):
+        return []
 
     parsed: list[ScrapedProduct] = []
     for item in items:
@@ -204,6 +228,15 @@ def parse_vtex_product_payload(
 
         raw_name = _resolve_vtex_item_name(product_name, item)
         if not raw_name:
+            continue
+
+        if not is_mercado_product(
+            config.store_id,
+            raw_name,
+            brand=str(brand) if brand is not None else None,
+            raw_url=raw_url,
+            category_path=category_path,
+        ):
             continue
 
         sale_price = _to_vtex_decimal(offer.get("Price") if "Price" in offer else offer.get("price"))

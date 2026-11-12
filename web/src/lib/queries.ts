@@ -1,4 +1,4 @@
-import { cleanProductTitle } from "@/lib/productInsights";
+import { cleanProductTitle, isGroceryStoreId, isMercadoOffer } from "@/lib/productInsights";
 import { getSupabaseConfig, supabaseRestGet, supabaseRpc } from "@/lib/supabase";
 import type {
   BankPromotion,
@@ -540,7 +540,10 @@ export function buildComparisonGroups(
   mode: CompareMode
 ): ComparisonGroup[] {
   const validOffers = offers.filter(
-    (offer) => Number.isFinite(offer.calibratedPrice) && offer.calibratedPrice > 0
+    (offer) =>
+      Number.isFinite(offer.calibratedPrice) &&
+      offer.calibratedPrice > 0 &&
+      isMercadoOffer(offer)
   );
   const buckets = new Map<string, StoreOffer[]>();
 
@@ -693,14 +696,16 @@ export async function getDashboardData(options?: {
     ),
   ]);
 
-  const offers = offerRows.map(mapRowToOffer);
+  const offers = offerRows.map(mapRowToOffer).filter(isMercadoOffer);
   const categories: CanonicalCategoryOption[] = categoryRows.map((row) => ({
     id: row.id,
     slug: row.slug,
     name: row.name,
     baseUnit: row.base_unit,
   }));
-  const bankPromotions = promoRows.map(mapBankPromotionRow);
+  const bankPromotions = promoRows
+    .map(mapBankPromotionRow)
+    .filter((promo) => promo.storeId === null || isGroceryStoreId(promo.storeId));
 
   const statsRow = statsRows[0];
   return {
@@ -749,14 +754,16 @@ export async function getNearbyStores(params: {
     radius_meters: radiusMeters,
   });
 
-  return rows.map((row) => ({
-    branchId: row.branch_id,
-    storeId: row.store_id,
-    branchName: row.branch_name,
-    city: row.city,
-    address: row.address ?? null,
-    lat: Number(row.lat),
-    lng: Number(row.lng),
-    distanceMeters: Number(row.distance_meters),
-  }));
+  return rows
+    .filter((row) => isGroceryStoreId(row.store_id))
+    .map((row) => ({
+      branchId: row.branch_id,
+      storeId: row.store_id,
+      branchName: row.branch_name,
+      city: row.city,
+      address: row.address ?? null,
+      lat: Number(row.lat),
+      lng: Number(row.lng),
+      distanceMeters: Number(row.distance_meters),
+    }));
 }

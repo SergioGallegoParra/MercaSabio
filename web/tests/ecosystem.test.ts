@@ -8,6 +8,8 @@ import {
   computeRealUsageMetrics,
   findActiveBankPromotions,
   getSteamRatingBadge,
+  isGroceryStoreId,
+  isMercadoOffer,
   sanitizeExternalUrl,
 } from "../src/lib/productInsights.ts";
 import type { BankPromotion, NearbyStoreBranch, StoreOffer } from "../src/lib/types.ts";
@@ -298,4 +300,57 @@ test("cleanProductTitle y sanitización de enlaces externos previenen duplicados
 
   assert.equal(sanitizeExternalUrl("javascript:alert(1)"), "#");
   assert.equal(sanitizeExternalUrl("https://nu.com.co/"), "https://nu.com.co/");
+});
+
+test("isMercadoOffer e isGroceryStoreId excluyen tiendas y productos ajenos al mercado", () => {
+  assert.equal(isGroceryStoreId("alkosto"), false);
+  assert.equal(isGroceryStoreId("ktronix"), false);
+  assert.equal(isGroceryStoreId("carulla"), true);
+  assert.equal(isGroceryStoreId("d1"), true);
+
+  assert.equal(
+    isMercadoOffer({
+      storeId: "ktronix",
+      rawName: "Celular iPhone 17 256GB",
+      brand: "Apple",
+      rawUrl: "https://www.ktronix.com/iphone/p/1",
+    }),
+    false
+  );
+  assert.equal(
+    isMercadoOffer({
+      storeId: "olimpica",
+      rawName: "Televisor Caixun 55 Pulgadas Smart TV QLED",
+      brand: "CAIXUN",
+      rawUrl: "https://www.olimpica.com/tv/p",
+    }),
+    false
+  );
+  assert.equal(
+    isMercadoOffer({
+      storeId: "olimpica",
+      rawName: "Camisa JSN Azul Talla XXL",
+      brand: "JSN",
+      rawUrl: "https://www.olimpica.com/camisa-jsn/p",
+    }),
+    false
+  );
+  assert.equal(
+    isMercadoOffer({
+      storeId: "carulla",
+      rawName: "Pastas LA MUÑECA spaghetti (500 gr)",
+      brand: "LA MUÑECA",
+      rawUrl: "https://secure.carulla.com/pastas-la-muneca/p",
+    }),
+    true
+  );
+  assert.equal(
+    isMercadoOffer({
+      storeId: "d1",
+      rawName: "Arroz Extra Gourmet Albar 1000 Gr",
+      brand: "ALBAR",
+      rawUrl: "https://www.d1.com.co/arroz-albar/p",
+    }),
+    true
+  );
 });

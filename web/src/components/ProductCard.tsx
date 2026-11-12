@@ -43,8 +43,6 @@ const STORE_BRAND_META: Record<
   exito: { short: "ÉX", bg: "#fefce8", fg: "#a16207", border: "#fde047" },
   carulla: { short: "CA", bg: "#f0fdf4", fg: "#15803d", border: "#bbf7d0" },
   olimpica: { short: "OL", bg: "#fff7ed", fg: "#c2410c", border: "#fed7aa" },
-  alkosto: { short: "AL", bg: "#fff1f2", fg: "#be123c", border: "#fecdd3" },
-  ktronix: { short: "KT", bg: "#eff6ff", fg: "#1d4ed8", border: "#bfdbfe" },
   ara: { short: "AR", bg: "#fff7ed", fg: "#ea580c", border: "#fdba74" },
   rappi: { short: "RP", bg: "#fef2f2", fg: "#e11d48", border: "#fecdd3" },
 };

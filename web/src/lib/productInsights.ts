@@ -151,3 +151,135 @@ export function buildStoreAffiliateUrl(rawUrl: string): string {
     return "#";
   }
 }
+
+export const GROCERY_STORE_IDS = new Set([
+  "carulla",
+  "d1",
+  "olimpica",
+  "exito",
+  "ara",
+  "rappi",
+]);
+
+const NON_GROCERY_BRANDS = new Set([
+  "samsung",
+  "lg",
+  "haceb",
+  "mabe",
+  "challenger",
+  "whirlpool",
+  "electrolux",
+  "hisense",
+  "caixun",
+  "hyundai",
+  "epson",
+  "acer",
+  "lenovo",
+  "hp",
+  "asus",
+  "xiaomi",
+  "motorola",
+  "nokia",
+  "infinix",
+  "esenses",
+  "maxell",
+  "cubitt",
+  "mykronoz",
+  "vta",
+  "sylvania",
+  "topluz",
+  "ilumax",
+  "sonya",
+  "olimpo",
+  "imusa",
+  "t-fal",
+  "tefal",
+  "black+decker",
+  "oster",
+  "hamilton beach",
+  "ninja",
+  "nutribullet",
+  "mr. coffee",
+  "midea",
+  "conair",
+  "remington",
+  "revlon",
+  "mattel",
+  "hasbro",
+  "barbie",
+  "hot wheels",
+  "nerf",
+  "play doh",
+  "play-doh",
+  "fisher price",
+  "fisher-price",
+  "lego",
+  "paw patrol",
+  "batman",
+  "monopoly",
+  "simoniz",
+  "cristar",
+  "comodisimos",
+  "espumados",
+  "cannon",
+  "fatelares",
+  "distrihogar",
+  "samsonite",
+  "totto",
+  "jsn",
+  "new balance",
+  "covergirl",
+  "maybelline",
+  "vogue",
+  "red flag",
+]);
+
+const NON_GROCERY_TEXT_RE =
+  /\b(televisor|smart\s*tv|qled|oled|celular|smartphone|iphone|tablet|ipad|portatil|computador|laptop|proyector|videoproyector|impresora|audifonos?|parlante|subwoofer|reloj\s+inteligente|smartwatch|nevera|nevecon|minibar|estufa|microondas|freidora\s+de\s+aire|sandwichera|sanduchera|licuadora|cafetera|calentador\s+de\s+agua|aire\s+acondicionado|ventilador|cortadora\s+de\s+cabello|colchon|colchoneta|sabana\s+(?:cannon|fatelares|distrihogar|sencilla|doble|king|queen)|camisa|camiseta|pantalon|chaqueta|vestido|blusa|falda|juguete|rompecabezas|lego|triciclo|bicicleta|patineta|llanta|casco\s+moto|guante\s+moto|motocicleta|taladro|guirnalda|adorno\s+navideno|papel\s+regalo|sombrilla|paraguas|morral|maleta|base\s+liquida)\b/i;
+
+const NON_GROCERY_URL_RE =
+  /\/(tecnologia|electrodomesticos|celulares|computadores|televisores|jugueteria|moda|ropa|calzado|deportes|colchones|muebles|ferreteria|automotores|llantas|motos|decoracion)\//i;
+
+function normalizeAccentLower(value: string | null | undefined): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+export function isGroceryStoreId(storeId: string | null | undefined): boolean {
+  return GROCERY_STORE_IDS.has((storeId ?? "").trim().toLowerCase());
+}
+
+/**
+ * Guardia defensiva en TypeScript para filtrar exclusivamente ofertas y cadenas de mercado.
+ */
+export function isMercadoOffer(offer: {
+  storeId: string;
+  rawName: string;
+  brand?: string | null;
+  rawUrl?: string | null;
+}): boolean {
+  if (!isGroceryStoreId(offer.storeId)) {
+    return false;
+  }
+  const brandNorm = normalizeAccentLower(offer.brand);
+  if (brandNorm && NON_GROCERY_BRANDS.has(brandNorm)) {
+    return false;
+  }
+  if (offer.rawUrl && NON_GROCERY_URL_RE.test(offer.rawUrl)) {
+    return false;
+  }
+  const nameNorm = normalizeAccentLower(offer.rawName);
+  if (!nameNorm) {
+    return false;
+  }
+  if (/\bmunec[oa]s?\b/.test(nameNorm) && !/\bla\s+muneca\b/.test(nameNorm)) {
+    return false;
+  }
+  if (/\b(lavadora|secadora)\b/.test(nameNorm) && !/\bgoma\s+secadora\b/.test(nameNorm)) {
+    return false;
+  }
+  return !NON_GROCERY_TEXT_RE.test(nameNorm);
+}

@@ -50,7 +50,7 @@ const PAGE_SIZE = 24;
 const BASKET_STORAGE_KEY = "mercasabio_basket_v1";
 const LOCATION_STORAGE_KEY = "mercasabio_loc_v1";
 const QUICK_SEARCH_TERMS = ["Arroz", "Leche", "Aceite", "Huevos", "Café", "Azúcar", "Atún"];
-const MONITORED_CHAINS = ["Carulla", "Éxito", "Tiendas D1", "Olímpica", "Alkosto", "Ktronix", "Ara"];
+const MONITORED_CHAINS = ["Carulla", "Tiendas D1", "Olímpica", "Éxito", "Ara"];
 
 const PRESET_LOCATIONS = [
   { id: "bog-chapinero", label: "Bogotá · Chapinero", lat: 4.646, lng: -74.063 },
@@ -959,8 +959,8 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
           </section>
         ) : groups.length === 0 ? (
           <div className="empty-state">
-            No se encontraron productos para esta búsqueda. Intenta limpiar los filtros o cambiar el
-            modo de comparación.
+            No se encontraron productos de mercado para esta búsqueda. Excluimos tecnología, ropa y
+            artículos ajenos a la canasta familiar; intenta otro término o limpia los filtros.
           </div>
         ) : (
           <>
