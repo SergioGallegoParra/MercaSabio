@@ -4,14 +4,16 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   AlertTriangle,
+  ArrowUp,
   LocateFixed,
   MapPin,
-  RefreshCw,
   Scale,
   Search,
   ShoppingBasket,
+  Sparkles,
   Tag,
   Trash2,
+  X,
 } from "lucide-react";
 
 import ProductCard from "@/components/ProductCard";
@@ -41,11 +43,17 @@ const copFormatter = new Intl.NumberFormat("es-CO", {
   maximumFractionDigits: 0,
 });
 
+const PAGE_SIZE = 24;
+const BASKET_STORAGE_KEY = "mercasabio_basket_v1";
+const LOCATION_STORAGE_KEY = "mercasabio_loc_v1";
+
 const PRESET_LOCATIONS = [
-  { id: "bog-chapinero", label: "Bogotá · Chapinero", lat: 4.6462, lng: -74.0628 },
-  { id: "bog-norte", label: "Bogotá · Calle 85 / Norte", lat: 4.6695, lng: -74.0548 },
-  { id: "med-poblado", label: "Medellín · El Poblado", lat: 6.2088, lng: -75.5718 },
+  { id: "bog-chapinero", label: "Bogotá · Chapinero", lat: 4.646, lng: -74.063 },
+  { id: "bog-norte", label: "Bogotá · Calle 85 / Norte", lat: 4.67, lng: -74.055 },
+  { id: "med-poblado", label: "Medellín · El Poblado", lat: 6.209, lng: -75.572 },
 ];
+
+type SortOption = "stores" | "savings" | "price" | "pum";
 
 interface PriceComparatorProps {
   initialData: DashboardPayload;
@@ -66,6 +74,9 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
   const [mode, setMode] = useState<CompareMode>("ean");
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("stores");
+  const [onlyComparable, setOnlyComparable] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -78,6 +89,7 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
     return map;
   });
   const [basketItems, setBasketItems] = useState<BasketItemInput[]>([]);
+  const [basketHydrated, setBasketHydrated] = useState(false);
   const [basketObjective, setBasketObjective] = useState<"nominal" | "real_pum">("nominal");
   const [userLocation, setUserLocation] = useState<{
     lat: number;
@@ -88,6 +100,7 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
     lng: PRESET_LOCATIONS[0].lng,
     label: PRESET_LOCATIONS[0].label,
   });
+  const [locationHydrated, setLocationHydrated] = useState(false);
   const [radiusMeters, setRadiusMeters] = useState<number>(2000);
   const [nearbyBranches, setNearbyBranches] = useState<NearbyStoreBranch[]>([]);
   const [locLoading, setLocLoading] = useState(false);
@@ -97,7 +110,74 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
 
   useEffect(() => {
     setCurrentDay(new Date().getDay());
+
+    try {
+      const savedBasket = window.localStorage.getItem(BASKET_STORAGE_KEY);
+      if (savedBasket) {
+        const parsed = JSON.parse(savedBasket);
+        if (Array.isArray(parsed)) {
+          setBasketItems(
+            parsed.filter(
+              (item): item is BasketItemInput =>
+                Boolean(item) &&
+                typeof item.itemKey === "string" &&
+                typeof item.label === "string"
+            )
+          );
+        }
+      }
+    } catch {
+      // Ignora almacenamiento local corrupto o bloqueado
+    } finally {
+      setBasketHydrated(true);
+    }
+
+    try {
+      const savedLocation = window.localStorage.getItem(LOCATION_STORAGE_KEY);
+      if (savedLocation) {
+        const parsed = JSON.parse(savedLocation) as {
+          lat?: unknown;
+          lng?: unknown;
+          label?: unknown;
+        };
+        if (
+          typeof parsed.lat === "number" &&
+          typeof parsed.lng === "number" &&
+          Number.isFinite(parsed.lat) &&
+          Number.isFinite(parsed.lng) &&
+          typeof parsed.label === "string"
+        ) {
+          setUserLocation({
+            lat: Number(parsed.lat.toFixed(3)),
+            lng: Number(parsed.lng.toFixed(3)),
+            label: parsed.label.slice(0, 60),
+          });
+        }
+      }
+    } catch {
+      // Ignora almacenamiento local corrupto o bloqueado
+    } finally {
+      setLocationHydrated(true);
+    }
   }, []);
+
+  useEffect(() => {
+    if (!basketHydrated) return;
+    try {
+      window.localStorage.setItem(BASKET_STORAGE_KEY, JSON.stringify(basketItems));
+    } catch {
+      // Silencioso en modo incógnito / cuota llena
+    }
+  }, [basketItems, basketHydrated]);
+
+  useEffect(() => {
+    if (!locationHydrated) return;
+    try {
+      window.localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(userLocation));
+    } catch {
+      // Silencioso en modo incógnito / cuota llena
+    }
+  }, [userLocation, locationHydrated]);
 
   useEffect(() => {
     let active = true;
@@ -131,7 +211,34 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
     };
   }, [userLocation.lat, userLocation.lng, radiusMeters]);
 
-  const groups: ComparisonGroup[] = mode === "ean" ? payload.eanGroups : payload.pumGroups;
+  const rawGroups: ComparisonGroup[] = mode === "ean" ? payload.eanGroups : payload.pumGroups;
+
+  const groups: ComparisonGroup[] = useMemo(() => {
+    const storeCount = (g: ComparisonGroup) => new Set(g.offers.map((o) => o.storeId)).size;
+    const base = onlyComparable ? rawGroups.filter((g) => storeCount(g) >= 2) : rawGroups;
+
+    return [...base].sort((a, b) => {
+      if (sortBy === "savings") {
+        return b.savingsPct - a.savingsPct || storeCount(b) - storeCount(a);
+      }
+      if (sortBy === "price") {
+        return a.bestPrice - b.bestPrice;
+      }
+      if (sortBy === "pum") {
+        return a.bestRealPum - b.bestRealPum;
+      }
+      return (
+        storeCount(b) - storeCount(a) ||
+        b.offers.length - a.offers.length ||
+        b.savingsPct - a.savingsPct
+      );
+    });
+  }, [rawGroups, onlyComparable, sortBy]);
+
+  const visibleGroups = useMemo(
+    () => groups.slice(0, visibleCount),
+    [groups, visibleCount]
+  );
 
   const basketOptimization = useMemo(() => {
     return optimizeBasket({
@@ -162,6 +269,7 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
   async function fetchFiltered(nextQuery: string, nextCategory: string) {
     setLoading(true);
     setErrorMsg(null);
+    setVisibleCount(PAGE_SIZE);
     try {
       const params = new URLSearchParams();
       if (nextQuery.trim()) {
@@ -199,6 +307,14 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
     const next = selectedCategory === slug ? "" : slug;
     setSelectedCategory(next);
     void fetchFiltered(query, next);
+  }
+
+  function handleClearFilters() {
+    setQuery("");
+    setSelectedCategory("");
+    setOnlyComparable(false);
+    setVisibleCount(PAGE_SIZE);
+    void fetchFiltered("", "");
   }
 
   function handleToggleBasket(group: ComparisonGroup) {
@@ -243,9 +359,9 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setUserLocation({
-          lat: Number(pos.coords.latitude.toFixed(5)),
-          lng: Number(pos.coords.longitude.toFixed(5)),
-          label: "Tu ubicación GPS",
+          lat: Number(pos.coords.latitude.toFixed(3)),
+          lng: Number(pos.coords.longitude.toFixed(3)),
+          label: "Tu zona GPS",
         });
       },
       () => {
@@ -262,6 +378,7 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
     { label: "2 tiendas (óptimo cercano)", plan: basketOptimization.bestTwoStores },
     { label: "3 tiendas (máximo cruce)", plan: basketOptimization.bestThreeStores },
   ];
+  const hasActiveFilters = query.trim() !== "" || selectedCategory !== "" || onlyComparable;
 
   return (
     <main className="container">
@@ -269,13 +386,13 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
         <div className="hero-top">
           <div>
             <span className="hero-badge">
-              <RefreshCw size={13} />
-              ISR cada 6 horas · Cloudflare Workers + Supabase HTTPS
+              <Sparkles size={13} />
+              Precios verificados hoy · Ahorro por unidad (PUM) y ruta cercana
             </span>
-            <h1>Comparador de Precios Retail Colombia</h1>
+            <h1>MercaSabio · Comparador de Precios Colombia</h1>
             <p>
-              Homologación por código EAN-13 y comparación por Precio por Unidad de Medida (PUM)
-              entre supermercados tradicionales, hard discount y agregadores calibrados.
+              Compara productos idénticos por código EAN-13 o equivalentes por gramo y mililitro
+              (PUM) entre supermercados y formatos hard discount.
             </p>
           </div>
 
@@ -286,7 +403,7 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
             </div>
             <div className="kpi-card">
               <div className="kpi-label">SKUs Activos</div>
-              <div className="kpi-value tabular">{payload.totalSkus}</div>
+              <div className="kpi-value tabular">{payload.totalSkus.toLocaleString("es-CO")}</div>
             </div>
             <div className="kpi-card">
               <div className="kpi-label">Comparativas</div>
@@ -301,7 +418,7 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
           <AlertTriangle size={18} />
           <span>
             Mostrando datos de demostración locales. Configura <code>SUPABASE_URL</code> y{" "}
-            <code>SUPABASE_ANON_KEY</code> para consultar ofertas en vivo en Supabase.
+            <code>SUPABASE_ANON_KEY</code> para consultar ofertas en vivo.
           </span>
         </div>
       )}
@@ -313,6 +430,7 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
             <input
               type="search"
               className="search-input"
+              maxLength={80}
               placeholder="Buscar por producto, marca o código EAN (ej. arroz, leche, 7702001001234)..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -321,6 +439,16 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? "Buscando..." : "Buscar"}
           </button>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              className="btn-clear"
+              onClick={handleClearFilters}
+              disabled={loading}
+            >
+              <X size={15} /> Limpiar
+            </button>
+          )}
         </form>
 
         <div className="mode-switch" role="tablist" aria-label="Modo de comparación">
@@ -329,7 +457,10 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
             role="tab"
             aria-selected={mode === "ean"}
             className={`mode-btn ${mode === "ean" ? "active" : ""}`}
-            onClick={() => setMode("ean")}
+            onClick={() => {
+              setMode("ean");
+              setVisibleCount(PAGE_SIZE);
+            }}
           >
             <Tag size={16} />
             Comparar misma marca (EAN)
@@ -339,10 +470,46 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
             role="tab"
             aria-selected={mode === "pum"}
             className={`mode-btn ${mode === "pum" ? "active" : ""}`}
-            onClick={() => setMode("pum")}
+            onClick={() => {
+              setMode("pum");
+              setVisibleCount(PAGE_SIZE);
+            }}
           >
             <Scale size={16} />
             Comparar equivalente más barato por gramo/ml (Marca Propia)
+          </button>
+        </div>
+
+        <div className="sort-filter-bar">
+          <div className="sort-group">
+            <label htmlFor="sort-select" className="sort-label">
+              Ordenar por:
+            </label>
+            <select
+              id="sort-select"
+              className="geo-select"
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value as SortOption);
+                setVisibleCount(PAGE_SIZE);
+              }}
+            >
+              <option value="stores">Más cadenas comparadas</option>
+              <option value="savings">Mayor % de ahorro</option>
+              <option value="price">Menor precio nominal</option>
+              <option value="pum">Menor PUM Real (gramo/ml)</option>
+            </select>
+          </div>
+
+          <button
+            type="button"
+            className={`pill ${onlyComparable ? "active" : ""}`}
+            onClick={() => {
+              setOnlyComparable((prev) => !prev);
+              setVisibleCount(PAGE_SIZE);
+            }}
+          >
+            Solo comparables en 2+ tiendas
           </button>
         </div>
 
@@ -369,7 +536,11 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
         )}
       </section>
 
-      <section className="basket-panel" aria-label="Optimizador de canasta y ruta cercana">
+      <section
+        id="basket-optimizer"
+        className="basket-panel"
+        aria-label="Optimizador de canasta y ruta cercana"
+      >
         <div className="basket-header">
           <div>
             <h2 className="basket-title">
@@ -377,7 +548,7 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
               Optimizador de Canasta Cercana ({basketItems.length} productos)
             </h2>
             <p className="group-subtitle">
-              Cálculo combinatorio en tu navegador usando sucursales PostGIS y rutas gratuitas OSRM.
+              Compara cuánto cuesta tu mercado completo en 1, 2 o 3 tiendas cercanas a tu ubicación.
             </p>
           </div>
 
@@ -396,7 +567,9 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
               className="geo-select"
               value={
                 PRESET_LOCATIONS.find(
-                  (p) => p.lat === userLocation.lat && p.lng === userLocation.lng
+                  (p) =>
+                    Math.abs(p.lat - userLocation.lat) < 0.002 &&
+                    Math.abs(p.lng - userLocation.lng) < 0.002
                 )?.id ?? "custom"
               }
               onChange={(e) => {
@@ -577,19 +750,72 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
           modo de comparación.
         </div>
       ) : (
-        <section className="groups-grid" aria-label="Resultados de comparación">
-          {groups.map((group) => (
-            <ProductCard
-              key={`${mode}:${group.groupId}`}
-              group={group}
-              mode={mode}
-              bankPromotions={payload.bankPromotions}
-              currentDay={currentDay}
-              inBasket={basketKeys.has(`${mode}:${group.groupId}`)}
-              onToggleBasket={handleToggleBasket}
-            />
-          ))}
-        </section>
+        <>
+          <section
+            className={`groups-grid ${loading ? "is-loading" : ""}`}
+            aria-label="Resultados de comparación"
+          >
+            {visibleGroups.map((group) => (
+              <ProductCard
+                key={`${mode}:${group.groupId}`}
+                group={group}
+                mode={mode}
+                bankPromotions={payload.bankPromotions}
+                currentDay={currentDay}
+                inBasket={basketKeys.has(`${mode}:${group.groupId}`)}
+                onToggleBasket={handleToggleBasket}
+              />
+            ))}
+          </section>
+
+          {visibleCount < groups.length && (
+            <div className="pagination-wrap">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+              >
+                Mostrar {Math.min(PAGE_SIZE, groups.length - visibleCount)} productos más (
+                {groups.length - visibleCount} restantes)
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {basketItems.length > 0 && (
+        <aside className="floating-basket-bar" aria-label="Resumen flotante de canasta">
+          <div className="floating-basket-summary">
+            <ShoppingBasket size={16} />
+            <span>
+              <strong>{basketItems.length}</strong>{" "}
+              {basketItems.length === 1 ? "producto" : "productos"}
+            </span>
+            {activePlan && (
+              <>
+                <span className="muted-inline">·</span>
+                <strong className="tabular">
+                  {copFormatter.format(activePlan.totalNominalCost)}
+                </strong>
+                {activePlan.nominalSavingsCop > 0 && (
+                  <span className="tag tag-best tabular">
+                    Ahorras {copFormatter.format(activePlan.nominalSavingsCop)}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className="btn-primary floating-basket-cta"
+            onClick={() =>
+              document.getElementById("basket-optimizer")?.scrollIntoView({ behavior: "smooth" })
+            }
+          >
+            Ver ruta óptima <ArrowUp size={14} />
+          </button>
+        </aside>
       )}
     </main>
   );

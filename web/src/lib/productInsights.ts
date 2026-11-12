@@ -111,17 +111,43 @@ export function findActiveBankPromotions(
 }
 
 /**
- * Añade atribución de afiliado en URLs externas de supermercados compatibles.
+ * Elimina frases repetidas consecutivas frecuentes en catálogos externos y normaliza espacios.
+ */
+export function cleanProductTitle(title: string): string {
+  const normalized = title.replace(/\s+/g, " ").trim();
+  return normalized.replace(/^(.{8,}?)\s+\1$/i, "$1").trim();
+}
+
+/**
+ * Valida que una URL externa utilice exclusivamente protocolo http: o https:.
+ */
+export function sanitizeExternalUrl(rawUrl: string): string {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return "#";
+    }
+    return parsed.toString();
+  } catch {
+    return "#";
+  }
+}
+
+/**
+ * Añade atribución de afiliado en URLs externas seguras de supermercados compatibles.
  */
 export function buildStoreAffiliateUrl(rawUrl: string): string {
   try {
     const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return "#";
+    }
     if (!parsed.searchParams.has("utm_source")) {
       parsed.searchParams.set("utm_source", "mercasabio");
       parsed.searchParams.set("utm_medium", "affiliate");
     }
     return parsed.toString();
   } catch {
-    return rawUrl;
+    return "#";
   }
 }

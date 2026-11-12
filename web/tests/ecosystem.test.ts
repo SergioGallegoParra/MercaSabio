@@ -3,9 +3,12 @@ import test from "node:test";
 
 import { optimizeBasket } from "../src/lib/basketOptimizer.ts";
 import {
+  buildStoreAffiliateUrl,
+  cleanProductTitle,
   computeRealUsageMetrics,
   findActiveBankPromotions,
   getSteamRatingBadge,
+  sanitizeExternalUrl,
 } from "../src/lib/productInsights.ts";
 import type { BankPromotion, NearbyStoreBranch, StoreOffer } from "../src/lib/types.ts";
 
@@ -277,4 +280,22 @@ test("Steam rating, rendimiento real y promociones bancarias por día", () => {
   assert.equal(activeDay4.length, 1);
   assert.equal(activeDay4[0].discountedPrice, 8500);
   assert.equal(activeDay4[0].savingsCop, 1500);
+});
+
+test("cleanProductTitle y sanitización de enlaces externos previenen duplicados y URLs inseguras", () => {
+  assert.equal(
+    cleanProductTitle("Arroz Extra Gourmet Albar 1000 Gr Arroz Extra Gourmet Albar 1000 Gr"),
+    "Arroz Extra Gourmet Albar 1000 Gr"
+  );
+  assert.equal(cleanProductTitle("Leche Entera  Alquería   1000 ml"), "Leche Entera Alquería 1000 ml");
+
+  assert.equal(buildStoreAffiliateUrl("javascript:alert(1)"), "#");
+  assert.equal(buildStoreAffiliateUrl("data:text/html,xss"), "#");
+  assert.equal(
+    buildStoreAffiliateUrl("https://www.exito.com/arroz"),
+    "https://www.exito.com/arroz?utm_source=mercasabio&utm_medium=affiliate"
+  );
+
+  assert.equal(sanitizeExternalUrl("javascript:alert(1)"), "#");
+  assert.equal(sanitizeExternalUrl("https://nu.com.co/"), "https://nu.com.co/");
 });

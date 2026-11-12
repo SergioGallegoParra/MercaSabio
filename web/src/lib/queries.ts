@@ -1,3 +1,4 @@
+import { cleanProductTitle } from "@/lib/productInsights";
 import { getSupabaseConfig, supabaseRestGet, supabaseRpc } from "@/lib/supabase";
 import type {
   BankPromotion,
@@ -485,7 +486,7 @@ function mapRowToOffer(row: LatestPriceRow): StoreOffer {
     channelType: row.channel_type,
     masterProductId: row.master_product_id,
     canonicalCategoryId: row.canonical_category_id ?? null,
-    rawName: row.raw_name,
+    rawName: cleanProductTitle(row.raw_name),
     rawUrl: row.raw_url,
     rawListPrice: Number(row.raw_list_price),
     rawSalePrice,

@@ -4,8 +4,9 @@ import { getDashboardData } from "@/lib/queries";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const query = searchParams.get("q") ?? "";
-  const categorySlug = searchParams.get("category") ?? "";
+  const query = (searchParams.get("q") ?? "").trim().slice(0, 80);
+  const rawCategory = (searchParams.get("category") ?? "").trim().slice(0, 60);
+  const categorySlug = /^[a-z0-9-]*$/.test(rawCategory) ? rawCategory : "";
 
   try {
     const payload = await getDashboardData({ query, categorySlug });

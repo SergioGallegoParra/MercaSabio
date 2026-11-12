@@ -1,11 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import {
   AlertTriangle,
   Check,
+  ChevronDown,
+  ChevronUp,
   CreditCard,
   ExternalLink,
   Factory,
+  Package,
   Plus,
   Sparkles,
   ThumbsUp,
@@ -13,17 +17,21 @@ import {
 
 import {
   buildStoreAffiliateUrl,
+  cleanProductTitle,
   computeRealUsageMetrics,
   findActiveBankPromotions,
   getSteamRatingBadge,
+  sanitizeExternalUrl,
 } from "@/lib/productInsights";
 import type { BankPromotion, CompareMode, ComparisonGroup } from "@/lib/types";
 
 export {
   buildStoreAffiliateUrl,
+  cleanProductTitle,
   computeRealUsageMetrics,
   findActiveBankPromotions,
   getSteamRatingBadge,
+  sanitizeExternalUrl,
 } from "@/lib/productInsights";
 
 const copFormatter = new Intl.NumberFormat("es-CO", {
@@ -56,6 +64,9 @@ export default function ProductCard({
   inBasket,
   onToggleBasket,
 }: ProductCardProps) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
   const steam = getSteamRatingBadge(group.positiveVotes, group.totalVotes);
   const anchorOffer = group.offers.find((o) => o.inStock) ?? group.offers[0];
   const anchorUsage = anchorOffer
@@ -70,48 +81,75 @@ export default function ProductCard({
     ? findActiveBankPromotions(anchorOffer, bankPromotions, currentDay)
     : [];
   const topAnchorPromo = anchorBankPromos[0] ?? null;
+  const topPromoUrl = topAnchorPromo
+    ? sanitizeExternalUrl(topAnchorPromo.promo.affiliateUrl)
+    : "#";
+
+  const visibleOffers =
+    group.offers.length > 3 && !expanded ? group.offers.slice(0, 3) : group.offers;
+  const hiddenOffersCount = Math.max(0, group.offers.length - 3);
+  const displayTitle = cleanProductTitle(group.title);
 
   return (
     <article className="group-card">
       <header className="group-header">
-        <div>
-          <div className="group-badges-row">
-            <span className={`tag ${steam.tone}`}>
-              <ThumbsUp size={11} />
-              {steam.label}
-              {steam.positivePct !== null ? ` (${steam.positivePct}% · ${group.totalVotes})` : ""}
-            </span>
+        <div className="group-identity">
+          {group.imageUrl && !imgFailed ? (
+            <img
+              src={group.imageUrl}
+              alt={displayTitle}
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              className="group-thumb"
+              onError={() => setImgFailed(true)}
+            />
+          ) : (
+            <div className="group-thumb group-thumb-placeholder" aria-hidden="true">
+              <Package size={24} />
+            </div>
+          )}
 
-            {anchorUsage?.yieldLabel && (
-              <span className="tag tag-yield">
-                <Sparkles size={11} />
-                {anchorUsage.yieldLabel} ({group.avgYieldFactor.toFixed(2)}x)
-              </span>
-            )}
+          <div>
+            <div className="group-badges-row">
+              {group.totalVotes > 0 && (
+                <span className={`tag ${steam.tone}`}>
+                  <ThumbsUp size={11} />
+                  {steam.label}
+                  {steam.positivePct !== null ? ` (${steam.positivePct}% · ${group.totalVotes})` : ""}
+                </span>
+              )}
 
-            {group.shrinkflationAlert && (
-              <span className="tag tag-shrinkflation">
-                <AlertTriangle size={11} />
-                Alerta de Encogimiento
-                {group.previousNetContent
-                  ? ` (${group.previousNetContent} → ${group.netContent} ${group.unitMeasure})`
-                  : ""}
-              </span>
-            )}
+              {anchorUsage?.yieldLabel && (
+                <span className="tag tag-yield">
+                  <Sparkles size={11} />
+                  {anchorUsage.yieldLabel} ({group.avgYieldFactor.toFixed(2)}x)
+                </span>
+              )}
 
-            {group.invimaRegistry && (
-              <span className="tag tag-estimated">
-                <Factory size={11} />
-                INVIMA {group.invimaRegistry}
-                {group.actualManufacturer ? ` · ${group.actualManufacturer}` : ""}
-              </span>
-            )}
-          </div>
+              {group.shrinkflationAlert && (
+                <span className="tag tag-shrinkflation">
+                  <AlertTriangle size={11} />
+                  Alerta de Encogimiento
+                  {group.previousNetContent
+                    ? ` (${group.previousNetContent} → ${group.netContent} ${group.unitMeasure})`
+                    : ""}
+                </span>
+              )}
 
-          <h2 className="group-title">{group.title}</h2>
-          <div className="group-subtitle">
-            {group.subtitle}
-            {group.ean ? ` · EAN ${group.ean}` : ""}
+              {group.invimaRegistry && (
+                <span className="tag tag-estimated">
+                  <Factory size={11} />
+                  INVIMA {group.invimaRegistry}
+                  {group.actualManufacturer ? ` · ${group.actualManufacturer}` : ""}
+                </span>
+              )}
+            </div>
+
+            <h2 className="group-title">{displayTitle}</h2>
+            <div className="group-subtitle">
+              {group.subtitle}
+              {group.ean ? ` · EAN ${group.ean}` : ""}
+            </div>
           </div>
         </div>
 
@@ -173,14 +211,16 @@ export default function ProductCard({
               </span>
             </span>
           </div>
-          <a
-            href={topAnchorPromo.promo.affiliateUrl}
-            target="_blank"
-            rel="noopener noreferrer sponsored"
-            className="affiliate-cta"
-          >
-            Solicitar tarjeta <ExternalLink size={12} />
-          </a>
+          {topPromoUrl !== "#" && (
+            <a
+              href={topPromoUrl}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              className="affiliate-cta"
+            >
+              Solicitar tarjeta <ExternalLink size={12} />
+            </a>
+          )}
         </div>
       )}
 
@@ -197,7 +237,7 @@ export default function ProductCard({
             </tr>
           </thead>
           <tbody>
-            {group.offers.map((offer, index) => {
+            {visibleOffers.map((offer, index) => {
               const isBest = index === 0 && offer.inStock;
               const hasDiscount = offer.rawListPrice > offer.calibratedPrice;
               const usage = computeRealUsageMetrics(
@@ -210,11 +250,19 @@ export default function ProductCard({
                 bankPromotions,
                 currentDay
               )[0];
+              const bankUrl = bestBankPromo
+                ? sanitizeExternalUrl(bestBankPromo.promo.affiliateUrl)
+                : "#";
+              const storeUrl = offer.rawUrl ? buildStoreAffiliateUrl(offer.rawUrl) : "#";
 
               return (
                 <tr key={offer.storeSkuId} className={isBest ? "best-row" : undefined}>
-                  <td>
+                  <td data-label="Cadena">
                     <div className="store-cell">
+                      <span
+                        className={`store-dot store-${offer.storeId}`}
+                        aria-hidden="true"
+                      />
                       <span>{offer.storeName}</span>
                       {isBest && <span className="tag tag-best">Más barato</span>}
                       {offer.isPrivateLabel && (
@@ -226,15 +274,15 @@ export default function ProductCard({
                         </span>
                       )}
                     </div>
-                    {mode === "pum" && (
+                    {(mode === "pum" || group.offers.length > 1) && (
                       <div className="group-subtitle">
-                        {offer.rawName} ({offer.netContent} {offer.unitMeasure})
+                        {cleanProductTitle(offer.rawName)} ({offer.netContent} {offer.unitMeasure})
                       </div>
                     )}
                   </td>
 
-                  <td className="price-cell tabular">
-                    {copFormatter.format(offer.calibratedPrice)}
+                  <td data-label="Precio" className="price-cell tabular">
+                    <div>{copFormatter.format(offer.calibratedPrice)}</div>
                     {hasDiscount && (
                       <span className="list-price">
                         {copFormatter.format(offer.rawListPrice)}
@@ -248,7 +296,7 @@ export default function ProductCard({
                     )}
                   </td>
 
-                  <td className="tabular">
+                  <td data-label={`PUM (${group.unitMeasure})`} className="tabular">
                     <div>{pumFormatter.format(usage.nominalPum)} / {offer.unitMeasure}</div>
                     {Math.abs(usage.avgYieldFactor - 1) >= 0.03 && (
                       <div className="real-usage-note">
@@ -257,28 +305,34 @@ export default function ProductCard({
                     )}
                   </td>
 
-                  <td className="tabular">
+                  <td data-label="Con tarjeta hoy" className="tabular">
                     {bestBankPromo ? (
                       <div className="bank-cell">
                         <strong className="bank-price">
                           {copFormatter.format(bestBankPromo.discountedPrice)}
                         </strong>
-                        <a
-                          href={bestBankPromo.promo.affiliateUrl}
-                          target="_blank"
-                          rel="noopener noreferrer sponsored"
-                          className="bank-affiliate-link"
-                        >
-                          {bestBankPromo.promo.bankName} (-{bestBankPromo.promo.discountPct}%){" "}
-                          <ExternalLink size={11} />
-                        </a>
+                        {bankUrl !== "#" ? (
+                          <a
+                            href={bankUrl}
+                            target="_blank"
+                            rel="noopener noreferrer sponsored"
+                            className="bank-affiliate-link"
+                          >
+                            {bestBankPromo.promo.bankName} (-{bestBankPromo.promo.discountPct}%){" "}
+                            <ExternalLink size={11} />
+                          </a>
+                        ) : (
+                          <span className="bank-affiliate-link">
+                            {bestBankPromo.promo.bankName} (-{bestBankPromo.promo.discountPct}%)
+                          </span>
+                        )}
                       </div>
                     ) : (
                       <span className="group-subtitle">—</span>
                     )}
                   </td>
 
-                  <td>
+                  <td data-label="Estado">
                     {offer.inStock ? (
                       <span className="tag tag-best">Disponible</span>
                     ) : (
@@ -286,10 +340,10 @@ export default function ProductCard({
                     )}
                   </td>
 
-                  <td>
-                    {offer.rawUrl ? (
+                  <td data-label="Enlace">
+                    {storeUrl !== "#" ? (
                       <a
-                        href={buildStoreAffiliateUrl(offer.rawUrl)}
+                        href={storeUrl}
                         target="_blank"
                         rel="noopener noreferrer sponsored"
                         className="store-link"
@@ -306,6 +360,27 @@ export default function ProductCard({
           </tbody>
         </table>
       </div>
+
+      {hiddenOffersCount > 0 && (
+        <div className="offers-expand-wrap">
+          <button
+            type="button"
+            className="offers-expand-btn"
+            onClick={() => setExpanded((prev) => !prev)}
+          >
+            {expanded ? (
+              <>
+                <ChevronUp size={14} /> Mostrar solo las 3 mejores ofertas
+              </>
+            ) : (
+              <>
+                <ChevronDown size={14} /> Ver {hiddenOffersCount}{" "}
+                {hiddenOffersCount === 1 ? "oferta adicional" : "ofertas adicionales"}
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </article>
   );
 }
