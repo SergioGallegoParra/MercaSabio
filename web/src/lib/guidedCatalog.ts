@@ -77,18 +77,28 @@ export interface GenericFoodOption {
   searchTerms: string[];
   description: string;
   variants: FoodVariantOption[];
+  isDefaultGeneric?: boolean;
+  defaultPriority?: PricePriorityMode;
+  defaultSize?: SizePreference;
+  defaultQualityTiers?: QualityTier[];
+  defaultVariantId?: string;
 }
 
 export interface GuidedSubsection {
   id: string;
   label: string;
   description: string;
+  materialIcon: string;
   foods: GenericFoodOption[];
 }
 
 export interface GuidedSection {
   id: "alacena" | "nevera" | "aseo";
   label: string;
+  shortLabel: string;
+  badgeLabel: string;
+  stepNumber: 3 | 4 | 5;
+  materialIcon: string;
   iconName: "utensils" | "snowflake" | "sparkles";
   description: string;
   subsections: GuidedSubsection[];
@@ -98,17 +108,22 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
   {
     id: "alacena",
     label: "Alacena",
+    shortLabel: "Alacena",
+    badgeLabel: "Alacena básica",
+    stepNumber: 3,
+    materialIcon: "kitchen",
     iconName: "utensils",
-    description: "Granos, pastas, aceites, endulzantes y bebidas calientes de despensa.",
+    description: "Granos, harinas, pastas, aceites y bebidas secas de tu despensa.",
     subsections: [
       {
         id: "granos",
-        label: "Granos y Arroz",
-        description: "Básicos diarios de grano seco y arroz.",
+        label: "Granos",
+        description: "Arroz blanco, integral, frijol, lenteja y garbanzo.",
+        materialIcon: "grain",
         foods: [
           {
             id: "food-arroz",
-            name: "Arroz",
+            name: "Arroz blanco",
             sectionId: "alacena",
             subsectionId: "granos",
             broadFamily: "arroz",
@@ -117,6 +132,10 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
             defaultTargetContent: 1000,
             searchTerms: ["arroz"],
             description: "Arroz blanco tradicional, parbolizado, integral o especial.",
+            isDefaultGeneric: true,
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
+            defaultQualityTiers: ["economico", "estandar"],
             variants: [
               { id: "arroz_blanco", label: "Blanco tradicional", subtypeFamily: "arroz_blanco" },
               { id: "arroz_integral", label: "Integral", subtypeFamily: "arroz_integral" },
@@ -126,7 +145,7 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
           },
           {
             id: "food-frijol",
-            name: "Frijol",
+            name: "Frijol rojo / negro",
             sectionId: "alacena",
             subsectionId: "granos",
             broadFamily: "frijol",
@@ -135,6 +154,10 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
             defaultTargetContent: 500,
             searchTerms: ["frijol"],
             description: "Frijol en grano seco (cargamanto, bola roja, caraota) o enlatado.",
+            isDefaultGeneric: true,
+            defaultPriority: "lowest_total",
+            defaultSize: "small",
+            defaultQualityTiers: ["economico", "estandar"],
             variants: [
               { id: "frijol_seco", label: "En grano seco", subtypeFamily: "frijol_seco" },
               { id: "frijol_enlatado", label: "Enlatado / listo", subtypeFamily: "frijol_enlatado" },
@@ -151,6 +174,8 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
             defaultTargetContent: 500,
             searchTerms: ["lenteja", "garbanzo"],
             description: "Granos secos ricos en proteína vegetal.",
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
             variants: [
               { id: "lenteja_seca", label: "Lenteja seca", subtypeFamily: "lenteja_seca" },
               { id: "garbanzo_arveja", label: "Garbanzo / Arveja", subtypeFamily: "garbanzo_arveja" },
@@ -159,36 +184,43 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
         ],
       },
       {
-        id: "pastas_harinas",
-        label: "Pastas, Harinas y Avena",
-        description: "Espaguetis, harinas para arepas/hornear y cereales de desayuno.",
+        id: "harinas",
+        label: "Harinas y Pastas",
+        description: "Espaguetis, harinas precocidas de maíz, trigo y avena.",
+        materialIcon: "bakery_dining",
         foods: [
           {
             id: "food-pasta",
-            name: "Pasta",
+            name: "Pasta espagueti / clásica",
             sectionId: "alacena",
-            subsectionId: "pastas_harinas",
+            subsectionId: "harinas",
             broadFamily: "pasta",
             defaultSubtype: "pasta_seca",
             defaultUnitMeasure: "g",
             defaultTargetContent: 500,
             searchTerms: ["pasta", "espagueti"],
             description: "Espagueti, tornillos, penne, conchitas o fideos.",
+            isDefaultGeneric: true,
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
             variants: [
               { id: "pasta_seca", label: "Pasta seca clásica", subtypeFamily: "pasta_seca" },
             ],
           },
           {
             id: "food-harina",
-            name: "Harina",
+            name: "Harina de maíz / trigo",
             sectionId: "alacena",
-            subsectionId: "pastas_harinas",
+            subsectionId: "harinas",
             broadFamily: "harinas",
             defaultSubtype: "harina_maiz",
             defaultUnitMeasure: "g",
             defaultTargetContent: 1000,
             searchTerms: ["harina"],
             description: "Harina precocida de maíz para arepas o harina de trigo.",
+            isDefaultGeneric: true,
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
             variants: [
               { id: "harina_maiz", label: "Maíz para arepas", subtypeFamily: "harina_maiz" },
               { id: "harina_trigo", label: "Trigo tradicional", subtypeFamily: "harina_trigo" },
@@ -196,15 +228,17 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
           },
           {
             id: "food-avena",
-            name: "Avena",
+            name: "Avena en hojuelas",
             sectionId: "alacena",
-            subsectionId: "pastas_harinas",
+            subsectionId: "harinas",
             broadFamily: "cereales",
             defaultSubtype: "avena",
             defaultUnitMeasure: "g",
             defaultTargetContent: 500,
             searchTerms: ["avena"],
             description: "Avena en hojuelas o molida para desayuno.",
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
             variants: [
               { id: "avena", label: "En hojuelas / molida", subtypeFamily: "avena" },
             ],
@@ -212,21 +246,25 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
         ],
       },
       {
-        id: "aceites_endulzantes",
-        label: "Aceites, Endulzantes y Salsas",
-        description: "Aceite de cocina, oliva, azúcar, panela y salsas base.",
+        id: "aceites",
+        label: "Aceites y Salsas",
+        description: "Aceite vegetal o de oliva, azúcar, panela y salsas base.",
+        materialIcon: "water_drop",
         foods: [
           {
             id: "food-aceite",
-            name: "Aceite de cocina",
+            name: "Aceite vegetal / girasol",
             sectionId: "alacena",
-            subsectionId: "aceites_endulzantes",
+            subsectionId: "aceites",
             broadFamily: "aceite",
             defaultSubtype: "aceite_cocina",
             defaultUnitMeasure: "ml",
             defaultTargetContent: 900,
             searchTerms: ["aceite"],
             description: "Aceite vegetal, girasol, canola o oliva.",
+            isDefaultGeneric: true,
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
             variants: [
               { id: "aceite_cocina", label: "Vegetal / Girasol / Canola", subtypeFamily: "aceite_cocina" },
               { id: "aceite_oliva", label: "Aceite de oliva", subtypeFamily: "aceite_oliva" },
@@ -237,13 +275,15 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
             id: "food-azucar",
             name: "Azúcar y Panela",
             sectionId: "alacena",
-            subsectionId: "aceites_endulzantes",
+            subsectionId: "aceites",
             broadFamily: "endulzantes",
             defaultSubtype: "azucar_blanca",
             defaultUnitMeasure: "g",
             defaultTargetContent: 1000,
             searchTerms: ["azucar", "panela"],
             description: "Azúcar refinada, morena u orgánica, o panela tradicional.",
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
             variants: [
               { id: "azucar_blanca", label: "Azúcar blanca / refinada", subtypeFamily: "azucar_blanca" },
               { id: "azucar_morena", label: "Azúcar morena / orgánica", subtypeFamily: "azucar_morena" },
@@ -254,13 +294,15 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
             id: "food-salsa-tomate",
             name: "Pasta / Salsa de tomate",
             sectionId: "alacena",
-            subsectionId: "aceites_endulzantes",
+            subsectionId: "aceites",
             broadFamily: "salsas",
             defaultSubtype: "pasta_tomate",
             defaultUnitMeasure: "g",
             defaultTargetContent: 400,
             searchTerms: ["salsa tomate"],
             description: "Pasta de tomate, napolitana o salsa de tomate.",
+            defaultPriority: "lowest_total",
+            defaultSize: "small",
             variants: [
               { id: "pasta_tomate", label: "Salsa / Pasta de tomate", subtypeFamily: "pasta_tomate" },
             ],
@@ -268,21 +310,25 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
         ],
       },
       {
-        id: "cafe_desayuno",
+        id: "cafe",
         label: "Café y Desayuno",
-        description: "Café tostado/molido, instantáneo, cápsulas y chocolate de mesa.",
+        description: "Café tostado y molido, instantáneo, cápsulas y chocolate de mesa.",
+        materialIcon: "coffee",
         foods: [
           {
             id: "food-cafe",
-            name: "Café",
+            name: "Café molido / grano",
             sectionId: "alacena",
-            subsectionId: "cafe_desayuno",
+            subsectionId: "cafe",
             broadFamily: "cafe",
             defaultSubtype: "cafe_molido",
             defaultUnitMeasure: "g",
             defaultTargetContent: 500,
             searchTerms: ["cafe"],
             description: "Café molido, en grano, instantáneo/liofilizado o cápsulas.",
+            isDefaultGeneric: true,
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
             variants: [
               { id: "cafe_molido", label: "Tostado y molido", subtypeFamily: "cafe_molido" },
               { id: "cafe_instantaneo", label: "Instantáneo / Soluble", subtypeFamily: "cafe_instantaneo" },
@@ -294,13 +340,15 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
             id: "food-chocolate",
             name: "Chocolate de mesa",
             sectionId: "alacena",
-            subsectionId: "cafe_desayuno",
+            subsectionId: "cafe",
             broadFamily: "desayuno",
             defaultSubtype: "chocolate_mesa",
             defaultUnitMeasure: "g",
             defaultTargetContent: 500,
             searchTerms: ["chocolate"],
             description: "Pastillas de chocolate tradicional o sin azúcar.",
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
             variants: [
               { id: "chocolate_mesa", label: "Tradicional en pastilla", subtypeFamily: "chocolate_mesa" },
             ],
@@ -311,18 +359,23 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
   },
   {
     id: "nevera",
-    label: "Nevera",
+    label: "Nevera y Lácteos",
+    shortLabel: "Nevera & Frescos",
+    badgeLabel: "Refrigerados",
+    stepNumber: 4,
+    materialIcon: "ac_unit",
     iconName: "snowflake",
-    description: "Leches, quesos, lácteos refrigerados, huevos y atún.",
+    description: "Leches, quesos, proteínas frescas o enlatadas y huevos.",
     subsections: [
       {
         id: "leches",
         label: "Leches",
-        description: "Leche líquida entera, deslactosada, descremada o en polvo.",
+        description: "Leche líquida deslactosada, entera, descremada o en polvo.",
+        materialIcon: "local_drink",
         foods: [
           {
             id: "food-leche",
-            name: "Leche",
+            name: "Leche entera / deslactosada",
             sectionId: "nevera",
             subsectionId: "leches",
             broadFamily: "leche",
@@ -331,6 +384,9 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
             defaultTargetContent: 1000,
             searchTerms: ["leche"],
             description: "Elige si prefieres deslactosada, entera, descremada o en polvo.",
+            isDefaultGeneric: true,
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
             variants: [
               { id: "leche_deslactosada", label: "Deslactosada", subtypeFamily: "leche_deslactosada" },
               { id: "leche_entera", label: "Entera", subtypeFamily: "leche_entera" },
@@ -341,21 +397,25 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
         ],
       },
       {
-        id: "quesos_lacteos",
+        id: "quesos",
         label: "Quesos y Lácteos",
         description: "Queso campesino/mozzarella, mantequilla y yogurt.",
+        materialIcon: "bakery_dining",
         foods: [
           {
             id: "food-queso",
-            name: "Queso",
+            name: "Queso fresco / campesino",
             sectionId: "nevera",
-            subsectionId: "quesos_lacteos",
+            subsectionId: "quesos",
             broadFamily: "quesos",
             defaultSubtype: "queso_fresco",
             defaultUnitMeasure: "g",
             defaultTargetContent: 400,
-            searchTerms: ["queso", "mozzarella"],
+            searchTerms: ["queso", "mozzarella", "quesito"],
             description: "Queso campesino, doble crema, cuajada o mozzarella.",
+            isDefaultGeneric: true,
+            defaultPriority: "lowest_pum",
+            defaultSize: "small",
             variants: [
               { id: "queso_fresco", label: "Queso fresco / Mozzarella / Campesino", subtypeFamily: "queso_fresco" },
             ],
@@ -364,13 +424,15 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
             id: "food-mantequilla",
             name: "Mantequilla / Margarina",
             sectionId: "nevera",
-            subsectionId: "quesos_lacteos",
+            subsectionId: "quesos",
             broadFamily: "quesos",
             defaultSubtype: "mantequilla_margarina",
             defaultUnitMeasure: "g",
             defaultTargetContent: 250,
             searchTerms: ["mantequilla", "margarina"],
             description: "Mantequilla o esparcible de cocina y mesa.",
+            defaultPriority: "lowest_pum",
+            defaultSize: "small",
             variants: [
               { id: "mantequilla_margarina", label: "Mantequilla / Margarina", subtypeFamily: "mantequilla_margarina" },
             ],
@@ -379,13 +441,15 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
             id: "food-yogurt",
             name: "Yogurt / Kumis",
             sectionId: "nevera",
-            subsectionId: "quesos_lacteos",
+            subsectionId: "quesos",
             broadFamily: "quesos",
             defaultSubtype: "yogurt_bebida_lactea",
             defaultUnitMeasure: "g",
             defaultTargetContent: 1000,
             searchTerms: ["yogurt"],
             description: "Yogurt clásico, griego o kumis.",
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
             variants: [
               { id: "yogurt_bebida_lactea", label: "Yogurt / Kumis / Griego", subtypeFamily: "yogurt_bebida_lactea" },
             ],
@@ -393,40 +457,60 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
         ],
       },
       {
-        id: "proteinas_huevos",
-        label: "Proteína y Huevos",
-        description: "Huevos por calibre/origen y atún en agua, aceite u oliva.",
+        id: "proteinas",
+        label: "Proteínas",
+        description: "Pechuga de pollo, carne de res y atún en agua o aceite.",
+        materialIcon: "set_meal",
         foods: [
           {
-            id: "food-huevos",
-            name: "Huevos",
+            id: "food-pollo",
+            name: "Pechuga / Pollo fresco",
             sectionId: "nevera",
-            subsectionId: "proteinas_huevos",
-            broadFamily: "huevos",
-            defaultSubtype: "huevos_gallina",
-            defaultUnitMeasure: "und",
-            defaultTargetContent: 30,
-            searchTerms: ["huevos"],
-            description: "Huevos de gallina (AA, AAA, campo libre) o codorniz.",
+            subsectionId: "proteinas",
+            broadFamily: "proteinas",
+            defaultSubtype: "pollo_fresco",
+            defaultUnitMeasure: "g",
+            defaultTargetContent: 500,
+            searchTerms: ["pollo", "pechuga"],
+            description: "Pechuga, pernil o muslo de pollo fresco.",
+            isDefaultGeneric: true,
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
             variants: [
-              { id: "huevos_cualquiera", label: "Gallina (cualquier calibre)", subtypeFamily: "huevos_gallina" },
-              { id: "huevos_aa", label: "Tipo AA", subtypeFamily: "huevos_gallina", criticalAttribute: "aa" },
-              { id: "huevos_aaa", label: "Tipo AAA", subtypeFamily: "huevos_gallina", criticalAttribute: "aaa" },
-              { id: "huevos_campo_libre", label: "Campo libre / Pastoreo", subtypeFamily: "huevos_gallina", criticalAttribute: "campo_libre" },
-              { id: "huevos_codorniz", label: "Huevos de codorniz", subtypeFamily: "huevos_codorniz" },
+              { id: "pollo_fresco", label: "Pechuga / Pollo fresco", subtypeFamily: "pollo_fresco" },
+            ],
+          },
+          {
+            id: "food-res",
+            name: "Carne de res / molida",
+            sectionId: "nevera",
+            subsectionId: "proteinas",
+            broadFamily: "proteinas",
+            defaultSubtype: "carne_res",
+            defaultUnitMeasure: "g",
+            defaultTargetContent: 500,
+            searchTerms: ["carne res", "molida"],
+            description: "Carne molida o cortes frescos de res.",
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
+            variants: [
+              { id: "carne_res", label: "Carne de res / molida", subtypeFamily: "carne_res" },
             ],
           },
           {
             id: "food-atun",
-            name: "Atún",
+            name: "Atún en agua / aceite",
             sectionId: "nevera",
-            subsectionId: "proteinas_huevos",
+            subsectionId: "proteinas",
             broadFamily: "atun",
             defaultSubtype: "atun_agua",
             defaultUnitMeasure: "g",
             defaultTargetContent: 160,
             searchTerms: ["atun"],
             description: "Lomitos o trozos de atún en agua, aceite vegetal u oliva.",
+            isDefaultGeneric: true,
+            defaultPriority: "lowest_pum",
+            defaultSize: "small",
             variants: [
               { id: "atun_agua", label: "En agua", subtypeFamily: "atun_agua" },
               { id: "atun_aceite", label: "En aceite vegetal", subtypeFamily: "atun_aceite" },
@@ -436,60 +520,197 @@ export const GUIDED_SECTIONS: GuidedSection[] = [
           },
         ],
       },
+      {
+        id: "huevos",
+        label: "Huevos",
+        description: "Huevos por calibre AA, AAA, campo libre o codorniz.",
+        materialIcon: "egg",
+        foods: [
+          {
+            id: "food-huevos",
+            name: "Huevos AA / AAA",
+            sectionId: "nevera",
+            subsectionId: "huevos",
+            broadFamily: "huevos",
+            defaultSubtype: "huevos_gallina",
+            defaultUnitMeasure: "und",
+            defaultTargetContent: 30,
+            searchTerms: ["huevos"],
+            description: "Huevos de gallina (AA, AAA, campo libre) o codorniz.",
+            isDefaultGeneric: true,
+            defaultPriority: "lowest_pum",
+            defaultSize: "large",
+            variants: [
+              { id: "huevos_cualquiera", label: "Gallina (cualquier calibre)", subtypeFamily: "huevos_gallina" },
+              { id: "huevos_aa", label: "Tipo AA", subtypeFamily: "huevos_gallina", criticalAttribute: "aa" },
+              { id: "huevos_aaa", label: "Tipo AAA", subtypeFamily: "huevos_gallina", criticalAttribute: "aaa" },
+              { id: "huevos_campo_libre", label: "Campo libre / Pastoreo", subtypeFamily: "huevos_gallina", criticalAttribute: "campo_libre" },
+              { id: "huevos_codorniz", label: "Huevos de codorniz", subtypeFamily: "huevos_codorniz" },
+            ],
+          },
+        ],
+      },
     ],
   },
   {
     id: "aseo",
-    label: "Aseo y Hogar",
+    label: "Aseo y Limpieza",
+    shortLabel: "Aseo y Limpieza",
+    badgeLabel: "Hogar & Cuidado",
+    stepNumber: 5,
+    materialIcon: "cleaning_services",
     iconName: "sparkles",
-    description: "Detergente para ropa, lavaloza y papel higiénico.",
+    description: "Lavandería, superficies y cocina, aseo personal y papel hogar.",
     subsections: [
       {
-        id: "aseo_hogar",
-        label: "Aseo del Hogar y Personal",
-        description: "Productos esenciales de limpieza del hogar.",
+        id: "lavanderia",
+        label: "Lavandería",
+        description: "Detergente en polvo o líquido y suavizantes de telas.",
+        materialIcon: "local_laundry_service",
         foods: [
           {
             id: "food-detergente",
-            name: "Detergente para ropa",
+            name: "Detergente líquido / polvo",
             sectionId: "aseo",
-            subsectionId: "aseo_hogar",
+            subsectionId: "lavanderia",
             broadFamily: "aseo_hogar",
             defaultSubtype: "detergente_ropa",
             defaultUnitMeasure: "g",
             defaultTargetContent: 1000,
             searchTerms: ["detergente"],
             description: "Detergente en polvo o líquido para ropa.",
+            isDefaultGeneric: true,
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
             variants: [
               { id: "detergente_ropa", label: "Detergente para ropa", subtypeFamily: "detergente_ropa" },
             ],
           },
           {
-            id: "food-lavaloza",
-            name: "Lavaloza",
+            id: "food-suavizante",
+            name: "Suavizante de ropa",
             sectionId: "aseo",
-            subsectionId: "aseo_hogar",
+            subsectionId: "lavanderia",
+            broadFamily: "aseo_hogar",
+            defaultSubtype: "suavizante_ropa",
+            defaultUnitMeasure: "ml",
+            defaultTargetContent: 900,
+            searchTerms: ["suavizante"],
+            description: "Suavizante floral o aroma fresco para ropa.",
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
+            variants: [
+              { id: "suavizante_ropa", label: "Suavizante de telas", subtypeFamily: "suavizante_ropa" },
+            ],
+          },
+        ],
+      },
+      {
+        id: "superficies",
+        label: "Superficies y Cocina",
+        description: "Lavaplatos, limpiadores multiusos, pisos y blanqueadores.",
+        materialIcon: "countertops",
+        foods: [
+          {
+            id: "food-lavaloza",
+            name: "Lavaloza líquido / crema",
+            sectionId: "aseo",
+            subsectionId: "superficies",
             broadFamily: "aseo_hogar",
             defaultSubtype: "lavaloza",
             defaultUnitMeasure: "g",
             defaultTargetContent: 500,
             searchTerms: ["lavaloza"],
             description: "Crema o líquido lavaplatos.",
+            isDefaultGeneric: true,
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
             variants: [
               { id: "lavaloza", label: "Lavaloza", subtypeFamily: "lavaloza" },
             ],
           },
           {
+            id: "food-limpiador",
+            name: "Limpiador pisos / Cloro",
+            sectionId: "aseo",
+            subsectionId: "superficies",
+            broadFamily: "aseo_hogar",
+            defaultSubtype: "limpiador_pisos",
+            defaultUnitMeasure: "ml",
+            defaultTargetContent: 1000,
+            searchTerms: ["limpiador", "fabuloso", "cloro"],
+            description: "Limpiador multiusos para pisos, baños y desinfectantes.",
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
+            variants: [
+              { id: "limpiador_pisos", label: "Limpiador multiusos / pisos", subtypeFamily: "limpiador_pisos" },
+            ],
+          },
+        ],
+      },
+      {
+        id: "aseo_personal",
+        label: "Aseo personal",
+        description: "Jabón de baño y cuidado bucal esencial.",
+        materialIcon: "soap",
+        foods: [
+          {
+            id: "food-jabon",
+            name: "Jabón de baño",
+            sectionId: "aseo",
+            subsectionId: "aseo_personal",
+            broadFamily: "aseo_personal",
+            defaultSubtype: "jabon_corporal",
+            defaultUnitMeasure: "g",
+            defaultTargetContent: 300,
+            searchTerms: ["jabon bano", "protex", "dove"],
+            description: "Jabón corporal en barra o líquido.",
+            isDefaultGeneric: true,
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
+            variants: [
+              { id: "jabon_corporal", label: "Jabón corporal / tocador", subtypeFamily: "jabon_corporal" },
+            ],
+          },
+          {
+            id: "food-crema-dental",
+            name: "Crema dental",
+            sectionId: "aseo",
+            subsectionId: "aseo_personal",
+            broadFamily: "aseo_personal",
+            defaultSubtype: "crema_dental",
+            defaultUnitMeasure: "ml",
+            defaultTargetContent: 100,
+            searchTerms: ["crema dental", "colgate"],
+            description: "Pasta dental triple acción o blanqueadora.",
+            defaultPriority: "lowest_pum",
+            defaultSize: "small",
+            variants: [
+              { id: "crema_dental", label: "Crema dental", subtypeFamily: "crema_dental" },
+            ],
+          },
+        ],
+      },
+      {
+        id: "otros_aseo",
+        label: "Otros",
+        description: "Papel higiénico y complementos básicos del hogar.",
+        materialIcon: "inventory_2",
+        foods: [
+          {
             id: "food-papel",
             name: "Papel higiénico",
             sectionId: "aseo",
-            subsectionId: "aseo_hogar",
+            subsectionId: "otros_aseo",
             broadFamily: "aseo_personal",
             defaultSubtype: "papel_higienico",
             defaultUnitMeasure: "und",
             defaultTargetContent: 12,
             searchTerms: ["papel higienico"],
             description: "Rollos de papel higiénico doble o triple hoja.",
+            isDefaultGeneric: true,
+            defaultPriority: "lowest_pum",
+            defaultSize: "medium",
             variants: [
               { id: "papel_higienico", label: "Papel higiénico", subtypeFamily: "papel_higienico" },
             ],
@@ -736,4 +957,143 @@ export function formatBasketAsPlainText(params: {
   lines.push("");
   lines.push("Generado en MercaSabio (mercasabio.sdgp.workers.dev)");
   return lines.join("\n");
+}
+
+export function buildDefaultGenericBasketItems(): BasketItemInput[] {
+  const items: BasketItemInput[] = [];
+  for (const section of GUIDED_SECTIONS) {
+    for (const sub of section.subsections) {
+      for (const food of sub.foods) {
+        if (!food.isDefaultGeneric) continue;
+        const defaultVariant =
+          food.variants.find((v) => v.id === food.defaultVariantId) ?? food.variants[0];
+        items.push({
+          itemKey: `generic-${food.id}`,
+          label: food.name,
+          masterProductId: null,
+          canonicalSlug: null,
+          matchMode: "pum",
+          quantity: 1,
+          allowSubstitutes: true,
+          subtypeFamily: defaultVariant?.subtypeFamily ?? food.defaultSubtype,
+          broadFamily: food.broadFamily,
+          familyLabel: food.name,
+          targetNetContent: food.defaultTargetContent,
+          targetUnitMeasure: food.defaultUnitMeasure,
+          allowedQualityTiers: food.defaultQualityTiers ?? ["economico", "estandar"],
+          pricePriority: food.defaultPriority ?? "lowest_pum",
+          requiredCriticalAttribute: defaultVariant?.criticalAttribute ?? null,
+          sizePreference: food.defaultSize ?? "medium",
+          excludedBrands: [],
+          sectionId: section.id,
+          subsectionId: sub.id,
+          originMode: "generic_guided",
+        });
+      }
+    }
+  }
+  return items;
+}
+
+export function getSectionIdForItem(
+  item: Pick<BasketItemInput, "sectionId" | "subsectionId" | "subtypeFamily" | "broadFamily" | "label">
+): "alacena" | "nevera" | "aseo" {
+  if (item.sectionId) return item.sectionId;
+  for (const section of GUIDED_SECTIONS) {
+    for (const sub of section.subsections) {
+      if (item.subsectionId && sub.id === item.subsectionId) return section.id;
+      for (const food of sub.foods) {
+        if (
+          (item.subtypeFamily &&
+            (food.defaultSubtype === item.subtypeFamily ||
+              food.variants.some((v) => v.subtypeFamily === item.subtypeFamily))) ||
+          (item.broadFamily && food.broadFamily === item.broadFamily)
+        ) {
+          return section.id;
+        }
+      }
+    }
+  }
+  const lower = (item.label ?? "").toLowerCase();
+  if (/(leche|queso|quesito|mantequilla|yogurt|kumis|huevo|pollo|pechuga|carne|res|atun)/.test(lower)) {
+    return "nevera";
+  }
+  if (/(detergente|suavizante|lavaloza|limpiador|cloro|jabon|crema dental|colgate|papel higienico)/.test(lower)) {
+    return "aseo";
+  }
+  return "alacena";
+}
+
+export function getSubsectionForItem(
+  item: Pick<BasketItemInput, "sectionId" | "subsectionId" | "subtypeFamily" | "broadFamily" | "label">
+): {
+  sectionId: "alacena" | "nevera" | "aseo";
+  subsectionId: string;
+  subsectionLabel: string;
+} {
+  for (const section of GUIDED_SECTIONS) {
+    for (const sub of section.subsections) {
+      if (item.subsectionId && sub.id === item.subsectionId) {
+        return { sectionId: section.id, subsectionId: sub.id, subsectionLabel: sub.label };
+      }
+      for (const food of sub.foods) {
+        if (
+          item.subtypeFamily &&
+          (food.defaultSubtype === item.subtypeFamily ||
+            food.variants.some((v) => v.subtypeFamily === item.subtypeFamily))
+        ) {
+          return { sectionId: section.id, subsectionId: sub.id, subsectionLabel: sub.label };
+        }
+      }
+    }
+  }
+  const secId = getSectionIdForItem(item);
+  const section = GUIDED_SECTIONS.find((s) => s.id === secId) ?? GUIDED_SECTIONS[0];
+  for (const sub of section.subsections) {
+    for (const food of sub.foods) {
+      if (item.broadFamily && food.broadFamily === item.broadFamily) {
+        return { sectionId: section.id, subsectionId: sub.id, subsectionLabel: sub.label };
+      }
+    }
+  }
+  const fallbackSub = section.subsections[0];
+  return {
+    sectionId: section.id,
+    subsectionId: fallbackSub.id,
+    subsectionLabel: fallbackSub.label,
+  };
+}
+
+export function getAvailableBrandsForItem(
+  item: BasketItemInput,
+  offers: StoreOffer[]
+): string[] {
+  const brands = new Set<string>();
+  const targetSubtype = item.subtypeFamily ?? null;
+  const targetBroad = item.broadFamily ?? null;
+
+  for (const offer of offers) {
+    const sig = extractProductSignature(offer);
+    const sameMaster =
+      item.masterProductId != null && offer.masterProductId === item.masterProductId;
+    const sameSlug =
+      item.canonicalSlug != null && offer.canonicalSlug === item.canonicalSlug;
+    const sameSubtype = targetSubtype != null && sig.subtypeFamily === targetSubtype;
+    const sameBroad =
+      item.allowSubstitutes !== false &&
+      targetBroad != null &&
+      sig.broadFamily === targetBroad;
+
+    if (!sameMaster && !sameSlug && !sameSubtype && !sameBroad) continue;
+
+    const candidateBrand = (offer.brand || sig.brandKey || "").trim();
+    if (!candidateBrand || /^sin\s+marca$/i.test(candidateBrand)) continue;
+    brands.add(candidateBrand);
+  }
+
+  if (item.anchorBrand && item.anchorBrand.trim() && !/^sin\s+marca$/i.test(item.anchorBrand)) {
+    brands.add(item.anchorBrand.trim());
+  }
+
+  return [...brands].sort((a, b) => a.localeCompare(b, "es"));
 }

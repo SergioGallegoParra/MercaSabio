@@ -3,7 +3,7 @@
 import "leaflet/dist/leaflet.css";
 
 import { useEffect, useRef, useState } from "react";
-import { Footprints, Car, Navigation } from "lucide-react";
+import { Car, Crosshair, Footprints, Navigation } from "lucide-react";
 
 import type { NearbyStoreBranch } from "@/lib/types";
 
@@ -11,15 +11,22 @@ export interface RouteMapStop extends NearbyStoreBranch {
   storeName: string;
 }
 
-interface RouteMapProps {
-  userLocation: { lat: number; lng: number; label?: string };
-  stops: RouteMapStop[];
-}
-
-interface RouteSummary {
+export interface RouteSummary {
   distanceMeters: number;
   durationSeconds: number;
   isFallback: boolean;
+  travelMode: "foot" | "driving";
+}
+
+interface RouteMapProps {
+  userLocation: { lat: number; lng: number; label?: string };
+  stops: RouteMapStop[];
+  variant?: "route" | "location_preview";
+  radiusMeters?: number;
+  onRequestGeolocation?: () => void;
+  geoLoading?: boolean;
+  savingsLabel?: string | null;
+  onSummaryChange?: (summary: RouteSummary | null) => void;
 }
 
 function escapeHtml(text: string): string {
@@ -42,7 +49,16 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
   return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export default function RouteMap({ userLocation, stops }: RouteMapProps) {
+export default function RouteMap({
+  userLocation,
+  stops,
+  variant = "route",
+  radiusMeters = 2500,
+  onRequestGeolocation,
+  geoLoading = false,
+  savingsLabel = null,
+  onSummaryChange,
+}: RouteMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [travelMode, setTravelMode] = useState<"foot" | "driving">("foot");
   const [summary, setSummary] = useState<RouteSummary | null>(null);
@@ -50,8 +66,10 @@ export default function RouteMap({ userLocation, stops }: RouteMapProps) {
 
   useEffect(() => {
     const el = containerRef.current;
-    if (!el || stops.length === 0) {
+    if (!el) return;
+    if (variant === "route" && stops.length === 0) {
       setSummary(null);
+      onSummaryChange?.(null);
       return;
     }
 
@@ -59,26 +77,32 @@ export default function RouteMap({ userLocation, stops }: RouteMapProps) {
     let mapInstance: import("leaflet").Map | null = null;
 
     async function renderMap() {
-      setLoadingRoute(true);
+      if (variant === "route") {
+        setLoadingRoute(true);
+      }
       const L = (await import("leaflet")).default;
       if (cancelled || !containerRef.current) return;
 
       mapInstance = L.map(containerRef.current, {
         center: [userLocation.lat, userLocation.lng],
-        zoom: 14,
+        zoom: variant === "location_preview" ? 13 : 14,
         scrollWheelZoom: false,
+        zoomControl: variant === "route",
       });
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap contributors",
+        attribution: "&copy; OpenStreetMap",
         maxZoom: 19,
       }).addTo(mapInstance);
 
       const userIcon = L.divIcon({
-        className: "merca-pin merca-pin-user",
-        html: "<span>Tú</span>",
-        iconSize: [34, 34],
-        iconAnchor: [17, 17],
+        className:
+          variant === "location_preview"
+            ? "merca-pin merca-pin-user-preview"
+            : "merca-pin merca-pin-user",
+        html: variant === "location_preview" ? "<span></span>" : "<span>Tú</span>",
+        iconSize: variant === "location_preview" ? [28, 28] : [32, 32],
+        iconAnchor: variant === "location_preview" ? [14, 14] : [16, 16],
       });
 
       const boundsPoints: [number, number][] = [[userLocation.lat, userLocation.lng]];
@@ -88,6 +112,40 @@ export default function RouteMap({ userLocation, stops }: RouteMapProps) {
         .bindPopup(
           `<strong>${escapeHtml(userLocation.label ?? "Tu ubicación")}</strong>`
         );
+
+      if (variant === "location_preview") {
+        const circle = L.circle([userLocation.lat, userLocation.lng], {
+          radius: Math.max(400, radiusMeters),
+          color: "#26543D",
+          weight: 2,
+          dashArray: "6 6",
+          fillColor: "#26543D",
+          fillOpacity: 0.08,
+        }).addTo(mapInstance);
+
+        stops.slice(0, 12).forEach((stop) => {
+          const storeDot = L.divIcon({
+            className: "merca-pin merca-pin-dot",
+            html: "<span></span>",
+            iconSize: [14, 14],
+            iconAnchor: [7, 7],
+          });
+          L.marker([stop.lat, stop.lng], { icon: storeDot })
+            .addTo(mapInstance!)
+            .bindPopup(
+              `<strong>${escapeHtml(stop.storeName)}</strong><br/>${escapeHtml(
+                stop.branchName
+              )}`
+            );
+        });
+
+        try {
+          mapInstance.fitBounds(circle.getBounds(), { padding: [18, 18] });
+        } catch {
+          mapInstance.setView([userLocation.lat, userLocation.lng], 13);
+        }
+        return;
+      }
 
       stops.forEach((stop, idx) => {
         boundsPoints.push([stop.lat, stop.lng]);
@@ -154,15 +212,22 @@ export default function RouteMap({ userLocation, stops }: RouteMapProps) {
       if (cancelled || !mapInstance) return;
 
       L.polyline(routeCoords, {
-        color: isFallback ? "#0369a1" : "#0f766e",
+        color: isFallback ? "#26543D" : "#14432E",
         weight: 4,
-        opacity: 0.9,
+        opacity: 0.92,
         dashArray: isFallback ? "6 6" : undefined,
       }).addTo(mapInstance);
 
-      mapInstance.fitBounds(L.latLngBounds(routeCoords), { padding: [32, 32] });
+      mapInstance.fitBounds(L.latLngBounds(routeCoords), { padding: [30, 30] });
 
-      setSummary({ distanceMeters, durationSeconds, isFallback });
+      const nextSummary: RouteSummary = {
+        distanceMeters,
+        durationSeconds,
+        isFallback,
+        travelMode,
+      };
+      setSummary(nextSummary);
+      onSummaryChange?.(nextSummary);
       setLoadingRoute(false);
     }
 
@@ -172,49 +237,89 @@ export default function RouteMap({ userLocation, stops }: RouteMapProps) {
       cancelled = true;
       mapInstance?.remove();
     };
-  }, [userLocation.lat, userLocation.lng, userLocation.label, stops, travelMode]);
+  }, [
+    userLocation.lat,
+    userLocation.lng,
+    userLocation.label,
+    stops,
+    travelMode,
+    variant,
+    radiusMeters,
+    onSummaryChange,
+  ]);
+
+  if (variant === "location_preview") {
+    return (
+      <div className="hearth-map-preview-wrap">
+        <div ref={containerRef} className="hearth-map-preview-canvas" />
+        <div className="hearth-map-center-badge">
+          <span className="material-symbols-outlined">location_on</span>
+          <span>{userLocation.label ?? "Tu zona"}</span>
+        </div>
+        {onRequestGeolocation && (
+          <button
+            type="button"
+            className="hearth-map-gps-btn"
+            onClick={onRequestGeolocation}
+            disabled={geoLoading}
+            title="Usar mi ubicación GPS"
+            aria-label="Usar mi ubicación GPS"
+          >
+            <Crosshair size={16} />
+          </button>
+        )}
+      </div>
+    );
+  }
 
   if (stops.length === 0) {
     return null;
   }
 
   return (
-    <div className="route-map-card">
-      <div className="route-map-header">
-        <div className="route-map-title">
-          <Navigation size={15} />
+    <div className="hearth-route-map-card">
+      <div className="hearth-route-map-header">
+        <div className="hearth-route-map-title">
+          <Navigation size={14} />
           <span>Mapa de ruta</span>
-          {loadingRoute && <span className="tag tag-estimated">Calculando ruta...</span>}
+          {loadingRoute && <span className="hearth-badge-soft">Calculando...</span>}
           {!loadingRoute && summary && (
-            <span className="tag tag-best tabular">
+            <span className="hearth-badge-primary tabular">
               {summary.distanceMeters >= 1000
-                ? `${(summary.distanceMeters / 1000).toFixed(2)} km`
+                ? `${(summary.distanceMeters / 1000).toFixed(1)} km`
                 : `${summary.distanceMeters} m`}{" "}
               · ~{Math.max(1, Math.round(summary.durationSeconds / 60))} min
-              {summary.isFallback ? " (línea directa)" : ""}
             </span>
           )}
         </div>
 
-        <div className="route-mode-toggle">
+        <div className="hearth-route-mode-toggle">
           <button
             type="button"
-            className={`pill ${travelMode === "foot" ? "active" : ""}`}
+            className={`hearth-toggle-btn ${travelMode === "foot" ? "active" : ""}`}
             onClick={() => setTravelMode("foot")}
           >
-            <Footprints size={13} /> A pie
+            <Footprints size={12} /> A pie
           </button>
           <button
             type="button"
-            className={`pill ${travelMode === "driving" ? "active" : ""}`}
+            className={`hearth-toggle-btn ${travelMode === "driving" ? "active" : ""}`}
             onClick={() => setTravelMode("driving")}
           >
-            <Car size={13} /> Vehículo
+            <Car size={12} /> Vehículo
           </button>
         </div>
       </div>
 
-      <div ref={containerRef} className="route-map-canvas" />
+      <div className="hearth-route-canvas-wrap">
+        <div ref={containerRef} className="hearth-route-map-canvas" />
+        {savingsLabel && (
+          <div className="hearth-route-bottom-pill">
+            <span className="hearth-route-dot" />
+            <span>{savingsLabel}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

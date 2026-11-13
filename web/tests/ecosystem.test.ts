@@ -4,7 +4,9 @@ import test from "node:test";
 import { optimizeBasket } from "../src/lib/basketOptimizer.ts";
 import { buildMultiTierComparisonGroups } from "../src/lib/comparisonEngine.ts";
 import {
+  buildDefaultGenericBasketItems,
   formatBasketAsPlainText,
+  getAvailableBrandsForItem,
   inferBasketProfileSummary,
   inferHabitualItemProfile,
 } from "../src/lib/guidedCatalog.ts";
@@ -1216,4 +1218,193 @@ test("Opción 2: inferHabitualItemProfile deduce restricciones, calcula ahorro N
   assert.ok(plainText.includes("TIENDAS D1"));
   assert.ok(plainText.includes("10.800"));
   assert.ok(plainText.includes("3.000"));
+});
+
+test("Paso 7 Stitch: excludedBrands descarta marcas bloqueadas, expone runnerUpOffer y buildDefaultGenericBasketItems cubre las 3 secciones", () => {
+  const defaultItems = buildDefaultGenericBasketItems();
+  assert.ok(defaultItems.length >= 10);
+  assert.ok(defaultItems.some((i) => i.sectionId === "alacena" && i.subsectionId === "granos"));
+  assert.ok(defaultItems.some((i) => i.sectionId === "nevera" && i.subsectionId === "leches"));
+  assert.ok(defaultItems.some((i) => i.sectionId === "aseo" && i.subsectionId === "lavanderia"));
+
+  const branches: NearbyStoreBranch[] = [
+    {
+      branchId: "b-d1",
+      storeId: "d1",
+      branchName: "D1 Chapinero",
+      city: "Bogotá",
+      address: "Cra 7",
+      lat: 4.64,
+      lng: -74.06,
+      distanceMeters: 250,
+    },
+    {
+      branchId: "b-ex",
+      storeId: "exito",
+      branchName: "Éxito Express",
+      city: "Bogotá",
+      address: "Cra 13",
+      lat: 4.645,
+      lng: -74.062,
+      distanceMeters: 420,
+    },
+  ];
+
+  const offers: StoreOffer[] = [
+    makeOffer({
+      storeSkuId: "sku-diana-1",
+      storeId: "d1",
+      storeName: "Tiendas D1",
+      rawName: "Arroz Blanco Diana x 1000 g",
+      brand: "Diana",
+      netContent: 1000,
+      unitMeasure: "g",
+      calibratedPrice: 3600,
+      pumPrice: 3.6,
+      canonicalSlug: "arroz-blanco-1000g",
+    }),
+    makeOffer({
+      storeSkuId: "sku-roa-1",
+      storeId: "exito",
+      storeName: "Éxito",
+      rawName: "Arroz Blanco Roa x 1000 g",
+      brand: "Roa",
+      netContent: 1000,
+      unitMeasure: "g",
+      calibratedPrice: 4400,
+      pumPrice: 4.4,
+      canonicalSlug: "arroz-blanco-1000g",
+    }),
+    makeOffer({
+      storeSkuId: "sku-florhuila-1",
+      storeId: "exito",
+      storeName: "Éxito",
+      rawName: "Arroz Blanco Florhuila x 1000 g",
+      brand: "Florhuila",
+      netContent: 1000,
+      unitMeasure: "g",
+      calibratedPrice: 4900,
+      pumPrice: 4.9,
+      canonicalSlug: "arroz-blanco-1000g",
+    }),
+  ];
+
+  const arrozItem = defaultItems.find((i) => i.subtypeFamily === "arroz_blanco");
+  assert.ok(arrozItem);
+
+  const brands = getAvailableBrandsForItem(arrozItem, offers);
+  assert.deepEqual(brands, ["Diana", "Florhuila", "Roa"]);
+
+  const withoutExclusion = optimizeBasket({
+    items: [arrozItem],
+    offers,
+    nearbyBranches: branches,
+    options: { maxStores: 2, maxDistanceMeters: 2000 },
+  });
+  const allocNormal = withoutExclusion.recommendedPlan?.storeStops[0]?.allocations[0];
+  assert.equal(allocNormal?.offer.brand, "Diana");
+  assert.equal(allocNormal?.runnerUpOffer?.brand, "Roa");
+
+  const withExclusion = optimizeBasket({
+    items: [{ ...arrozItem, excludedBrands: ["Diana"] }],
+    offers,
+    nearbyBranches: branches,
+    options: { maxStores: 2, maxDistanceMeters: 2000 },
+  });
+  const allocExcluded = withExclusion.recommendedPlan?.storeStops[0]?.allocations[0];
+  assert.equal(allocExcluded?.offer.brand, "Roa");
+  assert.equal(allocExcluded?.runnerUpOffer?.brand, "Florhuila");
+  assert.deepEqual(allocExcluded?.excludedBrandsApplied, ["Diana"]);
+});
+
+test("optimizeBasket soporta maxStores 4 y 5 paradas cuando hay 5 cadenas distintas", () => {
+  const storeIds = ["d1", "ara", "exito", "olimpica", "carulla"];
+  const branches: NearbyStoreBranch[] = storeIds.map((id, idx) => ({
+    branchId: `br-${id}`,
+    storeId: id,
+    branchName: `${id.toUpperCase()} Sede`,
+    city: "Bogotá",
+    address: `Cll ${10 + idx}`,
+    lat: 4.64 + idx * 0.001,
+    lng: -74.06,
+    distanceMeters: 200 + idx * 100,
+  }));
+
+  const offers: StoreOffer[] = [
+    makeOffer({
+      storeSkuId: "o-1",
+      storeId: "d1",
+      storeName: "Tiendas D1",
+      rawName: "Arroz Blanco 1000 g",
+      netContent: 1000,
+      unitMeasure: "g",
+      calibratedPrice: 3000,
+      pumPrice: 3,
+      canonicalSlug: "arroz-blanco-1000g",
+    }),
+    makeOffer({
+      storeSkuId: "o-2",
+      storeId: "ara",
+      storeName: "Ara",
+      rawName: "Leche Deslactosada 1000 ml",
+      netContent: 1000,
+      unitMeasure: "ml",
+      calibratedPrice: 3200,
+      pumPrice: 3.2,
+      canonicalSlug: "leche-entera-1000ml",
+    }),
+    makeOffer({
+      storeSkuId: "o-3",
+      storeId: "exito",
+      storeName: "Éxito",
+      rawName: "Aceite Vegetal 900 ml",
+      netContent: 900,
+      unitMeasure: "ml",
+      calibratedPrice: 8000,
+      pumPrice: 8.88,
+      canonicalSlug: "aceite-vegetal-900ml",
+    }),
+    makeOffer({
+      storeSkuId: "o-4",
+      storeId: "olimpica",
+      storeName: "Olímpica",
+      rawName: "Café Molido 500 g",
+      netContent: 500,
+      unitMeasure: "g",
+      calibratedPrice: 12000,
+      pumPrice: 24,
+      canonicalSlug: "cafe-molido-500g",
+    }),
+    makeOffer({
+      storeSkuId: "o-5",
+      storeId: "carulla",
+      storeName: "Carulla",
+      rawName: "Detergente Ropa 1000 g",
+      netContent: 1000,
+      unitMeasure: "g",
+      calibratedPrice: 7000,
+      pumPrice: 7,
+      canonicalSlug: "detergente-1000g",
+    }),
+  ];
+
+  const items = [
+    { itemKey: "i1", label: "Arroz", subtypeFamily: "arroz_blanco", broadFamily: "arroz", allowSubstitutes: true },
+    { itemKey: "i2", label: "Leche", subtypeFamily: "leche_deslactosada", broadFamily: "leche", allowSubstitutes: true },
+    { itemKey: "i3", label: "Aceite", subtypeFamily: "aceite_cocina", broadFamily: "aceite", allowSubstitutes: true },
+    { itemKey: "i4", label: "Café", subtypeFamily: "cafe_molido", broadFamily: "cafe", allowSubstitutes: true },
+    { itemKey: "i5", label: "Detergente", subtypeFamily: "detergente_ropa", broadFamily: "aseo_hogar", allowSubstitutes: true },
+  ];
+
+  const res = optimizeBasket({
+    items,
+    offers,
+    nearbyBranches: branches,
+    options: { maxStores: 5, maxDistanceMeters: 2000 },
+  });
+
+  assert.equal(res.bestFourStores?.storeStops.length, 4);
+  assert.equal(res.bestFiveStores?.storeStops.length, 5);
+  assert.equal(res.recommendedPlan?.storeStops.length, 5);
+  assert.equal(res.recommendedPlan?.coveredItems, 5);
 });

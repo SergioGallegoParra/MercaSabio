@@ -34,6 +34,9 @@ export interface BasketItemInput {
   preferredSkuByStore?: Record<string, string>;
   habitualReferencePriceCop?: number | null;
   habitualProductTitle?: string | null;
+  excludedBrands?: string[];
+  sectionId?: "alacena" | "nevera" | "aseo";
+  subsectionId?: string;
   originMode?: "generic_guided" | "habitual_guided" | "free_shop";
 }
 
@@ -52,6 +55,8 @@ export interface BasketAllocation {
   isSubstitute: boolean;
   matchKind: BasketMatchKind;
   alternativesInStore: StoreOffer[];
+  runnerUpOffer?: StoreOffer | null;
+  excludedBrandsApplied?: string[];
   activeConstraintsLabel: string;
   baselineReferenceCost: number;
 }
@@ -66,7 +71,7 @@ export interface BasketStoreStop {
 }
 
 export interface BasketPlan {
-  storeCount: 1 | 2 | 3;
+  storeCount: 1 | 2 | 3 | 4 | 5;
   storeStops: BasketStoreStop[];
   coveredItems: number;
   requestedItems: number;
@@ -90,6 +95,8 @@ export interface BasketOptimizationResult {
   bestOneStore: BasketPlan | null;
   bestTwoStores: BasketPlan | null;
   bestThreeStores: BasketPlan | null;
+  bestFourStores?: BasketPlan | null;
+  bestFiveStores?: BasketPlan | null;
   singleStoreCarts: BasketPlan[];
   recommendedPlan: BasketPlan | null;
   uncoveredItems: string[];
@@ -105,7 +112,7 @@ export interface BasketOptimizeOptions {
   minExtraSavingsCop?: number;
   minExtraSavingsPct?: number;
   objective?: "nominal" | "real_pum";
-  maxStores?: 1 | 2 | 3;
+  maxStores?: 1 | 2 | 3 | 4 | 5;
   maxDistanceMeters?: number;
 }
 
@@ -185,6 +192,11 @@ function resolveCandidateOffers(
 ): { candidates: TaggedCandidate[]; baselineUnitPrice: number } {
   const allowSubstitutes = item.allowSubstitutes ?? item.matchMode === "pum";
   const anchorBrandNorm = item.anchorBrand ? normalizeComparableText(item.anchorBrand) : null;
+  const excludedBrandSet = new Set(
+    (item.excludedBrands ?? [])
+      .map((brand) => normalizeComparableText(brand))
+      .filter(Boolean)
+  );
   const preliminary: Array<{
     offer: StoreOffer;
     sig: ReturnType<typeof extractProductSignature>;
@@ -196,6 +208,12 @@ function resolveCandidateOffers(
 
   for (const offer of offers) {
     const sig = extractProductSignature(offer);
+    if (excludedBrandSet.size > 0) {
+      const candBrandNorm = normalizeComparableText(offer.brand || sig.brandKey || "");
+      if (candBrandNorm && excludedBrandSet.has(candBrandNorm)) {
+        continue;
+      }
+    }
     if (item.subtypeFamily && sig.subtypeFamily === item.subtypeFamily && sig.effectivePum > 0) {
       subtypePums.push(sig.effectivePum);
     }
@@ -407,7 +425,7 @@ interface BuiltItemPool {
 
 function evaluateStoreCombination(
   storeIds: string[],
-  storeCount: 1 | 2 | 3,
+  storeCount: 1 | 2 | 3 | 4 | 5,
   itemPools: BuiltItemPool[],
   nearestBranchByStore: Map<string, NearbyStoreBranch>,
   objective: "nominal" | "real_pum"
@@ -423,20 +441,12 @@ function evaluateStoreCombination(
   for (const pool of itemPools) {
     let chosenCandidate: TaggedCandidate | null = null;
     let bestMetric = Number.POSITIVE_INFINITY;
+    const allPlanCandidates: Array<{ candidate: TaggedCandidate; metric: number }> = [];
 
     // Primero verificamos si el usuario seleccionó manualmente un SKU específico en alguna de las tiendas del plan
     for (const storeId of storeIds) {
       const candidateList = pool.byStore.get(storeId);
       if (!candidateList || candidateList.length === 0) continue;
-
-      const preferredSkuId = pool.item.preferredSkuByStore?.[storeId];
-      if (preferredSkuId) {
-        const manualHit = candidateList.find((c) => c.offer.storeSkuId === preferredSkuId);
-        if (manualHit) {
-          chosenCandidate = manualHit;
-          break;
-        }
-      }
 
       for (const candidate of candidateList) {
         const metric = scoreAllocation(
@@ -445,9 +455,23 @@ function evaluateStoreCombination(
           objective,
           pool.item.pricePriority
         );
+        allPlanCandidates.push({ candidate, metric });
         if (metric < bestMetric) {
           bestMetric = metric;
           chosenCandidate = candidate;
+        }
+      }
+    }
+
+    for (const storeId of storeIds) {
+      const candidateList = pool.byStore.get(storeId);
+      if (!candidateList || candidateList.length === 0) continue;
+      const preferredSkuId = pool.item.preferredSkuByStore?.[storeId];
+      if (preferredSkuId) {
+        const manualHit = candidateList.find((c) => c.offer.storeSkuId === preferredSkuId);
+        if (manualHit) {
+          chosenCandidate = manualHit;
+          break;
         }
       }
     }
@@ -461,6 +485,23 @@ function evaluateStoreCombination(
     if (!branch) {
       continue;
     }
+
+    const inPlanRunnerUp = allPlanCandidates
+      .filter((entry) => entry.candidate.offer.storeSkuId !== chosenOffer.storeSkuId)
+      .sort((a, b) => a.metric - b.metric)[0];
+
+    const fallbackRunnerUp = inPlanRunnerUp
+      ? null
+      : [...pool.byStore.values()]
+          .flat()
+          .filter((cand) => cand.offer.storeSkuId !== chosenOffer.storeSkuId)
+          .map((cand) => ({
+            candidate: cand,
+            metric: scoreAllocation(cand, pool.quantity, objective, pool.item.pricePriority),
+          }))
+          .sort((a, b) => a.metric - b.metric)[0];
+
+    const runnerUpEntry = inPlanRunnerUp ?? fallbackRunnerUp;
 
     coveredItems += 1;
     const yieldFactor = chosenOffer.avgYieldFactor > 0 ? chosenOffer.avgYieldFactor : 1;
@@ -517,6 +558,8 @@ function evaluateStoreCombination(
       isSubstitute: chosenCandidate.matchKind !== "exact",
       matchKind: chosenCandidate.matchKind,
       alternativesInStore,
+      runnerUpOffer: runnerUpEntry?.candidate.offer ?? null,
+      excludedBrandsApplied: (pool.item.excludedBrands ?? []).filter(Boolean),
       activeConstraintsLabel: pool.constraintsLabel,
       baselineReferenceCost: Math.round(baselineRef),
     });
@@ -675,6 +718,8 @@ export function optimizeBasket(params: {
       bestOneStore: null,
       bestTwoStores: null,
       bestThreeStores: null,
+      bestFourStores: null,
+      bestFiveStores: null,
       singleStoreCarts: [],
       recommendedPlan: null,
       uncoveredItems: items.map((i) => i.label),
@@ -730,6 +775,8 @@ export function optimizeBasket(params: {
       bestOneStore: null,
       bestTwoStores: null,
       bestThreeStores: null,
+      bestFourStores: null,
+      bestFiveStores: null,
       singleStoreCarts: [],
       recommendedPlan: null,
       uncoveredItems,
@@ -778,6 +825,26 @@ export function optimizeBasket(params: {
     }
   }
 
+  let rawFour: BasketPlan | null = null;
+  if (maxStores >= 4 && activeStoreIds.length >= 4) {
+    for (const combo of combinationsOfSize(activeStoreIds, 4)) {
+      const plan = evaluateStoreCombination(combo, 4, itemPools, nearestBranchByStore, objective);
+      if (plan && plan.storeStops.length >= 4 && isBetterPlan(plan, rawFour, objective)) {
+        rawFour = plan;
+      }
+    }
+  }
+
+  let rawFive: BasketPlan | null = null;
+  if (maxStores >= 5 && activeStoreIds.length >= 5) {
+    for (const combo of combinationsOfSize(activeStoreIds, 5)) {
+      const plan = evaluateStoreCombination(combo, 5, itemPools, nearestBranchByStore, objective);
+      if (plan && plan.storeStops.length >= 5 && isBetterPlan(plan, rawFive, objective)) {
+        rawFive = plan;
+      }
+    }
+  }
+
   const bestOneStore = attachBaselineComparisons(
     rawOne,
     rawOne,
@@ -802,6 +869,32 @@ export function optimizeBasket(params: {
     minExtraSavingsPct,
     objective
   );
+  const bestFourStores = attachBaselineComparisons(
+    rawFour,
+    bestOneStore,
+    bestThreeStores?.worthExtraStop
+      ? bestThreeStores
+      : bestTwoStores?.worthExtraStop
+        ? bestTwoStores
+        : bestOneStore,
+    minExtraSavingsCop,
+    minExtraSavingsPct,
+    objective
+  );
+  const bestFiveStores = attachBaselineComparisons(
+    rawFive,
+    bestOneStore,
+    bestFourStores?.worthExtraStop
+      ? bestFourStores
+      : bestThreeStores?.worthExtraStop
+        ? bestThreeStores
+        : bestTwoStores?.worthExtraStop
+          ? bestTwoStores
+          : bestOneStore,
+    minExtraSavingsCop,
+    minExtraSavingsPct,
+    objective
+  );
 
   let recommendedPlan: BasketPlan | null = bestOneStore;
   if (maxStores >= 2 && bestTwoStores && bestTwoStores.worthExtraStop) {
@@ -809,6 +902,12 @@ export function optimizeBasket(params: {
   }
   if (maxStores >= 3 && bestThreeStores && bestThreeStores.worthExtraStop) {
     recommendedPlan = bestThreeStores;
+  }
+  if (maxStores >= 4 && bestFourStores && bestFourStores.worthExtraStop) {
+    recommendedPlan = bestFourStores;
+  }
+  if (maxStores >= 5 && bestFiveStores && bestFiveStores.worthExtraStop) {
+    recommendedPlan = bestFiveStores;
   }
 
   const habitualBaselineCost = recommendedPlan?.baselineReferenceTotalCost ?? 0;
@@ -819,6 +918,8 @@ export function optimizeBasket(params: {
     bestOneStore,
     bestTwoStores,
     bestThreeStores,
+    bestFourStores,
+    bestFiveStores,
     singleStoreCarts,
     recommendedPlan,
     uncoveredItems,
