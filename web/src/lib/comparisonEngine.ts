@@ -1,8 +1,16 @@
 import type {
+  AdminActiveMatchSummary,
+  AdminCatalogItem,
+  AdminSubtypeOption,
   BulkComparisonOption,
   CompareMode,
   ComparisonGroup,
+  ComparisonPairRule,
+  CurationContext,
+  ProductCurationOverride,
   ProductSignatureSummary,
+  QualityTier,
+  ReviewStatus,
   StoreOffer,
   TieredCompetitorMatch,
   UnitMeasure,
@@ -15,7 +23,15 @@ export interface ExtractedSignature extends ProductSignatureSummary {
   variantTokensKey: string;
   skuFingerprint: string;
   inferredCanonicalSlug: string | null;
+  lexicalTierHint: QualityTier | null;
 }
+
+export const QUALITY_TIER_LABELS: Record<QualityTier, string> = {
+  economico: "Económico",
+  estandar: "Estándar",
+  premium: "Premium",
+  especial: "Especial",
+};
 
 const KNOWN_FAMILIES: Array<{
   subtype: string;
@@ -47,6 +63,13 @@ const KNOWN_FAMILIES: Array<{
     label: "Atún preparado / ensalada",
     slug: null,
     match: /\b(antipasto|aderezo|ensalada\s+(?:de\s+)?atun|dip\s+de\s+atun|pate\s+de\s+atun)\b.*\batun\b|\batun\b.*\b(antipasto|aderezo|ensalada|veget|maiz)\b/,
+  },
+  {
+    subtype: "atun_oliva",
+    broad: "atun",
+    label: "Atún en aceite de oliva",
+    slug: "atun-lata-160g",
+    match: /\batun\b.*\b(aceite\s+de\s+)?oliva\b/,
   },
   {
     subtype: "atun_agua",
@@ -114,7 +137,15 @@ const KNOWN_FAMILIES: Array<{
     label: "Arroz saborizado",
     slug: null,
     exclude: /\b(chocolatin\w*|galleta|snack)\b/,
-    match: /\barroz\b.*\b(coco|pollo|paella|mix|risotto|verduras|ajonjoli)\b/,
+    match: /\barroz\b.*\b(coco|pollo|paella|mix|verduras|ajonjoli)\b/,
+  },
+  {
+    subtype: "arroz_especial",
+    broad: "arroz",
+    label: "Arroz especial (Jazmín / Basmati / Arborio)",
+    slug: "arroz-blanco-1000g",
+    exclude: /\b(pasta|tallarin|leche|bebida|galleta|torta|harina|vinagre|inflado|crisp|snack|achocolatad\w*|chocolat\w*)\b/,
+    match: /\barroz\b.*\b(jazmin|jasmin|jasmine|basmati|arborio|risotto|sushi|salvaje|negro)\b/,
   },
   {
     subtype: "arroz_blanco",
@@ -294,6 +325,16 @@ const KNOWN_FAMILIES: Array<{
   },
 ];
 
+export const KNOWN_SUBTYPE_OPTIONS: Array<Omit<AdminSubtypeOption, "count">> = KNOWN_FAMILIES.map(
+  (f) => ({
+    subtype: f.subtype,
+    broadFamily: f.broad,
+    label: f.label,
+  })
+);
+
+const FAMILY_BY_SUBTYPE = new Map(KNOWN_FAMILIES.map((f) => [f.subtype, f]));
+
 export function normalizeComparableText(value: string | null | undefined): string {
   return String(value ?? "")
     .normalize("NFD")
@@ -323,7 +364,6 @@ function parseWeightFallback(
     let rawNum = weightMatch[1];
     const unitRaw = weightMatch[2];
 
-    // En Colombia "1.000 gr" o "2.500 g" representa miles; "1.5 lt" representa decimales
     if (/^\d+\.\d{3}$/.test(rawNum)) {
       rawNum = rawNum.replace(".", "");
     } else {
@@ -364,7 +404,6 @@ function normalizeBrandKey(brand: string | null | undefined, normalizedName: str
     return cleanedBrand;
   }
 
-  // Fallback si la marca no llegó explícita
   const tokens = normalizedName.split(" ").filter((t) => t.length >= 3);
   return tokens[1] ?? tokens[0] ?? "generico";
 }
@@ -417,21 +456,123 @@ function extractVariantKey(normalizedText: string, brandKey: string): string {
     .split(" ")
     .filter((token) => token.length >= 3 && !/^\d+(?:[.,]\d+)?$/.test(token) && !noise.has(token));
 
-  // Deduplica palabras consecutivas (D1 a veces duplica el nombre en el raw_name)
   const unique = [...new Set(tokens)].sort().slice(0, 6);
   return unique.join("-") || "std";
+}
+
+function detectLexicalTierHint(normalizedText: string, brandKey: string): QualityTier | null {
+  if (
+    /\b(organico|organica|campo\s+libre|gallina\s+feliz|pastoreo|sin\s+gluten|keto|biologico|basmati|jasmin|jasmine|arborio|wild|salvaje|artesanal|artisan)\b/.test(
+      normalizedText
+    )
+  ) {
+    return "especial";
+  }
+  if (
+    /\b(premium|gourmet|seleccion\s+especial|extra\s+virgen|extravirgen|gran\s+reserva|reserva|origen|deluxe|supreme|importad[oa]|dorado|edicion\s+especial|maestria)\b/.test(
+      normalizedText
+    )
+  ) {
+    return "premium";
+  }
+  if (
+    /\b(economico|economica|ahorro|super\s*ahorro|marca\s+propia|basico|bodega|popular|ekono|tottus|rallado)\b/.test(
+      normalizedText
+    ) ||
+    /\b(ekono|marca\s+propia|krikos)\b/.test(brandKey)
+  ) {
+    return "economico";
+  }
+  return null;
+}
+
+function extractCriticalAttribute(normalizedText: string, broadFamily: string): string | null {
+  if (broadFamily === "atun") {
+    const cut = /\b(lomo|lomitos|solido)\b/.test(normalizedText)
+      ? "lomo"
+      : /\b(trozos?)\b/.test(normalizedText)
+        ? "trozos"
+        : /\b(rallado|desmenuzado)\b/.test(normalizedText)
+          ? "rallado"
+          : null;
+    const medium = /\boliva\b/.test(normalizedText)
+      ? "oliva"
+      : /\bagua\b/.test(normalizedText)
+        ? "agua"
+        : /\baceite\b/.test(normalizedText)
+          ? "aceite"
+          : null;
+    if (cut && medium) return `${cut}_${medium}`;
+    return cut ?? medium;
+  }
+
+  if (broadFamily === "huevos") {
+    const caliber = /\bjumbo\b/.test(normalizedText)
+      ? "jumbo"
+      : /\baaa\b/.test(normalizedText)
+        ? "aaa"
+        : /\baa\b/.test(normalizedText)
+          ? "aa"
+          : /\btipo\s+a\b|\ba\b/.test(normalizedText)
+            ? "a"
+            : null;
+    const farming = /\b(campo\s+libre|gallina\s+feliz|pastoreo|organico)\b/.test(normalizedText)
+      ? "campo_libre"
+      : null;
+    if (farming && caliber) return `${farming}_${caliber}`;
+    return farming ?? caliber;
+  }
+
+  if (broadFamily === "arroz") {
+    if (/\b(basmati|jasmin|jasmine|arborio|risotto|sushi|salvaje)\b/.test(normalizedText)) {
+      return "grano_especial";
+    }
+    if (/\bintegral\b/.test(normalizedText)) return "integral";
+    if (/\bparbol\w*\b/.test(normalizedText)) return "parbolizado";
+    return null;
+  }
+
+  if (broadFamily === "aceite") {
+    if (/\bextra\s+virgen\b|\bextravirgen\b/.test(normalizedText)) return "extra_virgen";
+    if (/\boliva\b/.test(normalizedText)) return "oliva";
+    if (/\baguacate\b/.test(normalizedText)) return "aguacate";
+    if (/\bcoco\b/.test(normalizedText)) return "coco";
+    if (/\bgirasol\b/.test(normalizedText)) return "girasol";
+    if (/\bcanola\b/.test(normalizedText)) return "canola";
+    return null;
+  }
+
+  if (broadFamily === "cafe") {
+    if (/\bliofiliz\w*\b/.test(normalizedText)) return "liofilizado";
+    if (/\b(organico|organica|origen)\b/.test(normalizedText)) return "origen_organico";
+    if (/\bdescafeinad\w*\b/.test(normalizedText)) return "descafeinado";
+    return null;
+  }
+
+  return null;
 }
 
 function inferFamily(
   normalizedText: string,
   unitMeasure: UnitMeasure,
-  canonicalSlug: string | null
+  canonicalSlug: string | null,
+  override?: ProductCurationOverride
 ): {
   subtypeFamily: string;
   broadFamily: string;
   familyLabel: string;
   inferredCanonicalSlug: string | null;
 } {
+  if (override?.overrideSubtype) {
+    const known = FAMILY_BY_SUBTYPE.get(override.overrideSubtype);
+    return {
+      subtypeFamily: override.overrideSubtype,
+      broadFamily: override.overrideBroadFamily ?? known?.broad ?? override.overrideSubtype.split("_")[0] ?? "mercado",
+      familyLabel: known?.label ?? override.overrideSubtype.replace(/_/g, " "),
+      inferredCanonicalSlug: known?.slug ?? canonicalSlug,
+    };
+  }
+
   for (const rule of KNOWN_FAMILIES) {
     if (rule.exclude && rule.exclude.test(normalizedText)) {
       continue;
@@ -473,16 +614,20 @@ function inferFamily(
   };
 }
 
-export function extractProductSignature(offer: StoreOffer): ExtractedSignature {
+export function extractProductSignature(
+  offer: StoreOffer,
+  override?: ProductCurationOverride
+): ExtractedSignature {
   const cleanTitle = cleanProductTitle(offer.rawName);
   const normalizedText = normalizeComparableText(cleanTitle);
   const { qty, unit } = parseWeightFallback(offer.rawName, offer.netContent, offer.unitMeasure);
   const effectivePum = qty > 0 && offer.calibratedPrice > 0 ? offer.calibratedPrice / qty : offer.pumPrice;
-  const family = inferFamily(normalizedText, unit, offer.canonicalSlug);
+  const family = inferFamily(normalizedText, unit, offer.canonicalSlug, override);
   const brandKey = normalizeBrandKey(offer.brand, normalizedText);
   const variantTokensKey = extractVariantKey(normalizedText, brandKey);
+  const lexicalTierHint = detectLexicalTierHint(normalizedText, brandKey);
+  const criticalAttribute = extractCriticalAttribute(normalizedText, family.broadFamily);
 
-  // Huella única de producto dentro de una tienda para eliminar repeticiones
   const roundedQty = qty >= 50 ? Math.round(qty) : Number(qty.toFixed(1));
   const skuFingerprint = `${offer.storeId}::${brandKey}::${family.subtypeFamily}::${roundedQty}${unit}::${variantTokensKey}`;
 
@@ -493,11 +638,13 @@ export function extractProductSignature(offer: StoreOffer): ExtractedSignature {
     effectiveNetContent: qty,
     effectiveUnitMeasure: unit,
     effectivePum,
+    criticalAttribute,
     normalizedText,
     brandKey,
     variantTokensKey,
     skuFingerprint,
     inferredCanonicalSlug: family.inferredCanonicalSlug,
+    lexicalTierHint,
   };
 }
 
@@ -505,9 +652,36 @@ interface IndexedOffer {
   offer: StoreOffer;
   signature: ExtractedSignature;
   sanitizedOffer: StoreOffer;
+  qualityTier: QualityTier;
+  qualityLabel: string;
+  subtypeMedianPum: number | null;
+  pumRatioVsMedian: number | null;
+  reviewStatus: ReviewStatus;
+  needsReview: boolean;
+  doubtReason: string | null;
+  override?: ProductCurationOverride;
 }
 
-function compareOfferPriority(a: IndexedOffer, b: IndexedOffer): number {
+function buildPairRuleMap(pairRules?: ComparisonPairRule[]): Map<string, ComparisonPairRule> {
+  const map = new Map<string, ComparisonPairRule>();
+  if (!pairRules) return map;
+  for (const rule of pairRules) {
+    const key = [rule.skuAId, rule.skuBId].sort().join("::");
+    map.set(key, rule);
+  }
+  return map;
+}
+
+function getPairRuleType(
+  skuA: string,
+  skuB: string,
+  pairRuleMap: Map<string, ComparisonPairRule>
+): ComparisonPairRule["ruleType"] | null {
+  const key = [skuA, skuB].sort().join("::");
+  return pairRuleMap.get(key)?.ruleType ?? null;
+}
+
+function compareOfferPriority(a: { offer: StoreOffer; signature: ExtractedSignature }, b: { offer: StoreOffer; signature: ExtractedSignature }): number {
   if (a.offer.inStock !== b.offer.inStock) {
     return a.offer.inStock ? -1 : 1;
   }
@@ -517,17 +691,38 @@ function compareOfferPriority(a: IndexedOffer, b: IndexedOffer): number {
   return a.signature.effectivePum - b.signature.effectivePum;
 }
 
+function computeMedian(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) {
+    return (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+  return sorted[mid];
+}
+
 /**
- * Elimina filas repetidas dentro de cada cadena manteniendo la oferta vigente más económica.
+ * Elimina filas repetidas dentro de cada cadena, aplica overrides de curación,
+ * calcula la gama de calidad relativa a la mediana del subtipo y detecta dudas automáticas.
  */
-export function deduplicateStoreOffers(offers: StoreOffer[]): IndexedOffer[] {
-  const bySkuId = new Map<string, IndexedOffer>();
+export function deduplicateStoreOffers(
+  offers: StoreOffer[],
+  curationContext?: CurationContext
+): IndexedOffer[] {
+  const overridesBySkuId = curationContext?.overridesBySkuId ?? {};
+  const bySkuId = new Map<string, { offer: StoreOffer; signature: ExtractedSignature; sanitizedOffer: StoreOffer; override?: ProductCurationOverride }>();
+
   for (const offer of offers) {
     if (!Number.isFinite(offer.calibratedPrice) || offer.calibratedPrice <= 0) {
       continue;
     }
+    const override = overridesBySkuId[offer.storeSkuId];
+    if (override?.reviewStatus === "excluded") {
+      continue;
+    }
+
     const cleanTitle = cleanProductTitle(offer.rawName);
-    const sig = extractProductSignature(offer);
+    const sig = extractProductSignature(offer, override);
     const sanitizedOffer: StoreOffer = {
       ...offer,
       rawName: cleanTitle,
@@ -540,13 +735,13 @@ export function deduplicateStoreOffers(offers: StoreOffer[]): IndexedOffer[] {
     };
 
     const existingId = bySkuId.get(offer.storeSkuId);
-    const candidate: IndexedOffer = { offer, signature: sig, sanitizedOffer };
+    const candidate = { offer, signature: sig, sanitizedOffer, override };
     if (!existingId || compareOfferPriority(candidate, existingId) < 0) {
       bySkuId.set(offer.storeSkuId, candidate);
     }
   }
 
-  const byFingerprint = new Map<string, IndexedOffer>();
+  const byFingerprint = new Map<string, { offer: StoreOffer; signature: ExtractedSignature; sanitizedOffer: StoreOffer; override?: ProductCurationOverride }>();
   for (const item of bySkuId.values()) {
     const existing = byFingerprint.get(item.signature.skuFingerprint);
     if (!existing || compareOfferPriority(item, existing) < 0) {
@@ -554,13 +749,132 @@ export function deduplicateStoreOffers(offers: StoreOffer[]): IndexedOffer[] {
     }
   }
 
-  return [...byFingerprint.values()];
+  const uniqueItems = [...byFingerprint.values()];
+
+  // Mediana de PUM por subtipo + unidad de medida
+  const pumsBySubtype = new Map<string, number[]>();
+  for (const item of uniqueItems) {
+    if (item.signature.effectivePum <= 0) continue;
+    const key = `${item.signature.subtypeFamily}::${item.signature.effectiveUnitMeasure}`;
+    const arr = pumsBySubtype.get(key) ?? [];
+    arr.push(item.signature.effectivePum);
+    pumsBySubtype.set(key, arr);
+  }
+
+  const medianBySubtype = new Map<string, { median: number; count: number }>();
+  for (const [key, values] of pumsBySubtype.entries()) {
+    const median = computeMedian(values);
+    if (median && median > 0) {
+      medianBySubtype.set(key, { median, count: values.length });
+    }
+  }
+
+  return uniqueItems.map((item) => {
+    const key = `${item.signature.subtypeFamily}::${item.signature.effectiveUnitMeasure}`;
+    const stats = medianBySubtype.get(key);
+    const subtypeMedianPum = stats ? Number(stats.median.toFixed(2)) : null;
+    const pumRatioVsMedian =
+      stats && stats.median > 0 && item.signature.effectivePum > 0
+        ? Number((item.signature.effectivePum / stats.median).toFixed(2))
+        : null;
+
+    let autoTier: QualityTier = "estandar";
+    if (item.signature.lexicalTierHint === "especial") {
+      autoTier = "especial";
+    } else if (item.signature.lexicalTierHint === "premium") {
+      autoTier = "premium";
+    } else if (item.signature.lexicalTierHint === "economico") {
+      autoTier = "economico";
+    } else if (stats && stats.count >= 2 && pumRatioVsMedian !== null) {
+      if (pumRatioVsMedian >= 2.05) {
+        autoTier = "especial";
+      } else if (pumRatioVsMedian >= 1.48) {
+        autoTier = "premium";
+      } else if (pumRatioVsMedian <= 0.72) {
+        autoTier = "economico";
+      }
+    }
+
+    const qualityTier = item.override?.overrideQualityTier ?? autoTier;
+    const qualityLabel = QUALITY_TIER_LABELS[qualityTier];
+
+    let needsReview = false;
+    let doubtReason: string | null = null;
+    let reviewStatus: ReviewStatus = "provisional_auto";
+
+    if (item.override?.reviewStatus === "verified") {
+      reviewStatus = "verified";
+      needsReview = false;
+      doubtReason = null;
+    } else if (item.override?.reviewStatus === "reported") {
+      reviewStatus = "reported";
+      needsReview = true;
+      doubtReason = item.override.doubtReason ?? "Reportado por un usuario como comparación injusta";
+    } else {
+      // Detección automática de dudas algorítmicas
+      const count = stats?.count ?? 1;
+      if (
+        (item.signature.lexicalTierHint === "premium" || item.signature.lexicalTierHint === "especial") &&
+        count >= 3 &&
+        pumRatioVsMedian !== null &&
+        pumRatioVsMedian <= 1.15
+      ) {
+        needsReview = true;
+        doubtReason = `Nombre sugiere gama ${qualityLabel}, pero su PUM es ${pumRatioVsMedian}x la mediana`;
+      } else if (
+        item.signature.lexicalTierHint !== "premium" &&
+        item.signature.lexicalTierHint !== "especial" &&
+        count >= 3 &&
+        pumRatioVsMedian !== null &&
+        pumRatioVsMedian >= 1.65
+      ) {
+        needsReview = true;
+        doubtReason = `PUM elevado (${pumRatioVsMedian}x mediana, cerca de 2x) sin etiqueta Premium/Especial`;
+      } else if (item.signature.subtypeFamily.startsWith("gen:")) {
+        needsReview = true;
+        doubtReason = "Categoría provisional detectada automáticamente";
+      } else if (item.override?.reviewStatus === "needs_review") {
+        needsReview = true;
+        doubtReason = item.override.doubtReason ?? "Marcado manualmente para revisión";
+      }
+      reviewStatus = needsReview ? "needs_review" : "provisional_auto";
+    }
+
+    const enrichedSig: ExtractedSignature = {
+      ...item.signature,
+      qualityTier,
+      qualityLabel,
+      pumRatioVsMedian,
+      reviewStatus,
+      needsReview,
+      doubtReason,
+    };
+
+    return {
+      offer: item.offer,
+      signature: enrichedSig,
+      sanitizedOffer: item.sanitizedOffer,
+      qualityTier,
+      qualityLabel,
+      subtypeMedianPum,
+      pumRatioVsMedian,
+      reviewStatus,
+      needsReview,
+      doubtReason,
+      override: item.override,
+    };
+  });
 }
 
 function areWeightsClose(qtyA: number, qtyB: number, toleranceRatio = 0.35): boolean {
   if (qtyA <= 0 || qtyB <= 0) return false;
   const ratio = qtyB / qtyA;
   return ratio >= 1 - toleranceRatio && ratio <= 1 + toleranceRatio;
+}
+
+function areAttributesCompatible(attrA: string | null | undefined, attrB: string | null | undefined): boolean {
+  if (!attrA || !attrB) return true;
+  return attrA === attrB;
 }
 
 function roundQtyBucket(qty: number): number {
@@ -574,7 +888,6 @@ function getStrictGroupKey(item: IndexedOffer): string {
   const { offer, signature } = item;
   const ean = (offer.ean ?? "").trim();
   const roundedQty = Math.round(signature.effectiveNetContent);
-  // Si el EAN es válido (8+ dígitos), agrupamos solo si subtipo y peso coinciden (~15%), evitando fusiones erróneas de trgm
   if (/^\d{8,14}$/.test(ean)) {
     return `ean:${ean}:${signature.subtypeFamily}:${roundQtyBucket(roundedQty)}${signature.effectiveUnitMeasure}`;
   }
@@ -582,15 +895,16 @@ function getStrictGroupKey(item: IndexedOffer): string {
 }
 
 function getPumGroupKey(item: IndexedOffer): string {
-  const { signature } = item;
+  const { signature, qualityTier } = item;
   const bucket = roundQtyBucket(signature.effectiveNetContent);
-  return `pum:${signature.subtypeFamily}:${bucket}${signature.effectiveUnitMeasure}`;
+  return `pum:${signature.subtypeFamily}:${qualityTier}:${bucket}${signature.effectiveUnitMeasure}`;
 }
 
 function pickBestPerStore(
   candidates: IndexedOffer[],
   maxPerStore = 1,
-  maxTotal = 6
+  maxTotal = 6,
+  pairRuleMap?: Map<string, ComparisonPairRule>
 ): StoreOffer[] {
   const sorted = [...candidates].sort(compareOfferPriority);
   const perStoreCounts = new Map<string, number>();
@@ -598,6 +912,15 @@ function pickBestPerStore(
   const picked: StoreOffer[] = [];
 
   for (const item of sorted) {
+    if (pairRuleMap && picked.length > 0) {
+      const hasBlockedWithPicked = picked.some(
+        (existing) => getPairRuleType(existing.storeSkuId, item.offer.storeSkuId, pairRuleMap) === "blocked_pair"
+      );
+      if (hasBlockedWithPicked) {
+        continue;
+      }
+    }
+
     const count = perStoreCounts.get(item.offer.storeId) ?? 0;
     const brandTag = `${item.offer.storeId}::${item.signature.brandKey}`;
     if (count >= maxPerStore || perStoreBrands.has(brandTag)) {
@@ -626,15 +949,63 @@ function formatCopShort(amount: number): string {
   return `$${Math.round(Math.abs(amount)).toLocaleString("es-CO")}`;
 }
 
+interface IndexedMatchPool {
+  byBroadUnit: Map<string, IndexedOffer[]>;
+  bySubtypeUnit: Map<string, IndexedOffer[]>;
+  bySkuId: Map<string, IndexedOffer>;
+  approvedPartnerIds: Map<string, string[]>;
+}
+
+function buildIndexedMatchPool(
+  pool: IndexedOffer[],
+  pairRules?: ComparisonPairRule[]
+): IndexedMatchPool {
+  const byBroadUnit = new Map<string, IndexedOffer[]>();
+  const bySubtypeUnit = new Map<string, IndexedOffer[]>();
+  const bySkuId = new Map<string, IndexedOffer>();
+
+  for (const cand of pool) {
+    bySkuId.set(cand.offer.storeSkuId, cand);
+    if (!cand.offer.inStock) continue;
+    const broadKey = `${cand.signature.broadFamily}::${cand.signature.effectiveUnitMeasure}`;
+    const broadArr = byBroadUnit.get(broadKey);
+    if (broadArr) broadArr.push(cand);
+    else byBroadUnit.set(broadKey, [cand]);
+
+    const subKey = `${cand.signature.subtypeFamily}::${cand.signature.effectiveUnitMeasure}`;
+    const subArr = bySubtypeUnit.get(subKey);
+    if (subArr) subArr.push(cand);
+    else bySubtypeUnit.set(subKey, [cand]);
+  }
+
+  const approvedPartnerIds = new Map<string, string[]>();
+  if (pairRules) {
+    for (const r of pairRules) {
+      if (r.ruleType !== "approved_substitute") continue;
+      const aList = approvedPartnerIds.get(r.skuAId) ?? [];
+      aList.push(r.skuBId);
+      approvedPartnerIds.set(r.skuAId, aList);
+      const bList = approvedPartnerIds.get(r.skuBId) ?? [];
+      bList.push(r.skuAId);
+      approvedPartnerIds.set(r.skuBId, bList);
+    }
+  }
+
+  return { byBroadUnit, bySubtypeUnit, bySkuId, approvedPartnerIds };
+}
+
 function computeTieredMatches(
   anchor: IndexedOffer,
   anchorGroupOffers: StoreOffer[],
-  pool: IndexedOffer[]
+  poolIndex: IndexedMatchPool,
+  pairRuleMap: Map<string, ComparisonPairRule>,
+  includeBulk = true
 ): {
   directCompetitors: TieredCompetitorMatch[];
   similarCompetitors: TieredCompetitorMatch[];
   bulkOptions: BulkComparisonOption[];
   substitutesCount: number;
+  borderlinePumDoubt: boolean;
 } {
   const existingStoreIds = new Set(anchorGroupOffers.map((o) => o.storeId));
   const existingSkuIds = new Set(anchorGroupOffers.map((o) => o.storeSkuId));
@@ -643,17 +1014,40 @@ function computeTieredMatches(
   const anchorPrice = anchor.sanitizedOffer.calibratedPrice;
   const anchorPum = anchorSig.effectivePum;
 
-  // Tier 1: Competencia directa en OTRA tienda con peso/volumen cercano (±35%) y mismo subtipo
   const directByStore = new Map<string, { item: IndexedOffer; score: number }>();
-  // Tier 2: Producto más parecido en OTRA tienda (cuando no hay peso cercano, o calidad/subtipo alterno)
-  const similarByStore = new Map<string, { item: IndexedOffer; score: number; sameSubtype: boolean }>();
-  // Conteo total de sustitutos compatibles (mismo broadFamily & unit)
+  const similarByStore = new Map<
+    string,
+    { item: IndexedOffer; score: number; sameSubtype: boolean; isCrossTier: boolean }
+  >();
   let substitutesCount = 0;
+  let borderlinePumDoubt = false;
 
-  for (const cand of pool) {
-    if (existingSkuIds.has(cand.offer.storeSkuId) || !cand.offer.inStock) {
+  const broadCandidates =
+    poolIndex.byBroadUnit.get(`${anchorSig.broadFamily}::${anchorSig.effectiveUnitMeasure}`) ?? [];
+  const extraIds = poolIndex.approvedPartnerIds.get(anchor.offer.storeSkuId);
+  let candidates = broadCandidates;
+  if (extraIds && extraIds.length > 0) {
+    const seenIds = new Set(broadCandidates.map((c) => c.offer.storeSkuId));
+    const extras: IndexedOffer[] = [];
+    for (const id of extraIds) {
+      if (seenIds.has(id)) continue;
+      const hit = poolIndex.bySkuId.get(id);
+      if (hit && hit.offer.inStock) extras.push(hit);
+    }
+    if (extras.length > 0) candidates = [...broadCandidates, ...extras];
+  }
+
+  const skipSimilarComputation = existingStoreIds.size >= 2;
+
+  for (const cand of candidates) {
+    if (existingSkuIds.has(cand.offer.storeSkuId)) {
       continue;
     }
+    const pairRule = getPairRuleType(anchor.offer.storeSkuId, cand.offer.storeSkuId, pairRuleMap);
+    if (pairRule === "blocked_pair") {
+      continue;
+    }
+
     const candSig = cand.signature;
     if (candSig.effectiveUnitMeasure !== anchorSig.effectiveUnitMeasure) {
       continue;
@@ -661,21 +1055,37 @@ function computeTieredMatches(
 
     const sameSubtype = candSig.subtypeFamily === anchorSig.subtypeFamily;
     const sameBroad = candSig.broadFamily === anchorSig.broadFamily;
-    if (!sameSubtype && !sameBroad) {
+    if (!sameSubtype && !sameBroad && pairRule !== "approved_substitute") {
       continue;
     }
 
+    const sameTier = cand.qualityTier === anchor.qualityTier || pairRule === "approved_same_tier";
     substitutesCount += 1;
 
-    // Solo competencia en tiendas distintas a las ya presentes como oferta exacta en la tarjeta
     if (existingStoreIds.has(cand.offer.storeId)) {
       continue;
     }
 
+    const attrsOk = areAttributesCompatible(anchorSig.criticalAttribute, candSig.criticalAttribute);
+    const pumSpreadRatio =
+      anchorPum > 0 && candSig.effectivePum > 0
+        ? Math.max(candSig.effectivePum / anchorPum, anchorPum / candSig.effectivePum)
+        : 1;
+
     const qtyRatio = anchorQty > 0 ? candSig.effectiveNetContent / anchorQty : 1;
     const logDist = Math.abs(Math.log(Math.max(qtyRatio, 0.05)));
 
-    if (sameSubtype && areWeightsClose(anchorQty, candSig.effectiveNetContent, 0.35)) {
+    const eligibleDirect =
+      sameSubtype &&
+      areWeightsClose(anchorQty, candSig.effectiveNetContent, 0.35) &&
+      sameTier &&
+      attrsOk &&
+      (pumSpreadRatio <= 1.95 || pairRule === "approved_same_tier");
+
+    if (eligibleDirect) {
+      if (pumSpreadRatio >= 1.75 && anchor.reviewStatus !== "verified") {
+        borderlinePumDoubt = true;
+      }
       const sameBrandBonus = candSig.brandKey === anchorSig.brandKey ? 0 : 0.25;
       const pumRatio = anchorPum > 0 ? candSig.effectivePum / anchorPum : 1;
       const score = sameBrandBonus + logDist * 2.2 + pumRatio * 0.4;
@@ -683,14 +1093,23 @@ function computeTieredMatches(
       if (!prev || score < prev.score) {
         directByStore.set(cand.offer.storeId, { item: cand, score });
       }
-    } else {
-      // Fallback similar: prioriza mismo subtipo, luego distancia logarítmica de tamaño, luego PUM
+    } else if (!skipSimilarComputation && (pumSpreadRatio <= 2.6 || pairRule === "approved_substitute")) {
+      // Tier 2 similar: si fue descartado por diferencia de gama o PUM ~2x, no entra como directo
+      if (sameSubtype && areWeightsClose(anchorQty, candSig.effectiveNetContent, 0.35) && !sameTier && pumSpreadRatio >= 1.75 && anchor.reviewStatus !== "verified") {
+        borderlinePumDoubt = true;
+      }
       const subtypePenalty = sameSubtype ? 0 : 1.5;
+      const tierPenalty = sameTier ? 0 : 1.25;
       const pumRatio = anchorPum > 0 ? candSig.effectivePum / anchorPum : 1;
-      const score = subtypePenalty + logDist * 1.4 + pumRatio * 0.35;
+      const score = subtypePenalty + tierPenalty + logDist * 1.4 + pumRatio * 0.35;
       const prev = similarByStore.get(cand.offer.storeId);
       if (!prev || score < prev.score) {
-        similarByStore.set(cand.offer.storeId, { item: cand, score, sameSubtype });
+        similarByStore.set(cand.offer.storeId, {
+          item: cand,
+          score,
+          sameSubtype,
+          isCrossTier: cand.qualityTier !== anchor.qualityTier,
+        });
       }
     }
   }
@@ -730,10 +1149,12 @@ function computeTieredMatches(
         effectiveNetContent: item.signature.effectiveNetContent,
         effectiveUnitMeasure: item.signature.effectiveUnitMeasure,
         effectivePum: item.signature.effectivePum,
+        qualityTier: item.qualityTier,
+        qualityLabel: item.qualityLabel,
+        isCrossTier: false,
       };
     });
 
-  // Solo mostramos Tier 2 "Más parecido en competencia" para tiendas sin Tier 1 directo
   const directStores = new Set(directCompetitors.map((d) => d.offer.storeId));
   const similarCompetitors: TieredCompetitorMatch[] =
     existingStoreIds.size >= 2 || directCompetitors.length > 0
@@ -742,7 +1163,7 @@ function computeTieredMatches(
           .filter(({ item }) => !directStores.has(item.offer.storeId))
           .sort((a, b) => a.score - b.score)
           .slice(0, 2)
-          .map(({ item, sameSubtype }) => {
+          .map(({ item, sameSubtype, isCrossTier }) => {
             const weightDiffPct =
               anchorQty > 0
                 ? Math.round(((item.signature.effectiveNetContent - anchorQty) / anchorQty) * 100)
@@ -756,6 +1177,8 @@ function computeTieredMatches(
             let reasonLabel: string;
             if (!sameSubtype) {
               reasonLabel = `Alternativa similar (${formatQty(item.signature.effectiveNetContent, item.signature.effectiveUnitMeasure)})`;
+            } else if (isCrossTier) {
+              reasonLabel = `Gama ${item.qualityLabel} (${formatQty(item.signature.effectiveNetContent, item.signature.effectiveUnitMeasure)})`;
             } else if (weightDiffPct > 35) {
               reasonLabel = `Mayor tamaño en competencia (${formatQty(item.signature.effectiveNetContent, item.signature.effectiveUnitMeasure)} vs ${formatQty(anchorQty, anchorSig.effectiveUnitMeasure)})`;
             } else {
@@ -775,20 +1198,26 @@ function computeTieredMatches(
               effectiveNetContent: item.signature.effectiveNetContent,
               effectiveUnitMeasure: item.signature.effectiveUnitMeasure,
               effectivePum: item.signature.effectivePum,
+              qualityTier: item.qualityTier,
+              qualityLabel: item.qualityLabel,
+              isCrossTier,
             };
           });
 
-  // Tier 3: "Al por mayor" — formatos >= 1.6x más grandes en el mismo subtipo que ahorran >= 4% en PUM
+  // Tier 3: "Al por mayor" — formatos >= 1.6x más grandes en el mismo subtipo y MISMA gama que ahorran entre 4% y 65%
   const bulkCandidates: Array<BulkComparisonOption & { score: number }> = [];
   const seenBulkKeys = new Set<string>();
 
-  for (const cand of pool) {
-    if (!cand.offer.inStock) continue;
+  const subtypeCandidates = includeBulk
+    ? poolIndex.bySubtypeUnit.get(`${anchorSig.subtypeFamily}::${anchorSig.effectiveUnitMeasure}`) ?? []
+    : [];
+
+  for (const cand of subtypeCandidates) {
+    const pairRule = getPairRuleType(anchor.offer.storeSkuId, cand.offer.storeSkuId, pairRuleMap);
+    if (pairRule === "blocked_pair") continue;
+
     const candSig = cand.signature;
-    if (
-      candSig.subtypeFamily !== anchorSig.subtypeFamily ||
-      candSig.effectiveUnitMeasure !== anchorSig.effectiveUnitMeasure
-    ) {
+    if (cand.qualityTier !== anchor.qualityTier) {
       continue;
     }
 
@@ -799,7 +1228,7 @@ function computeTieredMatches(
     const pumSavingsPct = Number(
       (((anchorPum - candSig.effectivePum) / anchorPum) * 100).toFixed(1)
     );
-    if (pumSavingsPct < 4) continue;
+    if (pumSavingsPct < 4 || pumSavingsPct > 65) continue;
 
     const equivalentAnchorTotalCop = Math.round(anchorPum * candSig.effectiveNetContent);
     const totalSavingsOnBulkCop = Math.round(
@@ -838,25 +1267,20 @@ function computeTieredMatches(
     similarCompetitors,
     bulkOptions,
     substitutesCount,
+    borderlinePumDoubt,
   };
 }
 
 /**
- * Construye tarjetas de comparación limpias:
- * - Cero ofertas duplicadas dentro de una misma cadena
- * - Tier 1: Competencia directa más cercana en peso y precio
- * - Tier 2: Alternativa más parecida en competencia cuando no hay peso igual
- * - Tier 3: Opciones al por mayor (formatos grandes con ahorro real en PUM)
+ * Construye tarjetas de comparación limpias respetando gama de calidad, atributos críticos,
+ * límite de PUM ~1.95x y reglas de curación manual (/admin + reportes ciudadanos).
  */
-export function buildMultiTierComparisonGroups(
-  rawOffers: StoreOffer[],
+function buildGroupsFromIndexedPool(
+  dedupedPool: IndexedOffer[],
+  poolIndex: IndexedMatchPool,
+  pairRuleMap: Map<string, ComparisonPairRule>,
   mode: CompareMode
 ): ComparisonGroup[] {
-  const dedupedPool = deduplicateStoreOffers(rawOffers);
-  if (dedupedPool.length === 0) {
-    return [];
-  }
-
   const buckets = new Map<string, IndexedOffer[]>();
   for (const item of dedupedPool) {
     const key = mode === "ean" ? getStrictGroupKey(item) : getPumGroupKey(item);
@@ -869,7 +1293,9 @@ export function buildMultiTierComparisonGroups(
 
   for (const [groupId, items] of buckets.entries()) {
     const pickedOffers =
-      mode === "ean" ? pickBestPerStore(items, 1, 6) : pickBestPerStore(items, 2, 6);
+      mode === "ean"
+        ? pickBestPerStore(items, 1, 6, pairRuleMap)
+        : pickBestPerStore(items, 2, 6, pairRuleMap);
     if (pickedOffers.length === 0) continue;
 
     const anchorOffer = pickedOffers[0];
@@ -895,7 +1321,7 @@ export function buildMultiTierComparisonGroups(
           ? Math.round(((highestPrice - bestPrice) / highestPrice) * 100)
           : 0;
 
-    const tiered = computeTieredMatches(anchorIndexed, pickedOffers, dedupedPool);
+    const tiered = computeTieredMatches(anchorIndexed, pickedOffers, poolIndex, pairRuleMap, true);
 
     const isMultiBrandPum =
       mode === "pum" && new Set(items.map((i) => i.signature.brandKey)).size > 1;
@@ -905,11 +1331,28 @@ export function buildMultiTierComparisonGroups(
 
     const subtitle =
       mode === "pum"
-        ? `Equivalentes por ${anchorIndexed.signature.effectiveUnitMeasure} (${pickedOffers.length} ofertas)`
+        ? `Equivalentes gama ${anchorIndexed.qualityLabel} por ${anchorIndexed.signature.effectiveUnitMeasure} (${pickedOffers.length} ofertas)`
         : `${anchorOffer.brand ?? "Marca comercial"} · ${formatQty(anchorIndexed.signature.effectiveNetContent, anchorIndexed.signature.effectiveUnitMeasure)}`;
 
     const mostVotedAnchor =
       [...pickedOffers].sort((a, b) => b.totalVotes - a.totalVotes)[0] ?? anchorOffer;
+
+    const needsReview =
+      anchorIndexed.needsReview ||
+      (tiered.borderlinePumDoubt && anchorIndexed.reviewStatus !== "verified");
+    const doubtReason =
+      anchorIndexed.doubtReason ??
+      (tiered.borderlinePumDoubt
+        ? "Cruce cercano al límite 1.95x de PUM; recomendable revisar gama"
+        : null);
+    const reviewStatus: ReviewStatus =
+      anchorIndexed.reviewStatus === "verified"
+        ? "verified"
+        : anchorIndexed.reviewStatus === "reported"
+          ? "reported"
+          : needsReview
+            ? "needs_review"
+            : anchorIndexed.reviewStatus;
 
     groups.push({
       groupId,
@@ -944,11 +1387,25 @@ export function buildMultiTierComparisonGroups(
         effectiveNetContent: anchorIndexed.signature.effectiveNetContent,
         effectiveUnitMeasure: anchorIndexed.signature.effectiveUnitMeasure,
         effectivePum: anchorIndexed.signature.effectivePum,
+        qualityTier: anchorIndexed.qualityTier,
+        qualityLabel: anchorIndexed.qualityLabel,
+        criticalAttribute: anchorIndexed.signature.criticalAttribute ?? null,
+        pumRatioVsMedian: anchorIndexed.pumRatioVsMedian,
+        reviewStatus,
+        needsReview,
+        doubtReason,
       },
       directCompetitors: tiered.directCompetitors,
       similarCompetitors: tiered.similarCompetitors,
       bulkOptions: tiered.bulkOptions,
       substitutesCount: tiered.substitutesCount,
+      qualityTier: anchorIndexed.qualityTier,
+      qualityLabel: anchorIndexed.qualityLabel,
+      criticalAttribute: anchorIndexed.signature.criticalAttribute ?? null,
+      pumRatioVsMedian: anchorIndexed.pumRatioVsMedian,
+      reviewStatus,
+      needsReview,
+      doubtReason,
     });
   }
 
@@ -981,4 +1438,146 @@ export function buildMultiTierComparisonGroups(
     }
     return b.savingsPct - a.savingsPct || a.bestPrice - b.bestPrice;
   });
+}
+
+/**
+ * Construye tarjetas de comparación limpias respetando gama de calidad, atributos críticos,
+ * límite de PUM ~1.95x y reglas de curación manual (/admin + reportes ciudadanos).
+ */
+export function buildMultiTierComparisonGroups(
+  rawOffers: StoreOffer[],
+  mode: CompareMode,
+  curationContext?: CurationContext
+): ComparisonGroup[] {
+  const dedupedPool = deduplicateStoreOffers(rawOffers, curationContext);
+  if (dedupedPool.length === 0) {
+    return [];
+  }
+  const pairRuleMap = buildPairRuleMap(curationContext?.pairRules);
+  const poolIndex = buildIndexedMatchPool(dedupedPool, curationContext?.pairRules);
+  return buildGroupsFromIndexedPool(dedupedPool, poolIndex, pairRuleMap, mode);
+}
+
+/**
+ * Deduplica una sola vez y devuelve tanto `eanGroups` como `pumGroups` (mitad de CPU en edge workers).
+ */
+export function buildBothComparisonModes(
+  rawOffers: StoreOffer[],
+  curationContext?: CurationContext
+): { eanGroups: ComparisonGroup[]; pumGroups: ComparisonGroup[] } {
+  const dedupedPool = deduplicateStoreOffers(rawOffers, curationContext);
+  if (dedupedPool.length === 0) {
+    return { eanGroups: [], pumGroups: [] };
+  }
+  const pairRuleMap = buildPairRuleMap(curationContext?.pairRules);
+  const poolIndex = buildIndexedMatchPool(dedupedPool, curationContext?.pairRules);
+  return {
+    eanGroups: buildGroupsFromIndexedPool(dedupedPool, poolIndex, pairRuleMap, "ean"),
+    pumGroups: buildGroupsFromIndexedPool(dedupedPool, poolIndex, pairRuleMap, "pum"),
+  };
+}
+
+/**
+ * Construye el catálogo completo para la vista visual `/admin` con estado de gama,
+ * dudas automáticas, mediana de PUM por subtipo y cruces directos/similares activos.
+ */
+export function buildAdminCatalogItems(
+  rawOffers: StoreOffer[],
+  curationContext?: CurationContext
+): AdminCatalogItem[] {
+  const dedupedPool = deduplicateStoreOffers(rawOffers, curationContext);
+  const pairRuleMap = buildPairRuleMap(curationContext?.pairRules);
+  const poolIndex = buildIndexedMatchPool(dedupedPool, curationContext?.pairRules);
+
+  const items: AdminCatalogItem[] = dedupedPool.map((item) => {
+    const tiered = computeTieredMatches(
+      item,
+      [item.sanitizedOffer],
+      poolIndex,
+      pairRuleMap,
+      false
+    );
+
+    const toMatchSummary = (m: TieredCompetitorMatch): AdminActiveMatchSummary => ({
+      storeSkuId: m.offer.storeSkuId,
+      storeName: m.offer.storeName,
+      storeSlug: m.offer.storeId,
+      productTitle: m.offer.rawName,
+      priceCop: m.offer.calibratedPrice,
+      pum: m.effectivePum,
+      unitMeasure: m.effectiveUnitMeasure,
+      matchType: m.matchType,
+      qualityTier: m.qualityTier ?? "estandar",
+      isCrossTier: Boolean(m.isCrossTier),
+    });
+
+    const needsReview =
+      item.needsReview ||
+      (tiered.borderlinePumDoubt && item.reviewStatus !== "verified");
+    const doubtReason =
+      item.doubtReason ??
+      (tiered.borderlinePumDoubt
+        ? "Cruce directo entre 1.75x y 1.95x de PUM; conviene confirmar gama"
+        : null);
+    const reviewStatus: ReviewStatus =
+      item.reviewStatus === "verified"
+        ? "verified"
+        : item.reviewStatus === "reported"
+          ? "reported"
+          : needsReview
+            ? "needs_review"
+            : item.reviewStatus;
+
+    return {
+      offer: item.sanitizedOffer,
+      signature: item.signature,
+      qualityTier: item.qualityTier,
+      qualityLabel: item.qualityLabel,
+      criticalAttribute: item.signature.criticalAttribute ?? null,
+      subtypeMedianPum: item.subtypeMedianPum,
+      pumRatioVsMedian: item.pumRatioVsMedian,
+      reviewStatus,
+      needsReview,
+      doubtReason,
+      hasOverride: Boolean(item.override),
+      adminNotes: item.override?.adminNotes ?? null,
+      directMatches: tiered.directCompetitors.map(toMatchSummary),
+      similarMatches: tiered.similarCompetitors.map(toMatchSummary),
+    };
+  });
+
+  // Además incluimos SKUs marcados como 'excluded' en overrides para poder restaurarlos desde /admin
+  const overrides = curationContext?.overridesBySkuId ?? {};
+  const includedIds = new Set(items.map((i) => i.offer.storeSkuId));
+  for (const offer of rawOffers) {
+    if (includedIds.has(offer.storeSkuId)) continue;
+    const ov = overrides[offer.storeSkuId];
+    if (ov?.reviewStatus !== "excluded") continue;
+    includedIds.add(offer.storeSkuId);
+    const sig = extractProductSignature(offer, ov);
+    const tier = ov.overrideQualityTier ?? "estandar";
+    items.push({
+      offer: {
+        ...offer,
+        rawName: cleanProductTitle(offer.rawName),
+        rawUrl: offer.rawUrl ? (sanitizeExternalUrl(offer.rawUrl) ?? "") : offer.rawUrl,
+        imageUrl: offer.imageUrl ? sanitizeExternalUrl(offer.imageUrl) : null,
+      },
+      signature: sig,
+      qualityTier: tier,
+      qualityLabel: QUALITY_TIER_LABELS[tier],
+      criticalAttribute: sig.criticalAttribute ?? null,
+      subtypeMedianPum: null,
+      pumRatioVsMedian: null,
+      reviewStatus: "excluded",
+      needsReview: false,
+      doubtReason: ov.doubtReason ?? "Excluido manualmente del catálogo público",
+      hasOverride: true,
+      adminNotes: ov.adminNotes ?? null,
+      directMatches: [],
+      similarMatches: [],
+    });
+  }
+
+  return items;
 }

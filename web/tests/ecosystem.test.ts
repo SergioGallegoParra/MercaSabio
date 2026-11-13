@@ -674,3 +674,230 @@ test("optimizeBasket respeta allowSubstitutes selectivo por producto (uno con su
   assert.equal(cafeAlloc.offer.storeSkuId, "ca-sello-300");
   assert.equal(cafeAlloc.isSubstitute, false);
 });
+
+test("Separa gamas de calidad y aplica tope 1.95x de PUM en competencia directa", () => {
+  const offers = [
+    makeOffer({
+      storeSkuId: "d1-arroz-eco-1000",
+      storeId: "d1",
+      storeName: "Tiendas D1",
+      masterProductId: "mp-arroz-eco",
+      rawName: "Arroz blanco ALBAR economico (1000 gr)",
+      brand: "ALBAR",
+      ean: "7700100000001",
+      netContent: 1000,
+      unitMeasure: "g",
+      calibratedPrice: 3600,
+      pumPrice: 3.6,
+    }),
+    makeOffer({
+      storeSkuId: "ex-arroz-std-1000",
+      storeId: "exito",
+      storeName: "Éxito",
+      masterProductId: "mp-arroz-std",
+      rawName: "Arroz blanco ROA tradicional (1000 gr)",
+      brand: "ROA",
+      ean: "7700100000002",
+      netContent: 1000,
+      unitMeasure: "g",
+      calibratedPrice: 4400,
+      pumPrice: 4.4,
+    }),
+    makeOffer({
+      storeSkuId: "ca-arroz-prem-1000",
+      storeId: "carulla",
+      storeName: "Carulla",
+      masterProductId: "mp-arroz-prem",
+      rawName: "Arroz blanco SELECCION ESPECIAL gourmet (1000 gr)",
+      brand: "CARULLA",
+      ean: "7700100000003",
+      netContent: 1000,
+      unitMeasure: "g",
+      calibratedPrice: 9800,
+      pumPrice: 9.8,
+    }),
+  ];
+
+  const eanGroups = buildMultiTierComparisonGroups(offers, "ean");
+  const ecoGroup = eanGroups.find((g) => g.offers[0].storeSkuId === "d1-arroz-eco-1000");
+  assert.ok(ecoGroup);
+  assert.equal(ecoGroup.qualityTier, "economico");
+  assert.equal(
+    (ecoGroup.directCompetitors ?? []).some((d) => d.offer.storeSkuId === "ca-arroz-prem-1000"),
+    false,
+    "Arroz económico no debe cruzarse directamente con Arroz gourmet 2.7x más caro"
+  );
+
+  const pumGroups = buildMultiTierComparisonGroups(offers, "pum");
+  const mergedCrossTier = pumGroups.some((g) => {
+    const ids = g.offers.map((o) => o.storeSkuId);
+    return ids.includes("d1-arroz-eco-1000") && ids.includes("ca-arroz-prem-1000");
+  });
+  assert.equal(mergedCrossTier, false, "El modo PUM separa gamas distintas");
+});
+
+test("Detecta dudas automáticas cuando nombre y PUM se contradicen o rozan 2x", () => {
+  const offers = [
+    makeOffer({
+      storeSkuId: "s1",
+      storeId: "d1",
+      storeName: "Tiendas D1",
+      rawName: "Arroz blanco tradicional A (1000 gr)",
+      brand: "A",
+      ean: "7700200000001",
+      netContent: 1000,
+      unitMeasure: "g",
+      calibratedPrice: 4000,
+      pumPrice: 4.0,
+    }),
+    makeOffer({
+      storeSkuId: "s2",
+      storeId: "ara",
+      storeName: "Tiendas Ara",
+      rawName: "Arroz blanco tradicional B (1000 gr)",
+      brand: "B",
+      ean: "7700200000002",
+      netContent: 1000,
+      unitMeasure: "g",
+      calibratedPrice: 4100,
+      pumPrice: 4.1,
+    }),
+    makeOffer({
+      storeSkuId: "s-prem-barato",
+      storeId: "olimpica",
+      storeName: "Olímpica",
+      rawName: "Arroz blanco gourmet reserva especial (1000 gr)",
+      brand: "C",
+      ean: "7700200000003",
+      netContent: 1000,
+      unitMeasure: "g",
+      calibratedPrice: 3900,
+      pumPrice: 3.9,
+    }),
+    makeOffer({
+      storeSkuId: "s-sin-etiqueta-caro",
+      storeId: "carulla",
+      storeName: "Carulla",
+      rawName: "Arroz blanco tradicional D (1000 gr)",
+      brand: "D",
+      ean: "7700200000004",
+      netContent: 1000,
+      unitMeasure: "g",
+      calibratedPrice: 7900,
+      pumPrice: 7.9,
+    }),
+  ];
+
+  const groups = buildMultiTierComparisonGroups(offers, "ean");
+  const cheapPremGroup = groups.find((g) => g.offers[0].storeSkuId === "s-prem-barato");
+  const unlabeledExpensiveGroup = groups.find(
+    (g) => g.offers[0].storeSkuId === "s-sin-etiqueta-caro"
+  );
+
+  assert.ok(cheapPremGroup);
+  assert.equal(cheapPremGroup.needsReview, true);
+  assert.ok(cheapPremGroup.doubtReason);
+
+  assert.ok(unlabeledExpensiveGroup);
+  assert.equal(unlabeledExpensiveGroup.needsReview, true);
+  assert.ok(unlabeledExpensiveGroup.doubtReason);
+});
+
+test("Aplica overrides de curación admin, excluye SKUs y respeta blocked_pair", () => {
+  const offers = [
+    makeOffer({
+      storeSkuId: "sku-d1-a",
+      storeId: "d1",
+      storeName: "Tiendas D1",
+      rawName: "Atún en agua LOMITOS A (160 gr)",
+      brand: "A",
+      ean: "7700300000001",
+      netContent: 160,
+      unitMeasure: "g",
+      calibratedPrice: 5200,
+      pumPrice: 32.5,
+    }),
+    makeOffer({
+      storeSkuId: "sku-ca-b",
+      storeId: "carulla",
+      storeName: "Carulla",
+      rawName: "Atún en agua LOMITOS B (160 gr)",
+      brand: "B",
+      ean: "7700300000002",
+      netContent: 160,
+      unitMeasure: "g",
+      calibratedPrice: 5600,
+      pumPrice: 35.0,
+    }),
+    makeOffer({
+      storeSkuId: "sku-ex-c",
+      storeId: "exito",
+      storeName: "Éxito",
+      rawName: "Atún en agua LOMITOS C (160 gr)",
+      brand: "C",
+      ean: "7700300000003",
+      netContent: 160,
+      unitMeasure: "g",
+      calibratedPrice: 5800,
+      pumPrice: 36.25,
+    }),
+  ];
+
+  const groups = buildMultiTierComparisonGroups(offers, "ean", {
+    overridesBySkuId: {
+      "sku-d1-a": {
+        storeSkuId: "sku-d1-a",
+        masterProductId: null,
+        overrideSubtype: "atun_agua",
+        overrideBroadFamily: "atun",
+        overrideQualityTier: "premium",
+        reviewStatus: "verified",
+        doubtReason: null,
+        adminNotes: null,
+        updatedAt: "2026-11-12T00:00:00Z",
+      },
+      "sku-ex-c": {
+        storeSkuId: "sku-ex-c",
+        masterProductId: null,
+        overrideSubtype: null,
+        overrideBroadFamily: null,
+        overrideQualityTier: null,
+        reviewStatus: "excluded",
+        doubtReason: null,
+        adminNotes: "Producto mal catalogado",
+        updatedAt: "2026-11-12T00:00:00Z",
+      },
+    },
+    pairRules: [
+      {
+        id: "rule-1",
+        skuAId: "sku-ca-b",
+        skuBId: "sku-d1-a",
+        ruleType: "blocked_pair",
+        reason: "No comparables según admin",
+        createdAt: "2026-11-12T00:00:00Z",
+      },
+    ],
+  });
+
+  assert.equal(
+    groups.some((g) => g.offers.some((o) => o.storeSkuId === "sku-ex-c")),
+    false,
+    "SKU excluido no debe aparecer"
+  );
+
+  const d1Group = groups.find((g) => g.offers[0].storeSkuId === "sku-d1-a");
+  assert.ok(d1Group);
+  assert.equal(d1Group.qualityTier, "premium");
+  assert.equal(d1Group.reviewStatus, "verified");
+  assert.equal(
+    (d1Group.directCompetitors ?? []).some((d) => d.offer.storeSkuId === "sku-ca-b"),
+    false,
+    "Par bloqueado no debe entrar en competencia directa"
+  );
+  assert.equal(
+    (d1Group.similarCompetitors ?? []).some((d) => d.offer.storeSkuId === "sku-ca-b"),
+    false,
+    "Par bloqueado no debe entrar en similares"
+  );
+});

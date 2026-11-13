@@ -11,6 +11,7 @@ import {
   CreditCard,
   ExternalLink,
   Factory,
+  Flag,
   Flame,
   Layers,
   Package,
@@ -27,7 +28,12 @@ import {
   getSteamRatingBadge,
   sanitizeExternalUrl,
 } from "@/lib/productInsights";
-import type { BankPromotion, CompareMode, ComparisonGroup } from "@/lib/types";
+import type {
+  BankPromotion,
+  CompareMode,
+  ComparisonGroup,
+  CurationReportReason,
+} from "@/lib/types";
 
 export {
   buildStoreAffiliateUrl,
@@ -86,6 +92,104 @@ export default function ProductCard({
 }: ProductCardProps) {
   const [imgFailed, setImgFailed] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [reportOpenSkuId, setReportOpenSkuId] = useState<string | null>(null);
+  const [submittingReportSkuId, setSubmittingReportSkuId] = useState<string | null>(null);
+  const [reportedSkuIds, setReportedSkuIds] = useState<Record<string, boolean>>({});
+  const [reportNotice, setReportNotice] = useState<string | null>(null);
+
+  async function handleReportUnfair(
+    comparedSkuId: string,
+    reason: CurationReportReason,
+    matchTier: "direct" | "similar" | "bulk" | "offer"
+  ) {
+    if (!anchorOffer || anchorOffer.storeSkuId === comparedSkuId) return;
+    setSubmittingReportSkuId(comparedSkuId);
+    setReportNotice(null);
+    try {
+      const res = await fetch("/api/curation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "report_unfair",
+          anchorSkuId: anchorOffer.storeSkuId,
+          comparedSkuId,
+          reason,
+          matchTier,
+        }),
+      });
+      if (res.ok) {
+        setReportedSkuIds((prev) => ({ ...prev, [comparedSkuId]: true }));
+        setReportOpenSkuId(null);
+        setReportNotice("Reporte enviado a revisión visual.");
+      } else {
+        setReportNotice("No se pudo enviar el reporte.");
+      }
+    } catch {
+      setReportNotice("Error de red al reportar.");
+    } finally {
+      setSubmittingReportSkuId(null);
+    }
+  }
+
+  function renderReportControl(
+    comparedSkuId: string,
+    matchTier: "direct" | "similar" | "bulk" | "offer"
+  ) {
+    if (!anchorOffer || anchorOffer.storeSkuId === comparedSkuId) {
+      return null;
+    }
+    const alreadyReported = Boolean(reportedSkuIds[comparedSkuId]);
+    const isOpen = reportOpenSkuId === comparedSkuId;
+    const isBusy = submittingReportSkuId === comparedSkuId;
+
+    if (alreadyReported) {
+      return <span className="report-sent-pill">¡Reportado!</span>;
+    }
+
+    return (
+      <div className="report-unfair-wrap">
+        <button
+          type="button"
+          className={`report-unfair-btn ${isOpen ? "is-open" : ""}`}
+          title="Reportar esta comparación si mezcla calidades o productos distintos"
+          onClick={() => setReportOpenSkuId(isOpen ? null : comparedSkuId)}
+          disabled={isBusy}
+        >
+          <Flag size={11} />
+          <span>¿Comparación injusta?</span>
+        </button>
+
+        {isOpen && (
+          <div className="report-reason-popover" role="group" aria-label="Motivo de comparación injusta">
+            <button
+              type="button"
+              className="report-reason-chip"
+              disabled={isBusy}
+              onClick={() => void handleReportUnfair(comparedSkuId, "distinta_calidad", matchTier)}
+            >
+              Distinta calidad / gama
+            </button>
+            <button
+              type="button"
+              className="report-reason-chip"
+              disabled={isBusy}
+              onClick={() => void handleReportUnfair(comparedSkuId, "distinto_producto", matchTier)}
+            >
+              No es el mismo producto
+            </button>
+            <button
+              type="button"
+              className="report-reason-chip"
+              disabled={isBusy}
+              onClick={() => void handleReportUnfair(comparedSkuId, "tamano_incomparable", matchTier)}
+            >
+              Tamaño incomparable
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const steam = getSteamRatingBadge(group.positiveVotes, group.totalVotes);
   const anchorOffer = group.offers.find((o) => o.inStock) ?? group.offers[0];
@@ -181,6 +285,22 @@ export default function ProductCard({
                   <Factory size={11} />
                   INVIMA {group.invimaRegistry}
                   {group.actualManufacturer ? ` · ${group.actualManufacturer}` : ""}
+                </span>
+              )}
+
+              {group.qualityLabel && (
+                <span className={`tag tag-tier tag-tier-${group.qualityTier ?? "estandar"}`}>
+                  Gama {group.qualityLabel}
+                </span>
+              )}
+
+              {group.needsReview && group.reviewStatus !== "verified" && (
+                <span
+                  className="tag tag-doubt"
+                  title={group.doubtReason ?? "Clasificación automática en revisión"}
+                >
+                  <AlertTriangle size={11} />
+                  En revisión
                 </span>
               )}
             </div>
@@ -426,6 +546,7 @@ export default function ProductCard({
                   </a>
                 )}
               </div>
+              {index > 0 && renderReportControl(offer.storeSkuId, "offer")}
             </div>
           );
         })}
@@ -472,7 +593,11 @@ export default function ProductCard({
                           {match.effectiveNetContent} {match.effectiveUnitMeasure}
                         </span>
                       </div>
-                      <div className="tier-reason tabular">{match.reasonLabel}</div>
+                      <div className="tier-reason tabular">
+                        {match.reasonLabel}
+                        {match.qualityLabel ? ` · Gama ${match.qualityLabel}` : ""}
+                      </div>
+                      {renderReportControl(match.offer.storeSkuId, "direct")}
                     </div>
                   </div>
                   <div className="tier-row-right">
@@ -520,7 +645,11 @@ export default function ProductCard({
                           {match.effectiveNetContent} {match.effectiveUnitMeasure}
                         </span>
                       </div>
-                      <div className="tier-reason tabular">{match.reasonLabel}</div>
+                      <div className="tier-reason tabular">
+                        {match.reasonLabel}
+                        {match.qualityLabel ? ` · Gama ${match.qualityLabel}` : ""}
+                      </div>
+                      {renderReportControl(match.offer.storeSkuId, "similar")}
                     </div>
                   </div>
                   <div className="tier-row-right">
@@ -612,6 +741,12 @@ export default function ProductCard({
             })}
           </div>
         </section>
+      )}
+
+      {reportNotice && (
+        <div className="report-notice-banner" role="status">
+          {reportNotice}
+        </div>
       )}
     </article>
   );

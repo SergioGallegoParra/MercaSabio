@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   AlertTriangle,
@@ -14,6 +15,7 @@ import {
   Scale,
   Search,
   ShoppingBasket,
+  SlidersHorizontal,
   Sparkles,
   Tag,
   Trash2,
@@ -646,6 +648,15 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
                 </span>
               )}
             </button>
+
+            <Link
+              href="/admin"
+              className="nav-admin-link"
+              title="Abrir panel visual de curación y productos reportados"
+            >
+              <SlidersHorizontal size={15} />
+              <span>Curación</span>
+            </Link>
           </div>
         </div>
         {loading && <div className="loading-progress-bar" aria-hidden="true" />}

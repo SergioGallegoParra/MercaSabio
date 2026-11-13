@@ -1,13 +1,27 @@
-import { buildMultiTierComparisonGroups } from "@/lib/comparisonEngine";
+import {
+  buildAdminCatalogItems,
+  buildBothComparisonModes,
+  buildMultiTierComparisonGroups,
+  KNOWN_SUBTYPE_OPTIONS,
+} from "@/lib/comparisonEngine";
 import { cleanProductTitle, isGroceryStoreId, isMercadoOffer } from "@/lib/productInsights";
 import { getSupabaseConfig, supabaseRestGet, supabaseRpc } from "@/lib/supabase";
 import type {
+  AdminCurationPayload,
+  AdminSubtypeOption,
   BankPromotion,
   CanonicalCategoryOption,
   CompareMode,
   ComparisonGroup,
+  ComparisonPairRule,
+  ComparisonReportItem,
+  CurationContext,
+  CurationReportReason,
   DashboardPayload,
   NearbyStoreBranch,
+  ProductCurationOverride,
+  QualityTier,
+  ReviewStatus,
   StoreOffer,
   UnitMeasure,
 } from "@/lib/types";
@@ -536,9 +550,89 @@ function mapBankPromotionRow(row: BankPromotionRow): BankPromotion {
   };
 }
 
+interface ProductCurationOverrideRow {
+  store_sku_id: string;
+  master_product_id: string | null;
+  override_subtype: string | null;
+  override_broad_family: string | null;
+  override_quality_tier: QualityTier | null;
+  review_status: ReviewStatus;
+  doubt_reason: string | null;
+  admin_notes: string | null;
+  updated_at: string;
+}
+
+interface ComparisonPairRuleRow {
+  id: string;
+  sku_a_id: string;
+  sku_b_id: string;
+  rule_type: "blocked_pair" | "approved_same_tier" | "approved_substitute";
+  reason: string | null;
+  created_at: string;
+}
+
+interface ComparisonReportRow {
+  id: string;
+  anchor_sku_id: string;
+  compared_sku_id: string;
+  report_reason: CurationReportReason;
+  match_tier: string;
+  comment: string | null;
+  report_count: number;
+  status: "pending" | "resolved_blocked" | "resolved_tier_changed" | "dismissed";
+  created_at: string;
+  updated_at: string;
+}
+
+async function fetchCurationContext(
+  supabaseConfig: NonNullable<ReturnType<typeof getSupabaseConfig>>
+): Promise<CurationContext> {
+  try {
+    const [overrideRows, ruleRows] = await Promise.all([
+      supabaseRestGet<ProductCurationOverrideRow[]>(
+        supabaseConfig,
+        "product_curation_overrides?select=store_sku_id,master_product_id,override_subtype,override_broad_family,override_quality_tier,review_status,doubt_reason,admin_notes,updated_at"
+      ),
+      supabaseRestGet<ComparisonPairRuleRow[]>(
+        supabaseConfig,
+        "comparison_pair_rules?select=id,sku_a_id,sku_b_id,rule_type,reason,created_at"
+      ),
+    ]);
+
+    const overridesBySkuId: Record<string, ProductCurationOverride> = {};
+    for (const row of overrideRows) {
+      overridesBySkuId[row.store_sku_id] = {
+        storeSkuId: row.store_sku_id,
+        masterProductId: row.master_product_id,
+        overrideSubtype: row.override_subtype,
+        overrideBroadFamily: row.override_broad_family,
+        overrideQualityTier: row.override_quality_tier,
+        reviewStatus: row.review_status,
+        doubtReason: row.doubt_reason,
+        adminNotes: row.admin_notes,
+        updatedAt: row.updated_at,
+      };
+    }
+
+    const pairRules: ComparisonPairRule[] = ruleRows.map((row) => ({
+      id: row.id,
+      skuAId: row.sku_a_id,
+      skuBId: row.sku_b_id,
+      ruleType: row.rule_type,
+      reason: row.reason,
+      createdAt: row.created_at,
+    }));
+
+    return { overridesBySkuId, pairRules };
+  } catch {
+    return {};
+  }
+}
+
 export function buildComparisonGroups(
   offers: StoreOffer[],
-  mode: CompareMode
+  mode: CompareMode,
+  curationContext?: CurationContext
 ): ComparisonGroup[] {
   const validOffers = offers.filter(
     (offer) =>
@@ -546,7 +640,7 @@ export function buildComparisonGroups(
       offer.calibratedPrice > 0 &&
       isMercadoOffer(offer)
   );
-  return buildMultiTierComparisonGroups(validOffers, mode);
+  return buildMultiTierComparisonGroups(validOffers, mode, curationContext);
 }
 
 export async function getDashboardData(options?: {
@@ -583,11 +677,11 @@ export async function getDashboardData(options?: {
     };
   }
 
-  const [offerRows, categoryRows, promoRows, statsRows] = await Promise.all([
+  const [offerRows, categoryRows, promoRows, statsRows, curationContext] = await Promise.all([
     supabaseRpc<LatestPriceRow[]>(supabaseConfig, "search_latest_offers", {
       p_query: queryText,
       p_category_slug: categorySlug,
-      p_limit: 400,
+      p_limit: queryText ? 180 : 250,
     }),
     supabaseRestGet<{ id: number; slug: string; name: string; base_unit: UnitMeasure }[]>(
       supabaseConfig,
@@ -602,6 +696,7 @@ export async function getDashboardData(options?: {
       "get_catalog_stats",
       {}
     ),
+    fetchCurationContext(supabaseConfig),
   ]);
 
   const offers = offerRows.map(mapRowToOffer).filter(isMercadoOffer);
@@ -616,9 +711,14 @@ export async function getDashboardData(options?: {
     .filter((promo) => promo.storeId === null || isGroceryStoreId(promo.storeId));
 
   const statsRow = statsRows[0];
+  const validOffers = offers.filter(
+    (offer) => Number.isFinite(offer.calibratedPrice) && offer.calibratedPrice > 0
+  );
+  const { eanGroups, pumGroups } = buildBothComparisonModes(validOffers, curationContext);
+
   return {
-    eanGroups: buildComparisonGroups(offers, "ean"),
-    pumGroups: buildComparisonGroups(offers, "pum"),
+    eanGroups,
+    pumGroups,
     categories,
     bankPromotions,
     storesCount: Number(statsRow?.stores_count ?? 0),
@@ -674,4 +774,157 @@ export async function getNearbyStores(params: {
       lng: Number(row.lng),
       distanceMeters: Number(row.distance_meters),
     }));
+}
+
+const BROAD_FAMILY_LABELS: Record<string, string> = {
+  arroz: "Arroz",
+  atun: "Atún y conservas",
+  cafe: "Café",
+  leche: "Leche y lácteos",
+  aceite: "Aceites",
+  huevos: "Huevos",
+  pasta: "Pastas",
+  frijol: "Frijoles",
+  granos: "Granos secos",
+  endulzantes: "Azúcar y panela",
+  harinas: "Harinas",
+  cereales: "Cereales y avena",
+  desayuno: "Desayuno y chocolate",
+  salsas: "Salsas",
+  aseo_hogar: "Aseo del hogar",
+  aseo_personal: "Aseo personal",
+};
+
+function formatBroadLabel(broad: string): string {
+  if (BROAD_FAMILY_LABELS[broad]) return BROAD_FAMILY_LABELS[broad];
+  return broad.replace(/^gen:/, "").replace(/[:_]/g, " ");
+}
+
+export async function getAdminCurationData(options?: {
+  query?: string;
+}): Promise<AdminCurationPayload> {
+  const queryText = options?.query?.trim() ?? "";
+  const supabaseConfig = getSupabaseConfig();
+
+  let offers: StoreOffer[] = [];
+  let curationContext: CurationContext = {};
+  let reports: ComparisonReportItem[] = [];
+
+  if (!supabaseConfig) {
+    offers = DEMO_OFFERS.filter((offer) => {
+      if (!queryText) return true;
+      const needle = queryText.toLowerCase();
+      return `${offer.rawName} ${offer.brand ?? ""} ${offer.ean ?? ""}`
+        .toLowerCase()
+        .includes(needle);
+    });
+  } else {
+    const [offerRows, context, reportRows] = await Promise.all([
+      supabaseRpc<LatestPriceRow[]>(supabaseConfig, "search_latest_offers", {
+        p_query: queryText,
+        p_category_slug: "",
+        p_limit: queryText ? 180 : 220,
+      }),
+      fetchCurationContext(supabaseConfig),
+      supabaseRestGet<ComparisonReportRow[]>(
+        supabaseConfig,
+        "comparison_reports?select=id,anchor_sku_id,compared_sku_id,report_reason,match_tier,comment,report_count,status,created_at,updated_at&order=report_count.desc,updated_at.desc&limit=200"
+      ).catch(() => [] as ComparisonReportRow[]),
+    ]);
+
+    offers = offerRows.map(mapRowToOffer).filter(isMercadoOffer);
+    curationContext = context;
+    reports = reportRows.map((row) => ({
+      id: row.id,
+      anchorSkuId: row.anchor_sku_id,
+      comparedSkuId: row.compared_sku_id,
+      reportReason: row.report_reason,
+      matchTier: row.match_tier,
+      comment: row.comment,
+      reportCount: row.report_count,
+      status: row.status,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  }
+
+  const items = buildAdminCatalogItems(offers, curationContext);
+
+  const subtypeCounts = new Map<string, AdminSubtypeOption>();
+  for (const base of KNOWN_SUBTYPE_OPTIONS) {
+    subtypeCounts.set(base.subtype, { ...base, count: 0 });
+  }
+  const broadCounts = new Map<string, { label: string; count: number }>();
+  const storeCounts = new Map<string, { name: string; count: number }>();
+
+  let doubtCount = 0;
+  let verifiedCount = 0;
+  let excludedCount = 0;
+
+  for (const item of items) {
+    const sub = item.signature.subtypeFamily;
+    const prevSub = subtypeCounts.get(sub);
+    if (prevSub) {
+      prevSub.count += 1;
+    } else {
+      subtypeCounts.set(sub, {
+        subtype: sub,
+        broadFamily: item.signature.broadFamily,
+        label: item.signature.familyLabel,
+        count: 1,
+      });
+    }
+
+    const broad = item.signature.broadFamily;
+    const prevBroad = broadCounts.get(broad);
+    if (prevBroad) {
+      prevBroad.count += 1;
+    } else {
+      broadCounts.set(broad, { label: formatBroadLabel(broad), count: 1 });
+    }
+
+    const prevStore = storeCounts.get(item.offer.storeId);
+    if (prevStore) {
+      prevStore.count += 1;
+    } else {
+      storeCounts.set(item.offer.storeId, { name: item.offer.storeName, count: 1 });
+    }
+
+    if (item.reviewStatus === "excluded") {
+      excludedCount += 1;
+    } else if (item.reviewStatus === "verified") {
+      verifiedCount += 1;
+    } else if (item.needsReview || item.reviewStatus === "reported" || item.reviewStatus === "needs_review") {
+      doubtCount += 1;
+    }
+  }
+
+  const subtypeOptions = [...subtypeCounts.values()].sort(
+    (a, b) => b.count - a.count || a.label.localeCompare(b.label, "es")
+  );
+  const broadFamilies = [...broadCounts.entries()]
+    .map(([broadFamily, info]) => ({ broadFamily, label: info.label, count: info.count }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "es"));
+  const stores = [...storeCounts.entries()]
+    .map(([slug, info]) => ({ slug, name: info.name, count: info.count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "es"));
+
+  const pendingReports = reports.filter((r) => r.status === "pending").length;
+
+  return {
+    items,
+    reports,
+    pairRules: curationContext.pairRules ?? [],
+    subtypeOptions,
+    broadFamilies,
+    stores,
+    stats: {
+      totalActive: items.filter((i) => i.reviewStatus !== "excluded").length,
+      pendingReports,
+      doubtCount,
+      verifiedCount,
+      excludedCount,
+    },
+    generatedAt: new Date().toISOString(),
+  };
 }
