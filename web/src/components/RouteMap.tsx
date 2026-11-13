@@ -3,7 +3,7 @@
 import "leaflet/dist/leaflet.css";
 
 import { useEffect, useRef, useState } from "react";
-import { Car, Crosshair, Footprints, Navigation } from "lucide-react";
+import { Car, Footprints, LocateFixed, MapPin, Navigation } from "lucide-react";
 
 import type { NearbyStoreBranch } from "@/lib/types";
 
@@ -87,6 +87,10 @@ export default function RouteMap({
         center: [userLocation.lat, userLocation.lng],
         zoom: variant === "location_preview" ? 13 : 14,
         scrollWheelZoom: false,
+        dragging: variant === "route",
+        doubleClickZoom: variant === "route",
+        boxZoom: variant === "route",
+        attributionControl: variant === "route",
         zoomControl: variant === "route",
       });
 
@@ -95,30 +99,29 @@ export default function RouteMap({
         maxZoom: 19,
       }).addTo(mapInstance);
 
-      const userIcon = L.divIcon({
-        className:
-          variant === "location_preview"
-            ? "merca-pin merca-pin-user-preview"
-            : "merca-pin merca-pin-user",
-        html: variant === "location_preview" ? "<span></span>" : "<span>Tú</span>",
-        iconSize: variant === "location_preview" ? [28, 28] : [32, 32],
-        iconAnchor: variant === "location_preview" ? [14, 14] : [16, 16],
-      });
-
       const boundsPoints: [number, number][] = [[userLocation.lat, userLocation.lng]];
 
-      L.marker([userLocation.lat, userLocation.lng], { icon: userIcon })
-        .addTo(mapInstance)
-        .bindPopup(
-          `<strong>${escapeHtml(userLocation.label ?? "Tu ubicación")}</strong>`
-        );
+      if (variant !== "location_preview") {
+        const userIcon = L.divIcon({
+          className: "merca-pin merca-pin-user",
+          html: "<span>Tú</span>",
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
+        });
+
+        L.marker([userLocation.lat, userLocation.lng], { icon: userIcon })
+          .addTo(mapInstance)
+          .bindPopup(
+            `<strong>${escapeHtml(userLocation.label ?? "Tu ubicación")}</strong>`
+          );
+      }
 
       if (variant === "location_preview") {
         const circle = L.circle([userLocation.lat, userLocation.lng], {
           radius: Math.max(400, radiusMeters),
           color: "#26543D",
           weight: 2,
-          dashArray: "6 6",
+          dashArray: "6 5",
           fillColor: "#26543D",
           fillOpacity: 0.08,
         }).addTo(mapInstance);
@@ -140,7 +143,7 @@ export default function RouteMap({
         });
 
         try {
-          mapInstance.fitBounds(circle.getBounds(), { padding: [18, 18] });
+          mapInstance.fitBounds(circle.getBounds(), { padding: [22, 22] });
         } catch {
           mapInstance.setView([userLocation.lat, userLocation.lng], 13);
         }
@@ -150,7 +153,10 @@ export default function RouteMap({
       stops.forEach((stop, idx) => {
         boundsPoints.push([stop.lat, stop.lng]);
         const stopIcon = L.divIcon({
-          className: "merca-pin merca-pin-store",
+          className:
+            idx === 0
+              ? "merca-pin merca-pin-store merca-pin-store-first"
+              : "merca-pin merca-pin-store",
           html: `<span>${idx + 1}</span>`,
           iconSize: [30, 30],
           iconAnchor: [15, 15],
@@ -252,9 +258,15 @@ export default function RouteMap({
     return (
       <div className="hearth-map-preview-wrap">
         <div ref={containerRef} className="hearth-map-preview-canvas" />
-        <div className="hearth-map-center-badge">
-          <span className="material-symbols-outlined">location_on</span>
-          <span>{userLocation.label ?? "Tu zona"}</span>
+        <div className="hearth-map-center-overlay" aria-hidden="true">
+          <div className="hearth-map-center-pill">
+            <span className="hearth-pulse-dot" />
+            <span>{userLocation.label ?? "Tu zona"}</span>
+          </div>
+          <div className="hearth-map-center-pin">
+            <MapPin size={17} />
+          </div>
+          <div className="hearth-map-center-shadow" />
         </div>
         {onRequestGeolocation && (
           <button
@@ -262,12 +274,16 @@ export default function RouteMap({
             className="hearth-map-gps-btn"
             onClick={onRequestGeolocation}
             disabled={geoLoading}
-            title="Usar mi ubicación GPS"
-            aria-label="Usar mi ubicación GPS"
+            title="Usar mi ubicación actual"
+            aria-label="Usar mi ubicación actual"
           >
-            <Crosshair size={16} />
+            <LocateFixed size={16} />
           </button>
         )}
+        <div className="hearth-map-osm-badge">
+          <span className="hearth-osm-dot" />
+          <span>© OpenStreetMap contributors</span>
+        </div>
       </div>
     );
   }
@@ -313,12 +329,22 @@ export default function RouteMap({
 
       <div className="hearth-route-canvas-wrap">
         <div ref={containerRef} className="hearth-route-map-canvas" />
-        {savingsLabel && (
-          <div className="hearth-route-bottom-pill">
-            <span className="hearth-route-dot" />
-            <span>{savingsLabel}</span>
+        <div className="hearth-route-bottom-pill">
+          <div className="hearth-route-stops-legend">
+            {stops.slice(0, 3).map((stop, idx) => (
+              <span key={`${stop.storeId}-${idx}`} className="hearth-route-legend-item">
+                {idx > 0 && <span className="hearth-route-arrow">→</span>}
+                <span
+                  className={`hearth-route-dot ${idx === 0 ? "first" : "next"}`}
+                />
+                <span>
+                  Parada {idx + 1}: {stop.storeName}
+                </span>
+              </span>
+            ))}
           </div>
-        )}
+          {savingsLabel && <span className="hearth-route-saving">{savingsLabel}</span>}
+        </div>
       </div>
     </div>
   );
