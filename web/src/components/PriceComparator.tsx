@@ -22,12 +22,17 @@ import {
   X,
 } from "lucide-react";
 
+import GuidedMarketWizard, { type WizardStep } from "@/components/GuidedMarketWizard";
 import ProductCard from "@/components/ProductCard";
 import {
   optimizeBasket,
   type BasketItemInput,
   type BasketPlan,
 } from "@/lib/basketOptimizer";
+import {
+  inferHabitualItemProfile,
+  type ShoppingExperienceMode,
+} from "@/lib/guidedCatalog";
 import type {
   CompareMode,
   ComparisonGroup,
@@ -125,12 +130,17 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
     label: PRESET_LOCATIONS[0].label,
   });
   const [locationHydrated, setLocationHydrated] = useState(false);
-  const [radiusMeters, setRadiusMeters] = useState<number>(2000);
-  const [nearbyBranches, setNearbyBranches] = useState<NearbyStoreBranch[]>([]);
+  const [radiusMeters, setRadiusMeters] = useState<number>(3000);
+  const [allNearbyBranches, setAllNearbyBranches] = useState<NearbyStoreBranch[]>([]);
   const [locLoading, setLocLoading] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
   const [selectedTier, setSelectedTier] = useState<1 | 2 | 3 | null>(null);
   const [currentDay, setCurrentDay] = useState<number | undefined>(undefined);
+  const [experienceMode, setExperienceMode] =
+    useState<ShoppingExperienceMode>("generic_guided");
+  const [wizardStep, setWizardStep] = useState<WizardStep>("location");
+  const [maxStores, setMaxStores] = useState<1 | 2 | 3>(2);
+  const prefetchedTermsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     setCurrentDay(new Date().getDay());
@@ -246,14 +256,14 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
       setLocError(null);
       try {
         const res = await fetch(
-          `/api/nearby?lat=${userLocation.lat}&lng=${userLocation.lng}&radius=${radiusMeters}`
+          `/api/nearby?lat=${userLocation.lat}&lng=${userLocation.lng}&radius=15000`
         );
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }
         const data = (await res.json()) as { branches: NearbyStoreBranch[] };
         if (active) {
-          setNearbyBranches(data.branches ?? []);
+          setAllNearbyBranches(data.branches ?? []);
         }
       } catch {
         if (active) {
@@ -269,7 +279,42 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
     return () => {
       active = false;
     };
-  }, [userLocation.lat, userLocation.lng, radiusMeters]);
+  }, [userLocation.lat, userLocation.lng]);
+
+  const nearbyBranches = useMemo(() => {
+    if (allNearbyBranches.length === 0) return [];
+    const minNearest = Math.min(...allNearbyBranches.map((b) => b.distanceMeters));
+    const effectiveRadius = Math.max(radiusMeters, minNearest);
+    return allNearbyBranches.filter((b) => b.distanceMeters <= effectiveRadius);
+  }, [allNearbyBranches, radiusMeters]);
+
+  const handlePrefetchTerms = useCallback(async (terms: string[]) => {
+    const pending = terms
+      .map((t) => t.trim().toLowerCase())
+      .filter((t) => t.length >= 2 && !prefetchedTermsRef.current.has(t))
+      .slice(0, 2);
+    if (pending.length === 0) return;
+
+    for (const term of pending) {
+      prefetchedTermsRef.current.add(term);
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(term)}`);
+        if (!res.ok) continue;
+        const nextPayload = (await res.json()) as DashboardPayload;
+        const collected = collectOffersFromPayload(nextPayload);
+        if (collected.length === 0) continue;
+        setKnownOffers((prev) => {
+          const merged = new Map(prev);
+          for (const offer of collected) {
+            merged.set(offer.storeSkuId, offer);
+          }
+          return merged;
+        });
+      } catch {
+        // Silencioso en precarga en segundo plano
+      }
+    }
+  }, []);
 
   const fetchFiltered = useCallback(async (nextQuery: string, nextCategory: string) => {
     const cleanQuery = nextQuery.trim().slice(0, 80);
@@ -383,18 +428,22 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
     [groups, visibleCount]
   );
 
+  const knownOffersList = useMemo(() => [...knownOffers.values()], [knownOffers]);
+
   const basketOptimization = useMemo(() => {
     return optimizeBasket({
       items: basketItems,
-      offers: [...knownOffers.values()],
-      nearbyBranches,
+      offers: knownOffersList,
+      nearbyBranches: allNearbyBranches,
       options: {
         objective: basketObjective,
         minExtraSavingsCop: 1500,
         minExtraSavingsPct: 2,
+        maxStores,
+        maxDistanceMeters: radiusMeters,
       },
     });
-  }, [basketItems, knownOffers, nearbyBranches, basketObjective]);
+  }, [basketItems, knownOffers, allNearbyBranches, basketObjective, maxStores, radiusMeters]);
 
   const activePlan: BasketPlan | null = useMemo(() => {
     if (selectedTier === 1 && basketOptimization.bestOneStore) {
@@ -443,6 +492,21 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
         return prev.filter((item) => item.itemKey !== itemKey);
       }
       const anchorOffer = group.offers[0] ?? null;
+      const inferred = anchorOffer ? inferHabitualItemProfile(anchorOffer) : null;
+      const anchorPrice = anchorOffer
+        ? anchorOffer.calibratedPrice > 0
+          ? anchorOffer.calibratedPrice
+          : anchorOffer.rawSalePrice > 0
+            ? anchorOffer.rawSalePrice
+            : anchorOffer.rawListPrice
+        : 0;
+      const habitualPrice =
+        anchorPrice > 0
+          ? anchorPrice
+          : group.highestPrice > 0
+            ? group.highestPrice
+            : group.bestPrice;
+      const resolvedTier = inferred?.qualityTier ?? group.qualityTier;
       return [
         ...prev,
         {
@@ -453,13 +517,22 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
           matchMode: mode,
           quantity: 1,
           allowSubstitutes: allowSub,
-          subtypeFamily: group.signature?.subtypeFamily ?? null,
-          broadFamily: group.signature?.broadFamily ?? null,
+          subtypeFamily: group.signature?.subtypeFamily ?? inferred?.subtypeFamily ?? null,
+          broadFamily: group.signature?.broadFamily ?? inferred?.broadFamily ?? null,
+          familyLabel: inferred?.familyLabel ?? group.canonicalName ?? null,
           targetNetContent: group.signature?.effectiveNetContent ?? group.netContent,
           targetUnitMeasure: group.signature?.effectiveUnitMeasure ?? group.unitMeasure,
           anchorStoreSkuId: anchorOffer?.storeSkuId ?? null,
           anchorBrand: group.brand ?? anchorOffer?.brand ?? null,
           ean: group.ean,
+          allowedQualityTiers: resolvedTier ? [resolvedTier] : undefined,
+          pricePriority: "lowest_total",
+          requiredCriticalAttribute:
+            inferred?.criticalAttribute ?? group.criticalAttribute ?? null,
+          sizePreference: inferred?.sizeBucket ?? "any",
+          habitualReferencePriceCop: habitualPrice > 0 ? habitualPrice : null,
+          habitualProductTitle: anchorOffer?.rawName ?? group.title,
+          originMode: "free_shop",
         },
       ];
     });
@@ -526,10 +599,17 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
   }
 
   function scrollToBasketOptimizer() {
-    setIsBasketExpanded(true);
-    window.requestAnimationFrame(() => {
-      document.getElementById("basket-optimizer")?.scrollIntoView({ behavior: "smooth" });
-    });
+    if (experienceMode === "free_shop" && wizardStep === "sections") {
+      setIsBasketExpanded(true);
+      window.requestAnimationFrame(() => {
+        document.getElementById("basket-optimizer")?.scrollIntoView({ behavior: "smooth" });
+      });
+      return;
+    }
+    if (basketItems.length > 0 && wizardStep !== "results") {
+      setWizardStep("confirm");
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const basketKeys = new Set(basketItems.map((i) => i.itemKey));
@@ -721,7 +801,32 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
           </div>
         )}
 
-        <section className="toolbar-panel" aria-label="Modo de comparación y filtros">
+        <GuidedMarketWizard
+          experienceMode={experienceMode}
+          onChangeExperienceMode={setExperienceMode}
+          wizardStep={wizardStep}
+          onChangeWizardStep={setWizardStep}
+          basketItems={basketItems}
+          setBasketItems={setBasketItems}
+          knownOffers={knownOffersList}
+          nearbyBranches={nearbyBranches}
+          allNearbyWithinMax={allNearbyBranches}
+          userLocation={userLocation}
+          onSelectBarrio={(lat, lng, label) => setUserLocation({ lat, lng, label })}
+          onRequestGeolocation={handleRequestGeolocation}
+          locLoading={locLoading}
+          locError={locError}
+          maxDistanceMeters={radiusMeters}
+          onChangeMaxDistanceMeters={setRadiusMeters}
+          maxStores={maxStores}
+          onChangeMaxStores={setMaxStores}
+          optimization={basketOptimization}
+          onPrefetchTerms={handlePrefetchTerms}
+        />
+
+        {experienceMode === "free_shop" && wizardStep === "sections" && (
+          <>
+            <section className="toolbar-panel" aria-label="Modo de comparación y filtros">
           <div className="mode-switch" role="tablist" aria-label="Modo de comparación">
             <button
               type="button"
@@ -871,7 +976,10 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
                 >
                   <option value={1500}>1.5 km</option>
                   <option value={2000}>2.0 km</option>
+                  <option value={3000}>3.0 km</option>
                   <option value={5000}>5.0 km</option>
+                  <option value={10000}>10.0 km</option>
+                  <option value={15000}>15.0 km</option>
                 </select>
                 <button
                   type="button"
@@ -914,7 +1022,10 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
                   >
                     <option value={1500}>Radio 1.5 km</option>
                     <option value={2000}>Radio 2.0 km</option>
+                    <option value={3000}>Radio 3.0 km</option>
                     <option value={5000}>Radio 5.0 km</option>
+                    <option value={10000}>Radio 10.0 km</option>
+                    <option value={15000}>Radio 15.0 km</option>
                   </select>
 
                   <select
@@ -929,7 +1040,18 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
                     <option value="real_pum">Optimizar por PUM Real Ajustado</option>
                   </select>
 
-                  {basketItems.length === 0 && (
+                  {basketItems.length > 0 ? (
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => {
+                        setWizardStep("confirm");
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                    >
+                      Confirmar carrito y exportar
+                    </button>
+                  ) : (
                     <button
                       type="button"
                       className="pill"
@@ -1195,11 +1317,16 @@ export default function PriceComparator({ initialData }: PriceComparatorProps) {
             <button
               type="button"
               className="btn-primary floating-basket-cta"
-              onClick={scrollToBasketOptimizer}
+              onClick={() => {
+                setWizardStep("confirm");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
             >
-              Ver ruta óptima <ArrowUp size={14} />
+              Confirmar carrito y optimizar <ArrowUp size={14} />
             </button>
           </aside>
+        )}
+          </>
         )}
       </main>
 

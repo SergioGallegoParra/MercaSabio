@@ -4,6 +4,11 @@ import test from "node:test";
 import { optimizeBasket } from "../src/lib/basketOptimizer.ts";
 import { buildMultiTierComparisonGroups } from "../src/lib/comparisonEngine.ts";
 import {
+  formatBasketAsPlainText,
+  inferBasketProfileSummary,
+  inferHabitualItemProfile,
+} from "../src/lib/guidedCatalog.ts";
+import {
   buildStoreAffiliateUrl,
   cleanProductTitle,
   computeRealUsageMetrics,
@@ -900,4 +905,315 @@ test("Aplica overrides de curación admin, excluye SKUs y respeta blocked_pair",
     false,
     "Par bloqueado no debe entrar en similares"
   );
+});
+
+test("Opción 1: optimizeBasket respeta características genéricas, clamp de distancia mínima, maxStores e intercambio de producto", () => {
+  const branches: NearbyStoreBranch[] = [
+    {
+      branchId: "b-d1-2400",
+      storeId: "d1",
+      branchName: "D1 Cedritos",
+      city: "Bogotá",
+      address: "Cll 140 # 12",
+      lat: 4.718,
+      lng: -74.035,
+      distanceMeters: 2400,
+    },
+    {
+      branchId: "b-ca-3100",
+      storeId: "carulla",
+      branchName: "Carulla Cedritos",
+      city: "Bogotá",
+      address: "Cll 140 # 9",
+      lat: 4.72,
+      lng: -74.03,
+      distanceMeters: 3100,
+    },
+  ];
+
+  const offers: StoreOffer[] = [
+    makeOffer({
+      storeSkuId: "sku-leche-d1-900",
+      storeId: "d1",
+      storeName: "Tiendas D1",
+      rawName: "Leche Deslactosada Latti 900 ml",
+      brand: "Latti",
+      ean: "7700400000001",
+      netContent: 900,
+      unitMeasure: "ml",
+      canonicalSlug: "leche-deslactosada-latti-900",
+      canonicalName: "Leche Deslactosada Latti",
+      calibratedPrice: 3600,
+      pumPrice: 4.0,
+      isPrivateLabel: true,
+    }),
+    makeOffer({
+      storeSkuId: "sku-leche-d1-sixpack",
+      storeId: "d1",
+      storeName: "Tiendas D1",
+      rawName: "Sixpack Leche Deslactosada Latti 6 x 900 ml",
+      brand: "Latti",
+      ean: "7700400000002",
+      netContent: 5400,
+      unitMeasure: "ml",
+      canonicalSlug: "sixpack-leche-deslactosada-latti",
+      canonicalName: "Sixpack Leche Deslactosada Latti",
+      calibratedPrice: 18900,
+      pumPrice: 3.5,
+      isPrivateLabel: true,
+    }),
+    makeOffer({
+      storeSkuId: "sku-leche-ca-prem",
+      storeId: "carulla",
+      storeName: "Carulla",
+      rawName: "Leche Deslactosada Orgánica Premium 1000 ml",
+      brand: "Pomona",
+      ean: "7700400000003",
+      netContent: 1000,
+      unitMeasure: "ml",
+      canonicalSlug: "leche-deslactosada-organica-premium",
+      canonicalName: "Leche Deslactosada Orgánica Premium",
+      calibratedPrice: 7800,
+      pumPrice: 7.8,
+      isPrivateLabel: false,
+    }),
+  ];
+
+  // 1) Clamp automático de maxDistanceMeters: pide 1000 m, mínimo real es 2400 m (D1) y excluye Carulla (3100 m)
+  const lowestTotalResult = optimizeBasket({
+    items: [
+      {
+        itemKey: "generic:leche",
+        label: "Leche",
+        masterProductId: null,
+        canonicalSlug: null,
+        matchMode: "pum",
+        quantity: 1,
+        allowSubstitutes: true,
+        subtypeFamily: "leche_deslactosada",
+        broadFamily: "leche",
+        targetNetContent: 900,
+        targetUnitMeasure: "ml",
+        allowedQualityTiers: ["economico", "estandar"],
+        pricePriority: "lowest_total",
+        originMode: "generic_guided",
+      },
+    ],
+    offers,
+    nearbyBranches: branches,
+    options: {
+      objective: "nominal",
+      minExtraSavingsCop: 1500,
+      minExtraSavingsPct: 2,
+      maxStores: 1,
+      maxDistanceMeters: 1000,
+    },
+  });
+
+  assert.equal(lowestTotalResult.minNearestDistanceMeters, 2400);
+  assert.equal(lowestTotalResult.effectiveRadiusMeters, 2400);
+  assert.ok(lowestTotalResult.recommendedPlan);
+  const firstAlloc = lowestTotalResult.recommendedPlan.storeStops[0]?.allocations[0];
+  assert.ok(firstAlloc);
+  assert.equal(firstAlloc.offer.storeSkuId, "sku-leche-d1-900");
+  assert.equal(lowestTotalResult.singleStoreCarts.length, 1);
+
+  assert.ok(firstAlloc.alternativesInStore && firstAlloc.alternativesInStore.length >= 2);
+
+  // 2) Prioridad menor valor PUM elige sixpack (3.5/ml < 4.0/ml)
+  const lowestPumResult = optimizeBasket({
+    items: [
+      {
+        itemKey: "generic:leche",
+        label: "Leche",
+        masterProductId: null,
+        canonicalSlug: null,
+        matchMode: "pum",
+        quantity: 1,
+        allowSubstitutes: true,
+        subtypeFamily: "leche_deslactosada",
+        broadFamily: "leche",
+        targetNetContent: 900,
+        targetUnitMeasure: "ml",
+        allowedQualityTiers: ["economico", "estandar"],
+        pricePriority: "lowest_pum",
+        originMode: "generic_guided",
+      },
+    ],
+    offers,
+    nearbyBranches: branches,
+    options: {
+      objective: "nominal",
+      minExtraSavingsCop: 1500,
+      minExtraSavingsPct: 2,
+      maxStores: 2,
+      maxDistanceMeters: 3000,
+    },
+  });
+
+  assert.equal(
+    lowestPumResult.recommendedPlan?.storeStops[0]?.allocations[0]?.offer.storeSkuId,
+    "sku-leche-d1-sixpack"
+  );
+
+  // 3) Intercambio manual en el carrito (preferredSkuByStore) aún con lowest_total
+  const swappedResult = optimizeBasket({
+    items: [
+      {
+        itemKey: "generic:leche",
+        label: "Leche",
+        masterProductId: null,
+        canonicalSlug: null,
+        matchMode: "pum",
+        quantity: 1,
+        allowSubstitutes: true,
+        subtypeFamily: "leche_deslactosada",
+        broadFamily: "leche",
+        targetNetContent: 900,
+        targetUnitMeasure: "ml",
+        allowedQualityTiers: ["economico", "estandar"],
+        pricePriority: "lowest_total",
+        preferredSkuByStore: { d1: "sku-leche-d1-sixpack" },
+        originMode: "generic_guided",
+      },
+    ],
+    offers,
+    nearbyBranches: branches,
+    options: {
+      objective: "nominal",
+      minExtraSavingsCop: 1500,
+      minExtraSavingsPct: 2,
+      maxStores: 1,
+      maxDistanceMeters: 3000,
+    },
+  });
+
+  assert.equal(
+    swappedResult.recommendedPlan?.storeStops[0]?.allocations[0]?.offer.storeSkuId,
+    "sku-leche-d1-sixpack"
+  );
+});
+
+test("Opción 2: inferHabitualItemProfile deduce restricciones, calcula ahorro Normal vs Optimizado y exporta texto plano", () => {
+  const branches: NearbyStoreBranch[] = [
+    {
+      branchId: "b-ex",
+      storeId: "exito",
+      branchName: "Éxito Express",
+      city: "Bogotá",
+      address: "Cra 11 # 80",
+      lat: 4.666,
+      lng: -74.054,
+      distanceMeters: 400,
+    },
+    {
+      branchId: "b-d1",
+      storeId: "d1",
+      branchName: "Tiendas D1",
+      city: "Bogotá",
+      address: "Cra 15 # 82",
+      lat: 4.668,
+      lng: -74.056,
+      distanceMeters: 520,
+    },
+  ];
+
+  const habitualOffer = makeOffer({
+    storeSkuId: "sku-arroz-roa-1000",
+    storeId: "exito",
+    storeName: "Éxito",
+    rawName: "Arroz Blanco Roa Bolsa 1000 g",
+    brand: "Roa",
+    ean: "7700500000001",
+    netContent: 1000,
+    unitMeasure: "g",
+    canonicalSlug: "arroz-blanco-roa-1000",
+    canonicalName: "Arroz Blanco Roa",
+    calibratedPrice: 5400,
+    pumPrice: 5.4,
+    isPrivateLabel: false,
+  });
+
+  const substituteOffer = makeOffer({
+    storeSkuId: "sku-arroz-d1-1000",
+    storeId: "d1",
+    storeName: "Tiendas D1",
+    rawName: "Arroz Blanco Diana 1000 g",
+    brand: "Diana",
+    ean: "7700500000002",
+    netContent: 1000,
+    unitMeasure: "g",
+    canonicalSlug: "arroz-blanco-diana-1000",
+    canonicalName: "Arroz Blanco Diana",
+    calibratedPrice: 3900,
+    pumPrice: 3.9,
+    isPrivateLabel: false,
+  });
+
+  const inferred = inferHabitualItemProfile(habitualOffer);
+  assert.equal(inferred.subtypeFamily, "arroz_blanco");
+  assert.equal(inferred.broadFamily, "arroz");
+  assert.equal(inferred.sizeBucket, "medium");
+
+  const basketItems = [
+    {
+      itemKey: "habitual:sku-arroz-roa-1000",
+      label: "Arroz Blanco Roa",
+      masterProductId: habitualOffer.masterProductId,
+      canonicalSlug: habitualOffer.canonicalSlug,
+      matchMode: "pum" as const,
+      quantity: 2,
+      allowSubstitutes: true,
+      subtypeFamily: inferred.subtypeFamily,
+      broadFamily: inferred.broadFamily,
+      familyLabel: inferred.familyLabel,
+      targetNetContent: inferred.effectiveNetContent,
+      targetUnitMeasure: inferred.effectiveUnitMeasure,
+      anchorStoreSkuId: habitualOffer.storeSkuId,
+      anchorBrand: habitualOffer.brand,
+      allowedQualityTiers: ["economico" as const, "estandar" as const],
+      pricePriority: "lowest_total" as const,
+      habitualReferencePriceCop: habitualOffer.calibratedPrice,
+      habitualProductTitle: habitualOffer.rawName,
+      originMode: "habitual_guided" as const,
+    },
+  ];
+
+  const summary = inferBasketProfileSummary(basketItems);
+  assert.equal(summary.totalItems, 1);
+
+  const result = optimizeBasket({
+    items: basketItems,
+    offers: [habitualOffer, substituteOffer],
+    nearbyBranches: branches,
+    options: {
+      objective: "nominal",
+      minExtraSavingsCop: 1500,
+      minExtraSavingsPct: 2,
+      maxStores: 2,
+      maxDistanceMeters: 3000,
+    },
+  });
+
+  assert.ok(result.recommendedPlan);
+  assert.equal(result.habitualBaselineCost, 10800);
+  assert.equal(result.recommendedPlan.totalNominalCost, 7800);
+  assert.equal(result.savingsVsHabitualCop, 3000);
+
+  const plainText = formatBasketAsPlainText({
+    mode: "habitual_guided",
+    locationLabel: "Bogotá · Chapinero",
+    maxDistanceMeters: 3000,
+    maxStores: 2,
+    plan: result.recommendedPlan,
+    habitualBaselineCost: result.habitualBaselineCost,
+    savingsVsHabitualCop: result.savingsVsHabitualCop,
+    savingsVsHabitualPct: result.savingsVsHabitualPct,
+    uncoveredItems: result.uncoveredItems,
+  });
+
+  assert.ok(plainText.includes("MERCASABIO"));
+  assert.ok(plainText.includes("TIENDAS D1"));
+  assert.ok(plainText.includes("10.800"));
+  assert.ok(plainText.includes("3.000"));
 });

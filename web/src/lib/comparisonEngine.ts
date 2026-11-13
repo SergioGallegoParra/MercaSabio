@@ -323,6 +323,29 @@ const KNOWN_FAMILIES: Array<{
     slug: null,
     match: /\blavaloza\w*\b|\bcrema\s+lavaplatos\b/,
   },
+  {
+    subtype: "queso_fresco",
+    broad: "quesos",
+    label: "Queso / Cuajada / Mozzarella",
+    slug: null,
+    exclude: /\b(sabor\s+a\s+queso|galleta|snack|papa|doritos|platanito|palito|pan\s+de)\b/,
+    match: /\b(queso\w*|mozzarella|campesino|cuajada|parmesan\w*|doble\s+crema)\b/,
+  },
+  {
+    subtype: "mantequilla_margarina",
+    broad: "quesos",
+    label: "Mantequilla / Margarina",
+    slug: null,
+    exclude: /\b(galleta|mani|cabello|corporal|labial)\b/,
+    match: /\b(mantequilla\w*|margarina\w*|esparcible)\b/,
+  },
+  {
+    subtype: "yogurt_bebida_lactea",
+    broad: "quesos",
+    label: "Yogurt / Kumis / Bebida láctea",
+    slug: null,
+    match: /\b(yogur\w*|yogurt\w*|kumis|kefir|griego)\b/,
+  },
 ];
 
 export const KNOWN_SUBTYPE_OPTIONS: Array<Omit<AdminSubtypeOption, "count">> = KNOWN_FAMILIES.map(

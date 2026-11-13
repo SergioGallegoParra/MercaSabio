@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   const lng = Number(rawLng.toFixed(3));
 
   const radiusMeters = Number.isFinite(rawRadius)
-    ? Math.min(Math.max(Math.round(rawRadius), 300), 10000)
+    ? Math.min(Math.max(Math.round(rawRadius), 300), 15000)
     : 2000;
 
   try {
