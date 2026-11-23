@@ -11,7 +11,12 @@ import httpx
 
 from etl.core.canonical_mapper import infer_canonical_category_slug
 from etl.core.models import UnitMeasure
-from etl.scrapers.ara_scraper import AraScraper, default_ara_config
+from etl.scrapers.ara_scraper import (
+    AraScraper,
+    compute_ara_available_cities_map,
+    default_ara_config,
+    select_representative_ara_stores,
+)
 from etl.scrapers.d1_scraper import D1Scraper, build_vtex_segment_cookie, default_d1_config
 from etl.scrapers.hybris_scraper import HybrisScraper
 from etl.scrapers.rappi_scraper import RappiScraper, default_rappi_config
@@ -361,6 +366,150 @@ class AdditionalScrapersTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(products[0].raw_list_price, Decimal("1899900.00"))
         self.assertEqual(products[0].raw_sale_price, Decimal("1599900.00"))
         self.assertEqual(products[0].source_origin, "algolia_api")
+
+    async def test_ara_gateway_uses_one_representative_store_per_city_with_start_after(self) -> None:
+        raw_stores = [
+            {
+                "id": "0001",
+                "name": "Bogota Uno",
+                "city": "Bogotá",
+                "latitude": "4.61",
+                "longitude": "-74.07",
+                "status": "1",
+            },
+            {
+                "id": "0002",
+                "name": "Bogota Dos",
+                "city": "Bogotá",
+                "latitude": "4.75",
+                "longitude": "-74.05",
+                "status": "1",
+            },
+            {
+                "id": "0021",
+                "name": "Manizales Centro",
+                "city": "Manizales",
+                "latitude": "5.068",
+                "longitude": "-75.517",
+                "status": "1",
+            },
+        ]
+        reps = select_representative_ara_stores(raw_stores, target_cities=("Bogotá", "Manizales"))
+        self.assertEqual(len(reps), 2)
+        self.assertEqual([r[0] for r in reps], ["bogota", "manizales"])
+
+        called_stores: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/stores":
+                return httpx.Response(200, json={"data": raw_stores})
+            if request.url.path == "/products":
+                sid = request.url.params.get("storeId", "")
+                cursor = request.url.params.get("startAfter")
+                called_stores.append(f"{sid}:{cursor or 'first'}")
+                if sid == reps[0][1] and cursor is None:
+                    return httpx.Response(
+                        200,
+                        json={
+                            "data": [
+                                {
+                                    "id": "10050-7702001133611",
+                                    "codeEAN": "7702001133611",
+                                    "codeSAP": "10050",
+                                    "codeStore": sid,
+                                    "title": "QUESITO  ALPINA   X 185 G.",
+                                    "category": "Lácteos, huevos y refrigerados",
+                                    "images": ["https://media.aratiendas.com/q.jpg"],
+                                    "isDisabled": False,
+                                    "price": 6390,
+                                },
+                                {
+                                    "id": "9999-X25",
+                                    "codeStore": sid,
+                                    "title": "ARROZ ROA X 25 UN.",
+                                    "isDisabled": False,
+                                    "price": 47990,
+                                },
+                                {
+                                    "id": "8888-OLD",
+                                    "codeStore": sid,
+                                    "title": "ITEM VIEJO 500 G",
+                                    "isDisabled": True,
+                                    "price": 3000,
+                                },
+                            ],
+                            "metadata": {"nextPageToken": "cur-2"},
+                        },
+                    )
+                if sid == reps[0][1] and cursor == "cur-2":
+                    return httpx.Response(
+                        200,
+                        json={
+                            "data": [
+                                {
+                                    "id": "20010-7700000000012",
+                                    "codeEAN": "7700000000012",
+                                    "codeSAP": "20010",
+                                    "codeStore": sid,
+                                    "title": "ARROZ BLANCO EL CULTIVO X 1000 G",
+                                    "category": "Arroz, granos y aceites",
+                                    "images": ["https://media.aratiendas.com/a.jpg"],
+                                    "isDisabled": False,
+                                    "price": 4190,
+                                }
+                            ],
+                            "metadata": {},
+                        },
+                    )
+                return httpx.Response(
+                    200,
+                    json={
+                        "data": [
+                            {
+                                "id": "10050-7702001133611",
+                                "codeEAN": "7702001133611",
+                                "codeSAP": "10050",
+                                "codeStore": sid,
+                                "title": "QUESITO  ALPINA   X 185 G.",
+                                "category": "Lácteos, huevos y refrigerados",
+                                "images": ["https://media.aratiendas.com/q.jpg"],
+                                "isDisabled": False,
+                                "price": 6190,
+                            }
+                        ],
+                        "metadata": {},
+                    },
+                )
+            return httpx.Response(404)
+
+        cfg = default_ara_config(requests_per_second=50.0)
+        async with httpx.AsyncClient(base_url=cfg.base_url, transport=httpx.MockTransport(handler)) as client:
+            scraper = AraScraper(
+                cfg,
+                client=client,
+                gw_base_url="https://gw.ara.local",
+                gw_api_key="test-key",
+                representative_cities=("Bogotá", "Manizales"),
+            )
+            products = await scraper.scrape_all()
+
+        # Nunca consulta la segunda sucursal de Bogotá ("0002")
+        self.assertNotIn("0002:first", called_stores)
+        self.assertIn(f"{reps[0][1]}:cur-2", called_stores)
+        self.assertEqual(len(products), 2)
+        quesito = next(p for p in products if p.external_sku == "10050-7702001133611")
+        arroz = next(p for p in products if p.external_sku == "20010-7700000000012")
+        self.assertEqual(quesito.raw_sale_price, Decimal("6390.00"))
+        self.assertTrue(quesito.in_stock)
+        self.assertTrue(arroz.is_private_label)
+        self.assertEqual(arroz.canonical_category_slug, "arroz-blanco-1000g")
+
+        city_map = compute_ara_available_cities_map(
+            {"national-sku": {"bogota", "medellin", "cali"}, "regional-sku": {"manizales"}},
+            ["bogota", "medellin", "cali", "barranquilla", "manizales"],
+        )
+        self.assertIsNone(city_map["national-sku"])
+        self.assertEqual(city_map["regional-sku"], ["manizales"])
 
 
 if __name__ == "__main__":

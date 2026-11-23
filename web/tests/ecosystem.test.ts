@@ -313,8 +313,22 @@ test("cleanProductTitle y sanitización de enlaces externos previenen duplicados
 test("isMercadoOffer e isGroceryStoreId excluyen tiendas y productos ajenos al mercado", () => {
   assert.equal(isGroceryStoreId("alkosto"), false);
   assert.equal(isGroceryStoreId("ktronix"), false);
-  assert.equal(isGroceryStoreId("carulla"), true);
-  assert.equal(isGroceryStoreId("d1"), true);
+  for (const storeId of [
+    "carulla",
+    "d1",
+    "olimpica",
+    "exito",
+    "ara",
+    "farmatodo",
+    "euro",
+    "oxxo",
+    "mercaldas",
+    "isimo",
+    "zapatoca",
+    "makro",
+  ]) {
+    assert.equal(isGroceryStoreId(storeId), true, `Expected ${storeId} to be a grocery store`);
+  }
 
   assert.equal(
     isMercadoOffer({

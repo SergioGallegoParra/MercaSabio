@@ -24,3 +24,7 @@ web/.dev.vars.*
 web/next-env.d.ts
 web/cloudflare-env.d.ts
 web/*.tsbuildinfo
+etl/data/
+*.db
+*.db-wal
+*.db-shm

@@ -177,6 +177,26 @@ PRIVATE_LABEL_BRANDS_BY_STORE: dict[str, frozenset[str]] = {
     "exito": frozenset({"ekono", "exito", "taeq", "frescampo"}),
     "carulla": frozenset({"carulla", "pomona"}),
     "olimpica": frozenset({"olimpica", "medalla de oro"}),
+    "euro": frozenset({"euro", "marca propia euro"}),
+    "mercaldas": frozenset({"mercaldas"}),
+    "farmatodo": frozenset({"farmatodo"}),
+    "oxxo": frozenset({"oxxo", "bitz", "andatti", "del marques", "la perla"}),
+    "isimo": frozenset({"isimo", "campo real", "delorigen", "lumina", "cuidarte"}),
+    "zapatoca": frozenset({"zapatoca", "granos zapatoca"}),
+    "makro": frozenset({"aro", "makro", "m&k"}),
+    "megatiendas": frozenset({"megatiendas"}),
+    "mercacentro": frozenset({"mercacentro"}),
+    "jumbo": frozenset({"jumbo", "cuisine & co", "cuisines", "maximum"}),
+    "canaveral": frozenset({"canaveral", "cañaveral"}),
+    "mxm": frozenset({"mxm", "mas x menos"}),
+    "supermu": frozenset({"supermu", "supermú"}),
+    "superboom": frozenset({"superboom"}),
+    "mercamio": frozenset({"mercamio"}),
+    "belalcazar": frozenset({"belalcazar", "belalcázar"}),
+    "amy": frozenset({"amy", "amercar", "mua"}),
+    "metro": frozenset(
+        {"metro", "metro mp", "cuisine & co", "cuisine & co nbe mp", "cuisines", "maximum"}
+    ),
 }
 
 
@@ -209,13 +229,13 @@ def is_store_private_label(
     brand: str | None,
     ean: str | None = None,
 ) -> bool:
-    """Detecta marcas exclusivas de cadena (especialmente Hard Discount D1 y Ara)."""
+    """Detecta marcas exclusivas de cadena (especialmente Hard Discount D1, Ara e Ísimo)."""
     store_key = store_id.strip().lower()
     known_brands = PRIVATE_LABEL_BRANDS_BY_STORE.get(store_key, frozenset())
     if brand:
         brand_norm = " ".join(brand.strip().lower().split())
         if brand_norm in known_brands:
             return True
-    if store_key in {"d1", "ara"} and ean is None:
+    if store_key in {"d1", "ara", "isimo"} and ean is None:
         return True
     return False

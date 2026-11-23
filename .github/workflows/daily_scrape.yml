@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        store: [exito, carulla, olimpica, d1, ara]
+        store: [exito, carulla, olimpica, d1, ara, isimo, euro, mercaldas, megatiendas, mercacentro, jumbo]
 
     steps:
       - name: Checkout del repositorio
@@ -34,6 +34,13 @@ jobs:
       - name: Instalar dependencias
         run: python -m pip install --upgrade pip && pip install -r requirements.txt
 
+      - name: Instalar Playwright Chromium para Ísimo (opcional)
+        if: ${{ matrix.store == 'isimo' && vars.ISIMO_REFRESH_BROWSER == 'true' && (github.event_name != 'workflow_dispatch' || inputs.store == '' || inputs.store == matrix.store) }}
+        continue-on-error: true
+        run: |
+          pip install "playwright>=1.49.0"
+          python -m playwright install chromium --with-deps
+
       - name: Ejecutar Extractor
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.store == '' || inputs.store == matrix.store }}
         env:
@@ -44,4 +51,5 @@ jobs:
           ARA_API_URL: ${{ vars.ARA_API_URL }}
           ARA_PDF_URLS: ${{ vars.ARA_PDF_URLS }}
           RAPPI_GUEST_TOKEN: ${{ secrets.RAPPI_GUEST_TOKEN }}
+          ISIMO_REFRESH_BROWSER: ${{ vars.ISIMO_REFRESH_BROWSER }}
         run: python -m etl.main --store "$STORE_TARGET"

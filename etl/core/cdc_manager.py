@@ -12,13 +12,14 @@ from uuid import uuid4
 import httpx
 
 from etl.core.entity_resolver import EntityResolver, ResolutionGateway
+from etl.core.match_safety import extract_product_signature, signatures_compatible
 from etl.core.models import CDCStats, CachedPriceState, ScrapedProduct
 from etl.core.shrinkflation_detector import ShrinkflationDetector, detect_shrinkflation
 
 logger = logging.getLogger(__name__)
 
 POSTGREST_PAGE_SIZE = 1000
-WRITE_CHUNK_SIZE = 500
+WRITE_CHUNK_SIZE = 75
 MAX_REQUESTS_PER_CLIENT = 4000
 _MAX_DB_PRICE = Decimal("999999999999.99")
 _MAX_DB_PUM = Decimal("9999999999.9999")
@@ -126,6 +127,21 @@ class SupabaseGateway:
                     delay,
                 )
                 await asyncio.sleep(delay)
+            except Exception as exc:
+                err_code = str(getattr(exc, "code", "") or "")
+                err_msg = str(exc).lower()
+                is_transient_timeout = err_code in {"57014", "57P01"} or "statement timeout" in err_msg
+                if not is_transient_timeout or attempt >= self._max_retries:
+                    raise
+                delay = 1.0 * (2**attempt)
+                logger.warning(
+                    "Timeout SQL transitorio PostgREST (%s); reintento %d/%d en %.2fs",
+                    err_code or type(exc).__name__,
+                    attempt + 1,
+                    self._max_retries,
+                    delay,
+                )
+                await asyncio.sleep(delay)
 
         raise RuntimeError("Reintentos PostgREST agotados inesperadamente.")
 
@@ -155,11 +171,32 @@ class SupabaseGateway:
         return rows
 
     async def fetch_latest_prices(self, store_id: str) -> list[dict[str, Any]]:
-        return await self._fetch_all_pages(
-            "v_latest_prices",
-            "store_sku_id,master_product_id,normalized_name,raw_sale_price,calibrated_price,net_content,unit_measure,pum_price,in_stock",
-            filters={"store_id": store_id},
-        )
+        try:
+            rows: list[dict[str, Any]] = []
+            offset = 0
+            while True:
+                response = await self._execute(
+                    lambda client, off=offset: client.rpc(
+                        "get_store_latest_prices",
+                        {
+                            "p_store_id": store_id,
+                            "p_limit": POSTGREST_PAGE_SIZE,
+                            "p_offset": off,
+                        },
+                    ).execute()
+                )
+                batch = response.data or []
+                rows.extend(batch)
+                if len(batch) < POSTGREST_PAGE_SIZE:
+                    break
+                offset += POSTGREST_PAGE_SIZE
+            return rows
+        except Exception:
+            return await self._fetch_all_pages(
+                "v_latest_prices",
+                "store_sku_id,master_product_id,normalized_name,raw_sale_price,calibrated_price,net_content,unit_measure,pum_price,in_stock",
+                filters={"store_id": store_id},
+            )
 
     async def fetch_store_skus(self, store_id: str) -> list[dict[str, Any]]:
         return await self._fetch_all_pages(
@@ -194,6 +231,8 @@ class SupabaseGateway:
         net_content: Decimal,
         unit_measure: str,
         threshold: float = 0.65,
+        *,
+        brand: str | None = None,
     ) -> str | None:
         response = await self._execute(
             lambda client: client.rpc(
@@ -370,18 +409,31 @@ class InMemoryGateway:
         net_content: Decimal,
         unit_measure: str,
         threshold: float = 0.65,
+        *,
+        brand: str | None = None,
     ) -> str | None:
+        target_sig = extract_product_signature(normalized_name, normalized_name=normalized_name, brand=brand)
         best_id: str | None = None
         best_score = 0.0
         for mp_id, mp in self.master_products.items():
+            if mp.get("is_private_label"):
+                continue
             if Decimal(str(mp["net_content"])) != net_content:
                 continue
             if mp["unit_measure"] != unit_measure:
                 continue
             score = self._trigram_similarity(mp["normalized_name"], normalized_name)
-            if score >= threshold and score > best_score:
-                best_score = score
-                best_id = mp_id
+            if score < threshold or score <= best_score:
+                continue
+            cand_sig = extract_product_signature(
+                str(mp["normalized_name"]),
+                normalized_name=str(mp["normalized_name"]),
+                brand=mp.get("brand"),
+            )
+            if not signatures_compatible(target_sig, cand_sig, strict_trigram=True)[0]:
+                continue
+            best_score = score
+            best_id = mp_id
         return best_id
 
     async def create_master_product(self, payload: dict[str, Any]) -> str:
@@ -467,7 +519,11 @@ class CDCManager:
             row["external_sku"]: str(row["id"]) for row in sku_rows
         }
 
-        latest_rows = await self._gateway.fetch_latest_prices(self.store_id)
+        latest_rows = (
+            await self._gateway.fetch_latest_prices(self.store_id)
+            if self._sku_id_by_external
+            else []
+        )
         self._price_cache = {}
         for row in latest_rows:
             sku_id = str(row["store_sku_id"])
@@ -513,7 +569,14 @@ class CDCManager:
 
         # Deduplicación intralote por external_sku conservando la lectura más reciente
         deduped: dict[str, ScrapedProduct] = {p.external_sku: p for p in products}
-        batch_items = list(deduped.values())
+        # No registrar SKUs nuevos con precio <= 0 (solo actualizar stock si el SKU ya existía).
+        batch_items = [
+            p
+            for p in deduped.values()
+            if p.external_sku in self._sku_id_by_external or p.raw_sale_price > 0
+        ]
+        if not batch_items:
+            return self.stats
 
         new_products = [
             p for p in batch_items if p.external_sku not in self._sku_id_by_external
@@ -527,7 +590,12 @@ class CDCManager:
                     "master_product_id": resolutions[p.external_sku].master_product_id,
                     "external_sku": p.external_sku,
                     "raw_name": p.raw_name,
+                    "display_name": p.display_name,
                     "raw_url": p.raw_url,
+                    "product_type": p.product_type,
+                    "sub_presentation": p.sub_presentation,
+                    "sub_presentation_label": p.sub_presentation_label,
+                    "variant_tags": list(p.variant_tags),
                 }
                 for p in new_products
             ]

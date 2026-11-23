@@ -43,6 +43,14 @@ const KNOWN_FAMILIES: Array<{
 }> = [
   // Exclusiones y categorías específicas primero (orden importa)
   {
+    subtype: "pasta_sin_gluten",
+    broad: "pasta",
+    label: "Pasta sin gluten / de arroz o maíz",
+    slug: "pasta-espagueti-500g",
+    exclude: /\b(de\s+tomate|pasta\s+dental)\b/,
+    match: /\b(pasta|espagueti|spaghetti|fusilli|penne)\b.*\b(sin\s+gluten|gluten\s*free|de\s+arroz|de\s+maiz|quinoa)\b/,
+  },
+  {
     subtype: "pasta_seca",
     broad: "pasta",
     label: "Pasta seca",
@@ -93,11 +101,18 @@ const KNOWN_FAMILIES: Array<{
     match: /\bcafe\b.*\b(capsul\w*|dolce\s+gusto|nespresso|pods?)\b|\b(capsul\w*|dolce\s+gusto)\b.*\bcafe\b/,
   },
   {
+    subtype: "cafe_liofilizado",
+    broad: "cafe",
+    label: "Café liofilizado",
+    slug: null,
+    match: /\bcafe\b.*\bliofiliz\w*\b/,
+  },
+  {
     subtype: "cafe_instantaneo",
     broad: "cafe",
     label: "Café instantáneo / soluble",
     slug: null,
-    match: /\bcafe\b.*\b(instant\w*|liofiliz\w*|soluble|descafeinado\s+inst)\b/,
+    match: /\bcafe\b.*\b(instant\w*|soluble)\b/,
   },
   {
     subtype: "cafe_grano",
@@ -154,6 +169,22 @@ const KNOWN_FAMILIES: Array<{
     slug: "arroz-blanco-1000g",
     exclude: /\b(pasta|tallarin|leche|bebida|galleta|torta|harina|vinagre|inflado|crisp|snack|achocolatad\w*|chocolat\w*|crujiente)\b/,
     match: /\barroz\b/,
+  },
+  {
+    subtype: "bebida_vegetal_almendra",
+    broad: "bebidas_vegetales",
+    label: "Bebida vegetal (almendra, soya, avena o coco)",
+    slug: "leche-entera-1000ml",
+    exclude: /\b(yogur|helado|galleta|chocolat\w*|polvo|mantequilla|aceite|crema\s+corporal|shampoo)\b/,
+    match: /\b(bebida|leche)\b.*\b(almendra\w*|soya|soja|avena|coco|arroz)\b/,
+  },
+  {
+    subtype: "pan_sin_gluten",
+    broad: "panaderia",
+    label: "Pan sin gluten",
+    slug: null,
+    exclude: /\b(rallado|empanizar)\b/,
+    match: /\bpan\b.*\b(sin\s+gluten|gluten\s*free|libre\s+de\s+gluten)\b/,
   },
   {
     subtype: "leche_polvo",
@@ -385,6 +416,14 @@ const KNOWN_FAMILIES: Array<{
     match: /\b(mantequilla\w*|margarina\w*|esparcible)\b/,
   },
   {
+    subtype: "yogur_griego",
+    broad: "quesos",
+    label: "Yogur griego / alta proteína",
+    slug: null,
+    exclude: /\b(galleta|helado|sabor\s+a)\b/,
+    match: /\b(yogur\w*|yogurt\w*)\b.*\b(griego|greek|proteina)\b/,
+  },
+  {
     subtype: "yogurt_bebida_lactea",
     broad: "quesos",
     label: "Yogurt / Kumis / Bebida láctea",
@@ -611,10 +650,28 @@ function extractCriticalAttribute(normalizedText: string, broadFamily: string): 
   }
 
   if (broadFamily === "cafe") {
-    if (/\bliofiliz\w*\b/.test(normalizedText)) return "liofilizado";
-    if (/\b(organico|organica|origen)\b/.test(normalizedText)) return "origen_organico";
-    if (/\bdescafeinad\w*\b/.test(normalizedText)) return "descafeinado";
-    return null;
+    const method = /\b(capsul\w*|dolce\s+gusto|nespresso|pods?)\b/.test(normalizedText)
+      ? "capsulas"
+      : /\bliofiliz\w*\b/.test(normalizedText)
+        ? "liofilizado"
+        : /\b(instant\w*|soluble)\b/.test(normalizedText)
+          ? "instantaneo"
+          : /\ben\s+grano\b|\bgrano\b/.test(normalizedText)
+            ? "en_grano"
+            : "molido";
+    const decaf = /\bdescafeinad\w*\b/.test(normalizedText) ? "_descafeinado" : "";
+    return `${method}${decaf}`;
+  }
+
+  if (broadFamily === "leche") {
+    if (/\ben\s+polvo\b|\bpolvo\b/.test(normalizedText)) return "en_polvo";
+    if (/\b(almendra\w*|soya|soja|avena|coco|arroz)\b/.test(normalizedText)) return "vegetal";
+    if (/\bdeslactosad\w*\b/.test(normalizedText)) return "deslactosada";
+    if (/\bsemidescremad\w*\b/.test(normalizedText)) return "semidescremada";
+    if (/\b(descremad\w*|light|baja\s+en\s+grasa|0%\s*grasa)\b/.test(normalizedText)) {
+      return "descremada";
+    }
+    return "entera";
   }
 
   return null;
@@ -689,20 +746,34 @@ export function extractProductSignature(
   const cleanTitle = cleanProductTitle(offer.rawName);
   const normalizedText = normalizeComparableText(cleanTitle);
   const { qty, unit } = parseWeightFallback(offer.rawName, offer.netContent, offer.unitMeasure);
-  const effectivePum = qty > 0 && offer.calibratedPrice > 0 ? offer.calibratedPrice / qty : offer.pumPrice;
   const family = inferFamily(normalizedText, unit, offer.canonicalSlug, override);
+  const dbSub = (offer.subPresentation ?? "").trim();
+  const dbSubMapped = dbSub === "leche_en_polvo" ? "leche_polvo" : dbSub === "leche_vegetal" ? "bebida_vegetal_almendra" : dbSub === "leche_semidescremada" ? "leche_descremada" : dbSub;
+  const effectiveSubtype =
+    !override?.overrideSubtype && dbSubMapped && FAMILY_BY_SUBTYPE.has(dbSubMapped)
+      ? dbSubMapped
+      : family.subtypeFamily;
+  const effectiveFamilyLabel =
+    offer.subPresentationLabel || family.familyLabel;
+  const effectivePum = qty > 0 && offer.calibratedPrice > 0 ? offer.calibratedPrice / qty : offer.pumPrice;
   const brandKey = normalizeBrandKey(offer.brand, normalizedText);
   const variantTokensKey = extractVariantKey(normalizedText, brandKey);
   const lexicalTierHint = detectLexicalTierHint(normalizedText, brandKey);
-  const criticalAttribute = extractCriticalAttribute(normalizedText, family.broadFamily);
+  const normalizedDbAttr = dbSub
+    ? dbSub.replace(/^(?:leche|cafe|aceite|atun|arroz|huevos|azucar|yogurt|pasta|detergente|queso)_/, "")
+    : "";
+  const criticalAttribute =
+    normalizedDbAttr && !override?.overrideSubtype
+      ? normalizedDbAttr
+      : extractCriticalAttribute(normalizedText, family.broadFamily);
 
   const roundedQty = qty >= 50 ? Math.round(qty) : Number(qty.toFixed(1));
-  const skuFingerprint = `${offer.storeId}::${brandKey}::${family.subtypeFamily}::${roundedQty}${unit}::${variantTokensKey}`;
+  const skuFingerprint = `${offer.storeId}::${brandKey}::${effectiveSubtype}::${roundedQty}${unit}::${variantTokensKey}`;
 
   return {
     broadFamily: family.broadFamily,
-    subtypeFamily: family.subtypeFamily,
-    familyLabel: family.familyLabel,
+    subtypeFamily: effectiveSubtype,
+    familyLabel: effectiveFamilyLabel,
     effectiveNetContent: qty,
     effectiveUnitMeasure: unit,
     effectivePum,
@@ -1395,7 +1466,7 @@ function buildGroupsFromIndexedPool(
       mode === "pum" && new Set(items.map((i) => i.signature.brandKey)).size > 1;
     const title = isMultiBrandPum
       ? `${anchorIndexed.signature.familyLabel} · ${formatQty(anchorIndexed.signature.effectiveNetContent, anchorIndexed.signature.effectiveUnitMeasure)}`
-      : anchorOffer.rawName;
+      : (anchorOffer.displayName?.trim() || anchorOffer.rawName);
 
     const subtitle =
       mode === "pum"

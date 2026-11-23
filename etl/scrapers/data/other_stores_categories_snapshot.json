@@ -1,0 +1,2971 @@
+{
+  "farmatodo": [
+    [
+      "Alimentos y bebidas",
+      "Alimentación saludable",
+      "Alimentos"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Alimentación saludable",
+      "Alimentos saludables"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Alimentación saludable",
+      "Artículos deportivos"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Alimentación saludable",
+      "Despensa saludable"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Alimentación saludable",
+      "Endulzantes"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Alimentación saludable",
+      "Gluten free"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Alimentación saludable",
+      "Granolas saludables"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Alimentación saludable",
+      "Nutrición"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Alimentación saludable",
+      "Productos veganos"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Alimentación saludable",
+      "Snacks de sal"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Alimentación saludable",
+      "Snacks dulces"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Alimentación saludable",
+      "Snacks salados"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Bebidas",
+      "Aguas"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Bebidas",
+      "Energizantes"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Bebidas",
+      "Gaseosas"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Bebidas",
+      "Hidratantes"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Bebidas",
+      "Jugos"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Bebidas",
+      "Té"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Bebidas",
+      "Tés"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Bebidas alcohólicas",
+      "Bebidas alcohólicas"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Bebidas alcohólicas",
+      "Cervezas"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Bebidas alcohólicas",
+      "Vinos"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Despensa",
+      "Avena"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Despensa",
+      "Café y té"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Despensa",
+      "Cereales"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Despensa",
+      "Congelados"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Despensa",
+      "Enlatados"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Despensa",
+      "Huevos, pastas y harinas"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Despensa",
+      "Leches y bebidas vegetales"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Despensa",
+      "Lácteos saborizados"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Despensa",
+      "Otros"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Despensa",
+      "Panes y arepas"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Despensa",
+      "Quesos y jamones"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Despensa",
+      "Sopas, salsas y aderezos"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Despensa",
+      "Sándwich"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Despensa",
+      "Yogurt"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Dulces, postres y confitería",
+      "Cereales"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Dulces, postres y confitería",
+      "Chicles y mentas"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Dulces, postres y confitería",
+      "Chocolates"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Dulces, postres y confitería",
+      "Dulces, chupetas y caramelos"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Dulces, postres y confitería",
+      "Galletas"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Dulces, postres y confitería",
+      "Gomas"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Dulces, postres y confitería",
+      "Granolas"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Dulces, postres y confitería",
+      "Helados y postres"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Dulces, postres y confitería",
+      "Tortas y ponqués"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Leches, avenas y yogurts",
+      "Avenas"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Leches, avenas y yogurts",
+      "Leches y bebidas lácteas"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Leches, avenas y yogurts",
+      "Lácteos"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Leches, avenas y yogurts",
+      "Lácteos saborizados"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Leches, avenas y yogurts",
+      "Yogurt"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Nutrición y vida saludable",
+      "Helados y postres"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Snacks salados y pasabocas",
+      "Chicharrones y platanitos"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Snacks salados y pasabocas",
+      "Crispetas"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Snacks salados y pasabocas",
+      "Granolas"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Snacks salados y pasabocas",
+      "Maníes y frutos secos"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Snacks salados y pasabocas",
+      "Papas fritas"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Snacks salados y pasabocas",
+      "Paquetones para compartir"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Snacks salados y pasabocas",
+      "Pasabocas de maíz"
+    ],
+    [
+      "Alimentos y bebidas",
+      "Snacks salados y pasabocas",
+      "Snacks y pasabocas"
+    ],
+    [
+      "Belleza",
+      "Accesorios de belleza",
+      "Estuches y kits"
+    ],
+    [
+      "Belleza",
+      "Accesorios de belleza",
+      "Ojos"
+    ],
+    [
+      "Belleza",
+      "Accesorios de belleza",
+      "Rostro y cuerpo"
+    ],
+    [
+      "Belleza",
+      "Accesorios de belleza",
+      "Uñas"
+    ],
+    [
+      "Belleza",
+      "Accesorios de maquillaje",
+      "Brochas"
+    ],
+    [
+      "Belleza",
+      "Accesorios de maquillaje",
+      "Depiladores"
+    ],
+    [
+      "Belleza",
+      "Accesorios de maquillaje",
+      "Encrespadores"
+    ],
+    [
+      "Belleza",
+      "Accesorios de maquillaje",
+      "Espejos"
+    ],
+    [
+      "Belleza",
+      "Accesorios de maquillaje",
+      "Esponjas de maquillaje"
+    ],
+    [
+      "Belleza",
+      "Accesorios de maquillaje",
+      "Masajeadores"
+    ],
+    [
+      "Belleza",
+      "Accesorios de maquillaje",
+      "Pestañas y apliques para la cara"
+    ],
+    [
+      "Belleza",
+      "Cosméticos",
+      "Bases y polvos"
+    ],
+    [
+      "Belleza",
+      "Cosméticos",
+      "Labios"
+    ],
+    [
+      "Belleza",
+      "Cosméticos",
+      "Lociones y siliconas"
+    ],
+    [
+      "Belleza",
+      "Cosméticos",
+      "Ojos"
+    ],
+    [
+      "Belleza",
+      "Cosméticos",
+      "Uñas"
+    ],
+    [
+      "Belleza",
+      "Cuidado de la piel",
+      "Cuidado corporal"
+    ],
+    [
+      "Belleza",
+      "Cuidado de la piel",
+      "Cuidado facial"
+    ],
+    [
+      "Belleza",
+      "Cuidado de la piel",
+      "Cuidado solar"
+    ],
+    [
+      "Belleza",
+      "Dercosmeticos",
+      "Cuidado Capilar"
+    ],
+    [
+      "Belleza",
+      "Dercosmeticos",
+      "Cuidado corporal"
+    ],
+    [
+      "Belleza",
+      "Dercosmeticos",
+      "Maquillaje"
+    ],
+    [
+      "Belleza",
+      "Dercosmeticos",
+      "Proteccion solar"
+    ],
+    [
+      "Belleza",
+      "Electro Belleza",
+      "Cepillos eléctricos cabello"
+    ],
+    [
+      "Belleza",
+      "Electro Belleza",
+      "Kits electro para cabello"
+    ],
+    [
+      "Belleza",
+      "Electro Belleza",
+      "Máquinas para cortar cabello"
+    ],
+    [
+      "Belleza",
+      "Electro Belleza",
+      "Planchas de cabello"
+    ],
+    [
+      "Belleza",
+      "Electro Belleza",
+      "Repuestos de cortadora de cabello"
+    ],
+    [
+      "Belleza",
+      "Electro Belleza",
+      "Rizadores y onduladores"
+    ],
+    [
+      "Belleza",
+      "Electro Belleza",
+      "Secadores para cabello"
+    ],
+    [
+      "Belleza",
+      "Electro Belleza",
+      "Trimmers"
+    ],
+    [
+      "Belleza",
+      "Labios",
+      "Brillos labiales"
+    ],
+    [
+      "Belleza",
+      "Labios",
+      "Bálsamos labiales"
+    ],
+    [
+      "Belleza",
+      "Labios",
+      "Delineadores para labios"
+    ],
+    [
+      "Belleza",
+      "Labios",
+      "Labiales en barra"
+    ],
+    [
+      "Belleza",
+      "Labios",
+      "Labiales líquidos"
+    ],
+    [
+      "Belleza",
+      "Labios",
+      "Lápiz de labios"
+    ],
+    [
+      "Belleza",
+      "Labios",
+      "Tinta de labios"
+    ],
+    [
+      "Belleza",
+      "Ojos",
+      "Correctores"
+    ],
+    [
+      "Belleza",
+      "Ojos",
+      "Delineadores cejas"
+    ],
+    [
+      "Belleza",
+      "Ojos",
+      "Delineadores de ojos"
+    ],
+    [
+      "Belleza",
+      "Ojos",
+      "Gel de cejas"
+    ],
+    [
+      "Belleza",
+      "Ojos",
+      "Iluminadores de ojos"
+    ],
+    [
+      "Belleza",
+      "Ojos",
+      "Maquillaje cejas"
+    ],
+    [
+      "Belleza",
+      "Ojos",
+      "Pestañinas"
+    ],
+    [
+      "Belleza",
+      "Ojos",
+      "Sombras"
+    ],
+    [
+      "Belleza",
+      "Perfumes",
+      "Hombre"
+    ],
+    [
+      "Belleza",
+      "Perfumes",
+      "Mujer"
+    ],
+    [
+      "Belleza",
+      "Rostro",
+      "Bases"
+    ],
+    [
+      "Belleza",
+      "Rostro",
+      "Contornos y bronzers"
+    ],
+    [
+      "Belleza",
+      "Rostro",
+      "Corrector rostro"
+    ],
+    [
+      "Belleza",
+      "Rostro",
+      "Fijadores de maquillaje"
+    ],
+    [
+      "Belleza",
+      "Rostro",
+      "Iluminadores"
+    ],
+    [
+      "Belleza",
+      "Rostro",
+      "K beauty"
+    ],
+    [
+      "Belleza",
+      "Rostro",
+      "Polvos"
+    ],
+    [
+      "Belleza",
+      "Rostro",
+      "Primers"
+    ],
+    [
+      "Belleza",
+      "Rostro",
+      "Rubores"
+    ],
+    [
+      "Belleza",
+      "Rostro",
+      "Sets-Paletas"
+    ],
+    [
+      "Belleza",
+      "Uñas",
+      "Accesorios uñas"
+    ],
+    [
+      "Belleza",
+      "Uñas",
+      "Bases y brillos"
+    ],
+    [
+      "Belleza",
+      "Uñas",
+      "Esmaltes"
+    ],
+    [
+      "Belleza",
+      "Uñas",
+      "Kits uñas"
+    ],
+    [
+      "Belleza",
+      "Uñas",
+      "Quitaesmaltes"
+    ],
+    [
+      "Belleza",
+      "Uñas",
+      "Uñas"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Accesorios deportivos",
+      "Balones"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Accesorios deportivos",
+      "Ciclismo"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Accesorios deportivos",
+      "Cintas de resistencia"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Accesorios deportivos",
+      "Cintas kinesiológicas"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Accesorios deportivos",
+      "Equipamiento y entrenamiento"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Accesorios deportivos",
+      "Fajas deportivas"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Accesorios deportivos",
+      "Fitness y musculación"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Accesorios deportivos",
+      "Guantes y calleras"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Accesorios deportivos",
+      "Natación"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Accesorios deportivos",
+      "Otros accesorios deportivos"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Accesorios deportivos",
+      "Pulsómetros y cronómetros"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Accesorios deportivos",
+      "Raquetas"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Accesorios deportivos",
+      "Smart watch"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Accesorios deportivos",
+      "Yoga y pilates"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Complementos deportivos",
+      "Cremas de alto rendimiento"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Complementos deportivos",
+      "Musculares y articulares"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Complementos deportivos",
+      "Termogénicos"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Nutrición",
+      "Adultos"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Nutrición",
+      "Niños"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Nutrición y vida saludable",
+      "Snacks de proteína"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Rehabilitación y equipos médicos",
+      "Fajas deportivas"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Rehabilitación y equipos médicos",
+      "Guantes y calleras"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Suplementos deportivos",
+      "Creatinas"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Suplementos deportivos",
+      "Energizantes deportivos"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Suplementos deportivos",
+      "Hidratantes deportivos"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Suplementos deportivos",
+      "Proteínas deportivas"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Suplementos deportivos",
+      "Snacks de proteína"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Suplementos dietarios",
+      "Calcio"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Suplementos dietarios",
+      "Colágenos"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Suplementos dietarios",
+      "Minerales"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Suplementos dietarios",
+      "Multivitamínicos"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Suplementos dietarios",
+      "Naturales"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Suplementos dietarios",
+      "Vitaminas"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Vitaminas",
+      "Colágenos"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Vitaminas",
+      "Multivitamínicos"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Vitaminas",
+      "Vitaminas"
+    ],
+    [
+      "Bienestar y nutrición deportiva",
+      "Vitaminas y productos naturales",
+      "Vitaminas"
+    ],
+    [
+      "Cuidado del bebé",
+      "Accesorios bebé",
+      "Chupos"
+    ],
+    [
+      "Cuidado del bebé",
+      "Accesorios bebé",
+      "Juguetes Bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Accesorios bebé",
+      "Llamadientes y mordedores"
+    ],
+    [
+      "Cuidado del bebé",
+      "Accesorios bebé",
+      "Productos lactancia materna"
+    ],
+    [
+      "Cuidado del bebé",
+      "Accesorios bebé",
+      "Teteros"
+    ],
+    [
+      "Cuidado del bebé",
+      "Accesorios bebé",
+      "Utensilios de alimentación bebés"
+    ],
+    [
+      "Cuidado del bebé",
+      "Artículos de Maternidad",
+      "Almohadas para embarazadas"
+    ],
+    [
+      "Cuidado del bebé",
+      "Artículos de Maternidad",
+      "Fajas de maternidad"
+    ],
+    [
+      "Cuidado del bebé",
+      "Artículos de Maternidad",
+      "Kits de maternidad"
+    ],
+    [
+      "Cuidado del bebé",
+      "Artículos de Maternidad",
+      "Morrales y pañaleras"
+    ],
+    [
+      "Cuidado del bebé",
+      "Artículos de Maternidad",
+      "Protectores mamarios"
+    ],
+    [
+      "Cuidado del bebé",
+      "Artículos de bebés para baños",
+      "Asientos de baño para bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Artículos de bebés para baños",
+      "Bañeras para bebés"
+    ],
+    [
+      "Cuidado del bebé",
+      "Artículos de bebés para baños",
+      "Extensores de lavamanos"
+    ],
+    [
+      "Cuidado del bebé",
+      "Artículos de bebés para baños",
+      "Termómetros para baño"
+    ],
+    [
+      "Cuidado del bebé",
+      "Artículos de bebés para baños",
+      "Toallas para bebés"
+    ],
+    [
+      "Cuidado del bebé",
+      "Caminadores y montables",
+      "Caminadores y correpasillos"
+    ],
+    [
+      "Cuidado del bebé",
+      "Caminadores y montables",
+      "Triciclos"
+    ],
+    [
+      "Cuidado del bebé",
+      "Compotas y cereales",
+      "Cereales bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Compotas y cereales",
+      "Compotas"
+    ],
+    [
+      "Cuidado del bebé",
+      "Compotas y cereales",
+      "Compotas y papillas"
+    ],
+    [
+      "Cuidado del bebé",
+      "Compotas y cereales",
+      "Galletas bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Compotas y cereales",
+      "Orgánicos"
+    ],
+    [
+      "Cuidado del bebé",
+      "Compotas y cereales",
+      "Refrigerados para bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Cuarto del bebé",
+      "Colchones y colchonetas para bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Cuarto del bebé",
+      "Corrales para bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Cuarto del bebé",
+      "Cunas y moisés"
+    ],
+    [
+      "Cuidado del bebé",
+      "Fórmulas infantiles",
+      "Crecimiento-Etapa 3"
+    ],
+    [
+      "Cuidado del bebé",
+      "Fórmulas infantiles",
+      "Especializadas"
+    ],
+    [
+      "Cuidado del bebé",
+      "Fórmulas infantiles",
+      "Iniciación-Etapa 1"
+    ],
+    [
+      "Cuidado del bebé",
+      "Fórmulas infantiles",
+      "Prematuros"
+    ],
+    [
+      "Cuidado del bebé",
+      "Fórmulas infantiles",
+      "Seguimiento-Etapa 2"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Aceites"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Acondicionadores"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Aseo del bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Copitos"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Cremas"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Cremas Antipañalitis"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Cremas corporales bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Esponjas de baño bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Fragancias, colonias y lociones"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Jabones"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Jabones para bebés"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Kits de aseo para bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Paños de algodón"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Peines y Cepillos"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Repelentes y Bloqueadores bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Shampoo"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Talcos"
+    ],
+    [
+      "Cuidado del bebé",
+      "Higiene del bebé",
+      "Teteros"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juegos y juguetes para bebés",
+      "Gimnasios para bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juegos y juguetes para bebés",
+      "Juegos didácticos y bloques"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juegos y juguetes para bebés",
+      "Juguetes de estimulación"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juegos y juguetes para bebés",
+      "Mecedoras y saltarines para bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juegos y juguetes para bebés",
+      "Mesas y sillas para bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juegos y juguetes para bebés",
+      "Móviles para bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juegos y juguetes para bebés",
+      "Peluches y figuras"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juegos y juguetes para bebés",
+      "Sonajeros para bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Accesorios de Vestir"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Almohadas"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Arte y Manualidades"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Aseo del bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Aseo y Cuidado Personal"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Baneras y Bacinillas"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Calzado"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Cartucheras"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Coches"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Comedores y Sillas"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Cunas y Corrales"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Decoración y Almacenaje"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Deportes y Juegos Al Aire Libre"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Desarrollo Motriz"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Después del Bano"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Electricos y Montables"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Estimulacion Sensorial"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Juegos Didácticos"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Juegos de Construccion"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Juegos para Armar"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Juguetes"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Lactancia"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Loncheras"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Mecedoras y Caminadores"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Morrales y Maletines"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Muebles"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "PortaBebés"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Ropa Niñas"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Ropa de Cama y Toallas"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Salud dental"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Seguridad"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Sillas para Carro"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Tecnologia y Videojuegos"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Teteros  Chupos y Mordedores"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "Utensilios de Mesa y Cocina"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "pañaleras"
+    ],
+    [
+      "Cuidado del bebé",
+      "Juguetes, cunas y todo para tu bebé",
+      "pañales Reutilizables"
+    ],
+    [
+      "Cuidado del bebé",
+      "Lactancia y Alimentación",
+      "Baberos"
+    ],
+    [
+      "Cuidado del bebé",
+      "Lactancia y Alimentación",
+      "Chupos"
+    ],
+    [
+      "Cuidado del bebé",
+      "Lactancia y Alimentación",
+      "Sillas para comer"
+    ],
+    [
+      "Cuidado del bebé",
+      "Lactancia y Alimentación",
+      "Teteros"
+    ],
+    [
+      "Cuidado del bebé",
+      "Lactancia y Alimentación",
+      "Utensilios de alimentación bebés"
+    ],
+    [
+      "Cuidado del bebé",
+      "Paseo del bebé",
+      "Accesorios para coches"
+    ],
+    [
+      "Cuidado del bebé",
+      "Paseo del bebé",
+      "Coches para bebés"
+    ],
+    [
+      "Cuidado del bebé",
+      "Paseo del bebé",
+      "Mochilas y porta bebés"
+    ],
+    [
+      "Cuidado del bebé",
+      "Paseo del bebé",
+      "Sillas para carros bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Pañales y toallitas",
+      "Etapa 0"
+    ],
+    [
+      "Cuidado del bebé",
+      "Pañales y toallitas",
+      "Etapa 1"
+    ],
+    [
+      "Cuidado del bebé",
+      "Pañales y toallitas",
+      "Etapa 2"
+    ],
+    [
+      "Cuidado del bebé",
+      "Pañales y toallitas",
+      "Etapa 3"
+    ],
+    [
+      "Cuidado del bebé",
+      "Pañales y toallitas",
+      "Etapa 4"
+    ],
+    [
+      "Cuidado del bebé",
+      "Pañales y toallitas",
+      "Etapa 5"
+    ],
+    [
+      "Cuidado del bebé",
+      "Pañales y toallitas",
+      "Etapa 6"
+    ],
+    [
+      "Cuidado del bebé",
+      "Pañales y toallitas",
+      "Pañales para piscina"
+    ],
+    [
+      "Cuidado del bebé",
+      "Pañales y toallitas",
+      "Pañales, toallitas y pañitos húmedos de Bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Pañales y toallitas",
+      "Prematuros"
+    ],
+    [
+      "Cuidado del bebé",
+      "Pañales y toallitas",
+      "Toallitas y pañitos húmedos"
+    ],
+    [
+      "Cuidado del bebé",
+      "Ropa para bebé",
+      "Chaquetas"
+    ],
+    [
+      "Cuidado del bebé",
+      "Ropa para bebé",
+      "Niña"
+    ],
+    [
+      "Cuidado del bebé",
+      "Ropa para bebé",
+      "Niño"
+    ],
+    [
+      "Cuidado del bebé",
+      "Ropa para bebé",
+      "Pijamas"
+    ],
+    [
+      "Cuidado del bebé",
+      "Ropa para bebé",
+      "Sacos y suéteres"
+    ],
+    [
+      "Cuidado del bebé",
+      "Ropa para bebé",
+      "Unisex"
+    ],
+    [
+      "Cuidado del bebé",
+      "Salud del bebé",
+      "Collares de dentición"
+    ],
+    [
+      "Cuidado del bebé",
+      "Seguridad para bebés",
+      "Barandas para bebé"
+    ],
+    [
+      "Cuidado del bebé",
+      "Seguridad para bebés",
+      "Cascos para bebés"
+    ],
+    [
+      "Cuidado del bebé",
+      "Seguridad para bebés",
+      "Espejos retrovisores"
+    ],
+    [
+      "Cuidado del bebé",
+      "Seguridad para bebés",
+      "Monitores para bebés"
+    ],
+    [
+      "Cuidado del bebé",
+      "Seguridad para bebés",
+      "Protectores de esquinas"
+    ],
+    [
+      "Cuidado del bebé",
+      "Seguridad para bebés",
+      "Puertas y barandas"
+    ],
+    [
+      "Cuidado del bebé",
+      "Seguridad para bebés",
+      "Tapetes antigolpes"
+    ],
+    [
+      "Cuidado personal",
+      "Afeitado Hombre",
+      "After Shave"
+    ],
+    [
+      "Cuidado personal",
+      "Afeitado Hombre",
+      "Espuma de afeitar"
+    ],
+    [
+      "Cuidado personal",
+      "Afeitado Hombre",
+      "Geles de afeitar"
+    ],
+    [
+      "Cuidado personal",
+      "Afeitado Hombre",
+      "Lociones de afeitar"
+    ],
+    [
+      "Cuidado personal",
+      "Afeitado Hombre",
+      "Máquinas de afeitar eléctricas"
+    ],
+    [
+      "Cuidado personal",
+      "Afeitado Hombre",
+      "Prestobarba"
+    ],
+    [
+      "Cuidado personal",
+      "Afeitado Hombre",
+      "Repuestos de afeitar"
+    ],
+    [
+      "Cuidado personal",
+      "Bienestar sexual",
+      "Higiene Íntima"
+    ],
+    [
+      "Cuidado personal",
+      "Bienestar sexual",
+      "Lubricantes"
+    ],
+    [
+      "Cuidado personal",
+      "Bienestar sexual",
+      "Preservativos"
+    ],
+    [
+      "Cuidado personal",
+      "Bienestar sexual",
+      "Salud Sexual"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado bucal",
+      "Cepillos dentales"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado bucal",
+      "Cremas dentales"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado bucal",
+      "Cuidado bucal especializado"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado bucal",
+      "Enjuagues dentales"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado bucal",
+      "Ortodoncia"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado bucal",
+      "Seda dental"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado de la piel",
+      "Cuidado corporal"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado de la piel",
+      "Cuidado facial"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado de la piel",
+      "Cuidado solar"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado de la piel",
+      "Repelentes e insecticidas"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado del cabello",
+      "Accesorios cabello"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado del cabello",
+      "Acondicionador"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado del cabello",
+      "Ampollas"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado del cabello",
+      "Baños de crema"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado del cabello",
+      "Cremas para peinar"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado del cabello",
+      "Cremas, geles y lociones"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado del cabello",
+      "Geles y fijadores"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado del cabello",
+      "Geles y fijadores para el cabello"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado del cabello",
+      "Kits capilares"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado del cabello",
+      "Lociones y siliconas"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado del cabello",
+      "Shampoo"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado del cabello",
+      "Spray"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado del cabello",
+      "Tintes para cabello"
+    ],
+    [
+      "Cuidado personal",
+      "Cuidado del cabello",
+      "Tratamiento para el cabello"
+    ],
+    [
+      "Cuidado personal",
+      "Depilación Mujer",
+      "Bandas depilatorias"
+    ],
+    [
+      "Cuidado personal",
+      "Depilación Mujer",
+      "Cera depilatoria"
+    ],
+    [
+      "Cuidado personal",
+      "Depilación Mujer",
+      "Cremas depilatorias"
+    ],
+    [
+      "Cuidado personal",
+      "Depilación Mujer",
+      "Depiladoras eléctricas mujer"
+    ],
+    [
+      "Cuidado personal",
+      "Depilación Mujer",
+      "Máquinas de afeitar mujer"
+    ],
+    [
+      "Cuidado personal",
+      "Depilación Mujer",
+      "Repuestos y cuchillas de afeitar mujer"
+    ],
+    [
+      "Cuidado personal",
+      "Dermocosmética",
+      "Capilar"
+    ],
+    [
+      "Cuidado personal",
+      "Dermocosmética",
+      "Corporal"
+    ],
+    [
+      "Cuidado personal",
+      "Dermocosmética",
+      "Facial"
+    ],
+    [
+      "Cuidado personal",
+      "Dermocosmética",
+      "Maquillaje"
+    ],
+    [
+      "Cuidado personal",
+      "Dermocosmética",
+      "Proteccion solar"
+    ],
+    [
+      "Cuidado personal",
+      "Higiene personal",
+      "Depilación y afeitado"
+    ],
+    [
+      "Cuidado personal",
+      "Higiene personal",
+      "Desodorantes y antitranspirantes"
+    ],
+    [
+      "Cuidado personal",
+      "Higiene personal",
+      "Estropajos y accesorios baño"
+    ],
+    [
+      "Cuidado personal",
+      "Higiene personal",
+      "Incontinencia"
+    ],
+    [
+      "Cuidado personal",
+      "Higiene personal",
+      "Jabones corporales"
+    ],
+    [
+      "Cuidado personal",
+      "Higiene personal",
+      "Protección femenina"
+    ],
+    [
+      "Cuidado personal",
+      "Protección femenina",
+      "Copas menstruales"
+    ],
+    [
+      "Cuidado personal",
+      "Protección femenina",
+      "Jabones íntimos"
+    ],
+    [
+      "Cuidado personal",
+      "Protección femenina",
+      "Panties menstruales"
+    ],
+    [
+      "Cuidado personal",
+      "Protección femenina",
+      "Pañitos húmedos íntimos"
+    ],
+    [
+      "Cuidado personal",
+      "Protección femenina",
+      "Protectores diarios"
+    ],
+    [
+      "Cuidado personal",
+      "Protección femenina",
+      "Tampones"
+    ],
+    [
+      "Cuidado personal",
+      "Protección femenina",
+      "Toallas higiénicas"
+    ],
+    [
+      "Dermocosmética",
+      "Capilar",
+      "Anticaída"
+    ],
+    [
+      "Dermocosmética",
+      "Capilar",
+      "Shampoo y acondicionadores"
+    ],
+    [
+      "Dermocosmética",
+      "Capilar",
+      "Tratamientos capilares"
+    ],
+    [
+      "Dermocosmética",
+      "Corporal",
+      "Aceites corporales"
+    ],
+    [
+      "Dermocosmética",
+      "Corporal",
+      "Cicatrices"
+    ],
+    [
+      "Dermocosmética",
+      "Corporal",
+      "Humectantes-Hidratantes"
+    ],
+    [
+      "Dermocosmética",
+      "Corporal",
+      "Limpiadores"
+    ],
+    [
+      "Dermocosmética",
+      "Corporal",
+      "Lociones"
+    ],
+    [
+      "Dermocosmética",
+      "Corporal",
+      "Manos"
+    ],
+    [
+      "Dermocosmética",
+      "Facial",
+      "Acné"
+    ],
+    [
+      "Dermocosmética",
+      "Facial",
+      "Aguas micelares dermatológicas"
+    ],
+    [
+      "Dermocosmética",
+      "Facial",
+      "Anti manchas rostro"
+    ],
+    [
+      "Dermocosmética",
+      "Facial",
+      "Anti-edad"
+    ],
+    [
+      "Dermocosmética",
+      "Facial",
+      "Exfoliantes faciales"
+    ],
+    [
+      "Dermocosmética",
+      "Facial",
+      "Geles"
+    ],
+    [
+      "Dermocosmética",
+      "Facial",
+      "Hidratantes faciales"
+    ],
+    [
+      "Dermocosmética",
+      "Facial",
+      "Limpiadores faciales"
+    ],
+    [
+      "Dermocosmética",
+      "Facial",
+      "Lociones faciales"
+    ],
+    [
+      "Dermocosmética",
+      "Facial",
+      "Mascarillas"
+    ],
+    [
+      "Dermocosmética",
+      "Facial",
+      "Ojos dermo"
+    ],
+    [
+      "Dermocosmética",
+      "Facial",
+      "Reparadores faciales"
+    ],
+    [
+      "Dermocosmética",
+      "Facial",
+      "Serum"
+    ],
+    [
+      "Dermocosmética",
+      "Higiene Personal Dermocosmética",
+      "Desodorantes"
+    ],
+    [
+      "Dermocosmética",
+      "Higiene Personal Dermocosmética",
+      "Jabones"
+    ],
+    [
+      "Dermocosmética",
+      "Maquillaje",
+      "Bases y polvos"
+    ],
+    [
+      "Dermocosmética",
+      "Maquillaje",
+      "Labios dermo"
+    ],
+    [
+      "Dermocosmética",
+      "Protección Solar",
+      "Bloqueadores"
+    ],
+    [
+      "Dermocosmética",
+      "Protección Solar",
+      "Con color"
+    ],
+    [
+      "Dermocosmética",
+      "Protección Solar",
+      "Fotoprotectores"
+    ],
+    [
+      "Dermocosmética",
+      "Protección Solar",
+      "Niños"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Accesorios para el hogar",
+      "Baterías"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Accesorios para el hogar",
+      "Cuidado de los zapatos"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Accesorios para el hogar",
+      "Ferrereria y otros"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Accesorios para el hogar",
+      "Ferretería y otros"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Electrodomésticos",
+      "Máquinas de café"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Gatos",
+      "Alimento"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Gatos",
+      "Arenero"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Gatos",
+      "Bebederos y comedores"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Gatos",
+      "Correas para gato"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Gatos",
+      "Juguetes gatos"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Gatos",
+      "Medicina gato"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Gatos",
+      "Otros gatos"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Gatos",
+      "Pastas dentales"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Gatos",
+      "Snacks para gatos"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Gatos",
+      "Tratamiento antipulgas"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Higiene del hogar",
+      "Accesorios de limpieza"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Higiene del hogar",
+      "Ambientadores"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Higiene del hogar",
+      "Desengrasantes y lavaplatos"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Higiene del hogar",
+      "Desinfectantes"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Higiene del hogar",
+      "Desinfectantes y acc. de limpieza"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Higiene del hogar",
+      "Detergentes y jabones"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Higiene del hogar",
+      "Insecticidas"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Higiene del hogar",
+      "Lavaplatos"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Higiene del hogar",
+      "Papel higiénico"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Higiene del hogar",
+      "Servilletas, secantes y pañuelos"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Juguetes",
+      "Coleccionables"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Juguetes",
+      "Juegos de mesa"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Juguetes",
+      "Juguetes niña"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Juguetes",
+      "Juguetes niño"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Juguetes",
+      "Unisex"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Mascotas",
+      "Alimentos"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Navidad",
+      "Decoración navidad"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Navidad",
+      "Luces"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Otras Mascotas",
+      "Accesorios mascotas"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Otras Mascotas",
+      "Medicamento mascotas"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Otros artículos",
+      "Medias"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Otros artículos",
+      "Medias y pantimedias"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Otros artículos",
+      "Mega Packs"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Otros artículos",
+      "Textiles"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Papelería y tecnología",
+      "Baterías"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Papelería y tecnología",
+      "Decoración"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Papelería y tecnología",
+      "Decoración fiesta"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Papelería y tecnología",
+      "Diversión"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Papelería y tecnología",
+      "Libros"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Papelería y tecnología",
+      "Libros y revistas"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Papelería y tecnología",
+      "Medias"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Papelería y tecnología",
+      "Tecnología"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Papelería y tecnología",
+      "Textiles"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Papelería y tecnología",
+      "Viajero"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Papelería y tecnología",
+      "Útiles escolares"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Alimento para perros"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Alimentos"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Antipulgas"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Bolsas sanitarias"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Cepillos"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Comederos perros"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Correas"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Cortauñas"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Cuchillas para afeitadoras"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Impermeables"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Jabones"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Kits de juguetes"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Mantas"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Medicina perros"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Máquinas peluqueras"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Otros juguetes"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Otros perros"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Palas sanitarias"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Pastas dentales"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Pañales"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Peluches"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Perfumes"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Repelentes líquidos"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Shampoo"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Snacks para perros"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Tapetes sanitarios"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Perros",
+      "Vitaminas"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Utensilios de cocina",
+      "Cocina y picnic"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Utensilios de cocina",
+      "Envases y contenedores"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Utensilios de cocina",
+      "Navidad"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Utensilios de cocina",
+      "Papeles envolventes"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Utensilios de cocina",
+      "Platos"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Utensilios de cocina",
+      "Vasos"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Vasos, platos, envases, cocina y picnic",
+      "Cocina y picnic"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Viajero",
+      "Flotadores"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Viajero",
+      "Kits viajeros"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Viajero",
+      "Maletas"
+    ],
+    [
+      "Hogar, mascotas y otros.",
+      "Viajero",
+      "Otros accesorios viaje"
+    ],
+    [
+      "Salud y medicamentos",
+      "Alimentación saludable",
+      "Alimentos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Alimentación saludable",
+      "Alimentos saludables"
+    ],
+    [
+      "Salud y medicamentos",
+      "Alimentación saludable",
+      "Artículos deportivos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Alimentación saludable",
+      "Endulzantes"
+    ],
+    [
+      "Salud y medicamentos",
+      "Alimentación saludable",
+      "Nutrición"
+    ],
+    [
+      "Salud y medicamentos",
+      "Alimentación saludable",
+      "Snacks dulces"
+    ],
+    [
+      "Salud y medicamentos",
+      "Alivio del dolor",
+      "Dolor abdominal y cólico"
+    ],
+    [
+      "Salud y medicamentos",
+      "Alivio del dolor",
+      "Dolor fuerte"
+    ],
+    [
+      "Salud y medicamentos",
+      "Alivio del dolor",
+      "Dolor general"
+    ],
+    [
+      "Salud y medicamentos",
+      "Alivio del dolor",
+      "Muscular y articular"
+    ],
+    [
+      "Salud y medicamentos",
+      "Alivio del dolor",
+      "Niños"
+    ],
+    [
+      "Salud y medicamentos",
+      "Alivio del dolor",
+      "Tratamiento de varices"
+    ],
+    [
+      "Salud y medicamentos",
+      "Botiquín y primeros auxilios",
+      "Antisépticos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Botiquín y primeros auxilios",
+      "Aparatos médicos y pastilleros"
+    ],
+    [
+      "Salud y medicamentos",
+      "Botiquín y primeros auxilios",
+      "Compresas"
+    ],
+    [
+      "Salud y medicamentos",
+      "Botiquín y primeros auxilios",
+      "Curitas, algodones, adhesivos y botiquín"
+    ],
+    [
+      "Salud y medicamentos",
+      "Botiquín y primeros auxilios",
+      "Jeringas, guantes y material hosp."
+    ],
+    [
+      "Salud y medicamentos",
+      "Botiquín y primeros auxilios",
+      "Vendas"
+    ],
+    [
+      "Salud y medicamentos",
+      "Cuidado de la vista",
+      "Gafas de lectura"
+    ],
+    [
+      "Salud y medicamentos",
+      "Cuidado de la vista",
+      "Gafas de sol"
+    ],
+    [
+      "Salud y medicamentos",
+      "Cuidado de la vista",
+      "Gotas, lubricantes y lágrimas artificiales"
+    ],
+    [
+      "Salud y medicamentos",
+      "Cuidado de la vista",
+      "Lentes de contacto"
+    ],
+    [
+      "Salud y medicamentos",
+      "Cuidado de la vista",
+      "Solución para lentes de contacto"
+    ],
+    [
+      "Salud y medicamentos",
+      "Cuidado de los pies y antimicóticos",
+      "Accesorios para pies"
+    ],
+    [
+      "Salud y medicamentos",
+      "Cuidado de los pies y antimicóticos",
+      "Antimicótico"
+    ],
+    [
+      "Salud y medicamentos",
+      "Cuidado de los pies y antimicóticos",
+      "Apósitos y tratamiento de callos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Cuidado de los pies y antimicóticos",
+      "Correctores de juanetes"
+    ],
+    [
+      "Salud y medicamentos",
+      "Cuidado de los pies y antimicóticos",
+      "Plantillas"
+    ],
+    [
+      "Salud y medicamentos",
+      "Cuidado de los pies y antimicóticos",
+      "Podología"
+    ],
+    [
+      "Salud y medicamentos",
+      "Cuidado de los pies y antimicóticos",
+      "Refrescantes y humectantes de pies"
+    ],
+    [
+      "Salud y medicamentos",
+      "Cuidado de los pies y antimicóticos",
+      "Talcos y desodorantes de pie"
+    ],
+    [
+      "Salud y medicamentos",
+      "Dermatológicos",
+      "Antimicótico"
+    ],
+    [
+      "Salud y medicamentos",
+      "Dermatológicos",
+      "Antimicótico tópico"
+    ],
+    [
+      "Salud y medicamentos",
+      "Dermatológicos",
+      "Antiprurignoso"
+    ],
+    [
+      "Salud y medicamentos",
+      "Dermatológicos",
+      "Protectores dérmicos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Dermatológicos",
+      "Queratolíticos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Dermatológicos",
+      "Tratamiento de alopecia"
+    ],
+    [
+      "Salud y medicamentos",
+      "Dermatológicos",
+      "Tratamiento de cicatrices y heridas"
+    ],
+    [
+      "Salud y medicamentos",
+      "Dermatológicos",
+      "Tratamiento de psoriasis"
+    ],
+    [
+      "Salud y medicamentos",
+      "Incontinencia",
+      "Otros"
+    ],
+    [
+      "Salud y medicamentos",
+      "Incontinencia",
+      "Pañales incontinencia"
+    ],
+    [
+      "Salud y medicamentos",
+      "Nutrición",
+      "Alimentos saludables"
+    ],
+    [
+      "Salud y medicamentos",
+      "Nutrición y vida saludable",
+      "Alimentos saludables"
+    ],
+    [
+      "Salud y medicamentos",
+      "Nutrición y vida saludable",
+      "Artículos deportivos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Nutrición y vida saludable",
+      "Equipos médicos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Nutrición y vida saludable",
+      "Nutrición"
+    ],
+    [
+      "Salud y medicamentos",
+      "Nutrición y vida saludable",
+      "Pastilleros y dosificadores"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Accesorios deportivos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Almohadillas relajantes"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Andadores"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Aromaterapia"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Audífonos para sordos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Ayudas para el baño"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Balanzas de baño"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Cabestrillos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Calcetines y medias terapeúticas"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Camillas y sillas"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Coderas"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Cojines"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Compresas"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Cuellos y collares cervicales"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Equipos médicos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Equipos médicos respiratorios"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Espalderas"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Fajas lumbares y abdominales"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Férulas"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Hombreras"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Jeringas, guantes y material hosp."
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Masajeadores"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Muletas"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Musleras y pantorrilleras"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Muñequeras"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Otros"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Productos para rehabilitación"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Rodilleras"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Sillas de ruedas y repuestos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Sujetadores de pacientes"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Taloneras"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Tensiómetros"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Terapias de frío y calor"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Termómetros"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Tobilleras"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Tratamientos para ronquidos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Rehabilitación y equipos médicos",
+      "Vendas"
+    ],
+    [
+      "Salud y medicamentos",
+      "Salud digestiva",
+      "Antidiarréicos y sueros"
+    ],
+    [
+      "Salud y medicamentos",
+      "Salud digestiva",
+      "Antiflatulentos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Salud digestiva",
+      "Antiácidos y antiulcerosos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Salud digestiva",
+      "Digestivos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Salud digestiva",
+      "Laxantes y fibras"
+    ],
+    [
+      "Salud y medicamentos",
+      "Salud digestiva",
+      "Productos para el mareo"
+    ],
+    [
+      "Salud y medicamentos",
+      "Salud y medicamentos",
+      "Alimentos saludables"
+    ],
+    [
+      "Salud y medicamentos",
+      "Salud y medicamentos",
+      "Dolor general"
+    ],
+    [
+      "Salud y medicamentos",
+      "Salud y medicamentos",
+      "Droguería"
+    ],
+    [
+      "Salud y medicamentos",
+      "Suplementos dietarios",
+      "Multivitamínicos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Tratamiento de la gripa",
+      "Descongestionante"
+    ],
+    [
+      "Salud y medicamentos",
+      "Tratamiento de la gripa",
+      "Dolor de garganta"
+    ],
+    [
+      "Salud y medicamentos",
+      "Tratamiento de la gripa",
+      "Niños"
+    ],
+    [
+      "Salud y medicamentos",
+      "Tratamiento de la gripa",
+      "Resfriado y gripa"
+    ],
+    [
+      "Salud y medicamentos",
+      "Tratamiento de la gripa",
+      "Tratamiento de la tos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Vitaminas",
+      "Apoyo sistema inmune"
+    ],
+    [
+      "Salud y medicamentos",
+      "Vitaminas",
+      "Bienestar esencial"
+    ],
+    [
+      "Salud y medicamentos",
+      "Vitaminas",
+      "Bienestar femenino & masculino"
+    ],
+    [
+      "Salud y medicamentos",
+      "Vitaminas",
+      "Energía & vitalidad"
+    ],
+    [
+      "Salud y medicamentos",
+      "Vitaminas",
+      "Etapa de vida"
+    ],
+    [
+      "Salud y medicamentos",
+      "Vitaminas",
+      "Huesos & articulaciones"
+    ],
+    [
+      "Salud y medicamentos",
+      "Vitaminas",
+      "Laxantes y fibras"
+    ],
+    [
+      "Salud y medicamentos",
+      "Vitaminas",
+      "Mente & sistema nervioso"
+    ],
+    [
+      "Salud y medicamentos",
+      "Vitaminas",
+      "Piel, cabello & uñas"
+    ],
+    [
+      "Salud y medicamentos",
+      "Vitaminas",
+      "Productos naturales"
+    ],
+    [
+      "Salud y medicamentos",
+      "Vitaminas",
+      "Sueño & bienestar"
+    ],
+    [
+      "Salud y medicamentos",
+      "Vitaminas y productos naturales",
+      "Minerales"
+    ],
+    [
+      "Salud y medicamentos",
+      "Vitaminas y productos naturales",
+      "Multivitamínicos"
+    ],
+    [
+      "Salud y medicamentos",
+      "Vitaminas y productos naturales",
+      "Naturales"
+    ],
+    [
+      "Salud y medicamentos",
+      "Vitaminas y productos naturales",
+      "Vitaminas"
+    ],
+    [
+      "Skincare Coreano",
+      "K-Beauty Capilar",
+      "Rutina Capilar"
+    ],
+    [
+      "Skincare Coreano",
+      "K-Beauty Facial",
+      "Hidratación"
+    ],
+    [
+      "Skincare Coreano",
+      "K-Beauty Facial",
+      "Limpieza Facial"
+    ],
+    [
+      "Skincare Coreano",
+      "K-Beauty Facial",
+      "Mascarillas Faciales"
+    ],
+    [
+      "Skincare Coreano",
+      "K-Beauty Facial",
+      "Protector Solar Facial"
+    ],
+    [
+      "Skincare Coreano",
+      "K-Beauty Facial",
+      "Tónicos y Pads"
+    ],
+    [
+      "Skincare Coreano",
+      "K-Beauty Tratamientos",
+      "Antiedad y Firmeza"
+    ],
+    [
+      "Skincare Coreano",
+      "K-Beauty Tratamientos",
+      "Calma y Reparación"
+    ],
+    [
+      "Skincare Coreano",
+      "K-Beauty Tratamientos",
+      "Manchas e Imperfecciones"
+    ],
+    [
+      "Skincare Coreano",
+      "K-Beauty Tratamientos",
+      "Ojos y Labios"
+    ]
+  ],
+  "makro": [
+    "/ca/anchetas/CT_78",
+    "/ca/conoce-nuestras-marcas-propias/CT_47",
+    "/ca/navidad-makro/CP_23",
+    "/ca/semana-friko-y-antillana/CT_35"
+  ],
+  "ara": [
+    "Arroz, granos y aceites",
+    "Aseo del hogar",
+    "Azúcar y endulzantes",
+    "Bebidas, infusiones y té",
+    "Cereales y granolas",
+    "Lácteos, huevos y refrigerados",
+    "Otros",
+    "Snacks",
+    "Vinos y licores"
+  ]
+}

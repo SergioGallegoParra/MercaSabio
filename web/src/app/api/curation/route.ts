@@ -1,6 +1,6 @@
-import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
+import { applyLocalAdminCuration, isLocalAdminEnvironment } from "@/lib/localAdminDb";
 import { getAdminCurationData } from "@/lib/queries";
 import { getSupabaseConfig, supabaseRpc } from "@/lib/supabase";
 
@@ -99,11 +99,6 @@ export async function POST(request: NextRequest) {
         }
       );
 
-      try {
-        revalidatePath("/admin");
-      } catch {
-        // En entornos edge sin tag cache, la respuesta sigue siendo exitosa
-      }
       return NextResponse.json({ ok: true, reportId });
     } catch (error) {
       console.error("[api/curation] Error registrando reporte:", error);
@@ -138,39 +133,27 @@ export async function POST(request: NextRequest) {
   const notes =
     typeof body.notes === "string" ? body.notes.trim().slice(0, 300) || null : null;
 
-  if (!supabaseConfig) {
-    return NextResponse.json({ ok: true, demo: true, action });
+  if (!isLocalAdminEnvironment()) {
+    return NextResponse.json(
+      { error: "Las acciones de administración solo están habilitadas en modo local sobre SQLite." },
+      { status: 403 }
+    );
   }
 
   try {
-    const result = await supabaseRpc<Record<string, unknown>>(
-      supabaseConfig,
-      "apply_admin_curation",
-      {
-        p_action: action,
-        p_store_sku_id: storeSkuId,
-        p_second_sku_id: secondSkuId,
-        p_quality_tier: qualityTier,
-        p_subtype: subtype,
-        p_broad_family: broadFamily,
-        p_rule_type: ruleType,
-        p_report_id: reportId,
-        p_notes: notes,
-      }
-    );
-
-    try {
-      revalidatePath("/");
-      revalidatePath("/admin");
-    } catch {
-      // En entornos edge sin tag cache, la respuesta sigue siendo exitosa
-    }
-
+    const result = applyLocalAdminCuration({
+      action,
+      storeSkuId,
+      qualityTier,
+      subtype,
+      broadFamily,
+      notes,
+    });
     return NextResponse.json(result);
   } catch (error) {
-    console.error("[api/curation] Error aplicando curación admin:", error);
+    console.error("[api/curation] Error aplicando curación local:", error);
     return NextResponse.json(
-      { error: "No fue posible guardar el cambio de curación." },
+      { error: "No fue posible aplicar la acción de curación en SQLite local." },
       { status: 500 }
     );
   }

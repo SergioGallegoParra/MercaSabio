@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   const lng = Number(rawLng.toFixed(3));
 
   const radiusMeters = Number.isFinite(rawRadius)
-    ? Math.min(Math.max(Math.round(rawRadius), 300), 15000)
+    ? Math.min(Math.max(Math.round(rawRadius), 200), 30000)
     : 2000;
 
   try {
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       { branches, radiusMeters },
       {
         headers: {
-          "Cache-Control": "s-maxage=180, stale-while-revalidate=600",
+          "Cache-Control": "no-store, max-age=0",
         },
       }
     );

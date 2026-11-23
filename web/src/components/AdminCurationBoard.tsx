@@ -1,13 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
   Ban,
   Check,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Database,
+  ExternalLink,
   EyeOff,
   Flag,
   LayoutGrid,
@@ -17,12 +21,17 @@ import {
   Search,
   ShieldAlert,
   Sparkles,
+  Store,
   Unlink,
 } from "lucide-react";
 
 import type {
+  AdminCatalogBrowseRow,
   AdminCatalogItem,
   AdminCurationPayload,
+  AdminStoreCatalogPayload,
+  AdminStoreSummaryItem,
+  CanonicalCategoryOption,
   ComparisonReportItem,
   CurationReportReason,
   QualityTier,
@@ -32,7 +41,7 @@ interface AdminCurationBoardProps {
   initialData: AdminCurationPayload;
 }
 
-type AdminTab = "reported" | "doubts" | "explorer";
+type AdminTab = "inventory" | "reported" | "doubts" | "explorer";
 type ExplorerView = "kanban" | "grid";
 type StatusFilter = "all" | "needs_review" | "verified" | "provisional_auto" | "excluded";
 
@@ -96,7 +105,7 @@ function ProductThumb({
 export default function AdminCurationBoard({ initialData }: AdminCurationBoardProps) {
   const [data, setData] = useState<AdminCurationPayload>(initialData);
   const [activeTab, setActiveTab] = useState<AdminTab>(
-    initialData.stats.pendingReports > 0 ? "reported" : "doubts"
+    initialData.stats.pendingReports > 0 ? "reported" : "inventory"
   );
   const [explorerView, setExplorerView] = useState<ExplorerView>("kanban");
   const [searchQuery, setSearchQuery] = useState("");
@@ -110,6 +119,90 @@ export default function AdminCurationBoard({ initialData }: AdminCurationBoardPr
   const [toast, setToast] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [draggedSkuId, setDraggedSkuId] = useState<string | null>(null);
   const [dragOverTier, setDragOverTier] = useState<QualityTier | null>(null);
+
+  // Estado del explorador completo de BD por tienda (paginado en servidor)
+  const [invSummary, setInvSummary] = useState<AdminStoreSummaryItem[]>([]);
+  const [invCategories, setInvCategories] = useState<CanonicalCategoryOption[]>([]);
+  const [invItems, setInvItems] = useState<AdminCatalogBrowseRow[]>([]);
+  const [invTotalCount, setInvTotalCount] = useState(0);
+  const [invLoading, setInvLoading] = useState(false);
+  const [invError, setInvError] = useState<string | null>(null);
+  const [invStoreId, setInvStoreId] = useState("");
+  const [invQueryInput, setInvQueryInput] = useState("");
+  const [invQuery, setInvQuery] = useState("");
+  const [invCategory, setInvCategory] = useState("");
+  const [invStock, setInvStock] = useState<"all" | "in_stock" | "out_of_stock">("all");
+  const [invLabel, setInvLabel] = useState<
+    "all" | "private_label" | "national" | "with_ean" | "no_ean" | "deprecated_candidate"
+  >("all");
+  const [invSort, setInvSort] = useState<
+    "name_asc" | "price_asc" | "price_desc" | "pum_asc" | "recent"
+  >("name_asc");
+  const [invPage, setInvPage] = useState(1);
+  const [invPageSize, setInvPageSize] = useState(40);
+  const invSummaryLoadedRef = useRef(false);
+
+  const loadInventoryPage = useCallback(
+    async (opts?: { forceSummary?: boolean; pageOverride?: number; queryOverride?: string }) => {
+      setInvLoading(true);
+      setInvError(null);
+      try {
+        const needSummary = Boolean(opts?.forceSummary) || !invSummaryLoadedRef.current;
+        const page = opts?.pageOverride ?? invPage;
+        const q = (opts?.queryOverride ?? invQuery).trim();
+        const params = new URLSearchParams({
+          storeId: invStoreId,
+          q,
+          category: invCategory,
+          stock: invStock,
+          label: invLabel,
+          sort: invSort,
+          page: String(page),
+          pageSize: String(invPageSize),
+          summary: needSummary ? "1" : "0",
+        });
+        const res = await fetch(`/api/admin/catalog?${params.toString()}`, {
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const payload = (await res.json()) as AdminStoreCatalogPayload;
+        if (needSummary && Array.isArray(payload.summary) && payload.summary.length > 0) {
+          setInvSummary(payload.summary);
+          invSummaryLoadedRef.current = true;
+        }
+        if (Array.isArray(payload.categories) && payload.categories.length > 0) {
+          setInvCategories(payload.categories);
+        }
+        setInvItems(payload.items ?? []);
+        setInvTotalCount(payload.totalCount ?? 0);
+      } catch {
+        setInvError("No se pudo consultar el inventario completo de la base de datos.");
+      } finally {
+        setInvLoading(false);
+      }
+    },
+    [invStoreId, invQuery, invCategory, invStock, invLabel, invSort, invPage, invPageSize]
+  );
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setInvQuery(invQueryInput);
+      setInvPage(1);
+    }, 280);
+    return () => window.clearTimeout(timer);
+  }, [invQueryInput]);
+
+  useEffect(() => {
+    if (activeTab === "inventory" || !invSummaryLoadedRef.current) {
+      void loadInventoryPage();
+    }
+  }, [activeTab, loadInventoryPage]);
+
+  const totalDbSkus = useMemo(
+    () => invSummary.reduce((acc, row) => acc + row.totalSkus, 0),
+    [invSummary]
+  );
+  const invTotalPages = Math.max(1, Math.ceil(invTotalCount / invPageSize));
 
   const itemsBySkuId = useMemo(() => {
     const map = new Map<string, AdminCatalogItem>();
@@ -169,6 +262,13 @@ export default function AdminCurationBoard({ initialData }: AdminCurationBoardPr
 
   function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (activeTab === "inventory") {
+      setInvQueryInput(searchQuery);
+      setInvQuery(searchQuery);
+      setInvPage(1);
+      void loadInventoryPage({ pageOverride: 1, queryOverride: searchQuery });
+      return;
+    }
     void refreshBoard(searchQuery);
   }
 
@@ -511,10 +611,13 @@ export default function AdminCurationBoard({ initialData }: AdminCurationBoardPr
           <button
             type="button"
             className="btn-ghost"
-            onClick={() => void refreshBoard()}
-            disabled={loadingRefresh}
+            onClick={() => {
+              void refreshBoard();
+              void loadInventoryPage({ forceSummary: true });
+            }}
+            disabled={loadingRefresh || invLoading}
           >
-            <RefreshCw size={15} className={loadingRefresh ? "spin" : ""} />
+            <RefreshCw size={15} className={loadingRefresh || invLoading ? "spin" : ""} />
             Recargar
           </button>
         </div>
@@ -547,8 +650,10 @@ export default function AdminCurationBoard({ initialData }: AdminCurationBoardPr
               <strong className="kpi-value tabular">{data.stats.verifiedCount}</strong>
             </div>
             <div className="kpi-card">
-              <span className="kpi-label">Catálogo activo</span>
-              <strong className="kpi-value tabular">{data.stats.totalActive}</strong>
+              <span className="kpi-label">Catálogo en BD</span>
+              <strong className="kpi-value tabular">
+                {totalDbSkus > 0 ? totalDbSkus.toLocaleString("es-CO") : data.stats.totalActive}
+              </strong>
             </div>
           </div>
         </section>
@@ -566,6 +671,17 @@ export default function AdminCurationBoard({ initialData }: AdminCurationBoardPr
         )}
 
         <nav className="admin-tabs" aria-label="Vistas de curación">
+          <button
+            type="button"
+            className={`admin-tab-btn ${activeTab === "inventory" ? "is-active" : ""}`}
+            onClick={() => setActiveTab("inventory")}
+          >
+            <Database size={15} />
+            Inventario por Tienda (BD)
+            <span className="tab-count tabular">
+              {totalDbSkus > 0 ? totalDbSkus.toLocaleString("es-CO") : "—"}
+            </span>
+          </button>
           <button
             type="button"
             className={`admin-tab-btn ${activeTab === "reported" ? "is-active" : ""}`}
@@ -594,6 +710,400 @@ export default function AdminCurationBoard({ initialData }: AdminCurationBoardPr
             <span className="tab-count tabular">{filteredExplorerItems.length}</span>
           </button>
         </nav>
+
+        {activeTab === "inventory" && (
+          <section className="admin-section" aria-label="Inventario completo por supermercado">
+            <div className="admin-section-toolbar">
+              <p className="muted">
+                Vista completa y paginada de todos los SKUs registrados en Supabase por cada una
+                de las 12 cadenas. Haz clic en una tienda para auditar sus productos, categorías y
+                códigos EAN.
+              </p>
+            </div>
+
+            {/* Tarjetas de resumen de cobertura por tienda */}
+            <div className="admin-store-summary-grid">
+              <button
+                type="button"
+                className={`admin-store-sum-card ${invStoreId === "" ? "is-selected" : ""}`}
+                onClick={() => {
+                  setInvStoreId("");
+                  setInvPage(1);
+                }}
+              >
+                <div className="admin-store-sum-head">
+                  <span className="admin-store-chip">
+                    <Store size={12} /> Todas las tiendas
+                  </span>
+                  <span className="admin-cov-badge is-ok">12 cadenas</span>
+                </div>
+                <strong className="admin-store-sum-count tabular">
+                  {totalDbSkus.toLocaleString("es-CO")} productos
+                </strong>
+                <span className="muted" style={{ fontSize: "0.75rem" }}>
+                  Vista combinada de toda la base de datos
+                </span>
+              </button>
+
+              {invSummary.map((st) => {
+                const catPct =
+                  st.totalSkus > 0 ? Math.round((st.categorizedSkus / st.totalSkus) * 100) : 0;
+                const eanPct =
+                  st.totalSkus > 0 ? Math.round((st.withEanSkus / st.totalSkus) * 100) : 0;
+                const covClass =
+                  st.totalSkus >= 500 ? "is-ok" : st.totalSkus >= 150 ? "is-mid" : "is-low";
+                const covLabel =
+                  st.totalSkus >= 500 ? "Catálogo amplio" : st.totalSkus >= 150 ? "Parcial" : "Base inicial";
+                return (
+                  <button
+                    key={st.storeId}
+                    type="button"
+                    className={`admin-store-sum-card ${invStoreId === st.storeId ? "is-selected" : ""}`}
+                    onClick={() => {
+                      setInvStoreId(st.storeId);
+                      setInvPage(1);
+                    }}
+                  >
+                    <div className="admin-store-sum-head">
+                      <span className="admin-store-chip">{st.storeName}</span>
+                      <span className={`admin-cov-badge ${covClass}`}>{covLabel}</span>
+                    </div>
+                    <strong className="admin-store-sum-count tabular">
+                      {st.totalSkus.toLocaleString("es-CO")} SKUs
+                    </strong>
+                    <span className="muted tabular" style={{ fontSize: "0.74rem" }}>
+                      Cat. {catPct}% · EAN {eanPct}% · Propias {st.privateLabelSkus.toLocaleString("es-CO")}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Barra de filtros paginados en servidor */}
+            <div className="admin-inv-filters">
+              <div className="admin-inv-search-wrap">
+                <Search size={15} className="search-icon" />
+                <input
+                  type="search"
+                  className="search-input"
+                  aria-label="Buscar producto, marca, EAN o SKU en inventario"
+                  placeholder="Nombre, marca, código EAN o SKU..."
+                  value={invQueryInput}
+                  onChange={(e) => {
+                    setInvQueryInput(e.target.value);
+                  }}
+                />
+              </div>
+
+              <select
+                aria-label="Filtrar inventario por tienda"
+                value={invStoreId}
+                onChange={(e) => {
+                  setInvStoreId(e.target.value);
+                  setInvPage(1);
+                }}
+              >
+                <option value="">Todas las tiendas (12)</option>
+                {invSummary.map((st) => (
+                  <option key={st.storeId} value={st.storeId}>
+                    {st.storeName} ({st.totalSkus.toLocaleString("es-CO")})
+                  </option>
+                ))}
+              </select>
+
+              <select
+                aria-label="Filtrar inventario por categoría"
+                value={invCategory}
+                onChange={(e) => {
+                  setInvCategory(e.target.value);
+                  setInvPage(1);
+                }}
+              >
+                <option value="">Todas las categorías</option>
+                <option value="__uncategorized__">⚠ Sin categoría asignada</option>
+                {invCategories.map((c) => (
+                  <option key={c.slug} value={c.slug}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                aria-label="Filtrar inventario por stock"
+                value={invStock}
+                onChange={(e) => {
+                  setInvStock(e.target.value as "all" | "in_stock" | "out_of_stock");
+                  setInvPage(1);
+                }}
+              >
+                <option value="all">Stock: Todos</option>
+                <option value="in_stock">Solo en stock</option>
+                <option value="out_of_stock">Solo agotados</option>
+              </select>
+
+              <select
+                aria-label="Filtrar por tipo de marca o EAN"
+                value={invLabel}
+                onChange={(e) => {
+                  setInvLabel(
+                    e.target.value as
+                      | "all"
+                      | "private_label"
+                      | "national"
+                      | "with_ean"
+                      | "no_ean"
+                      | "deprecated_candidate"
+                  );
+                  setInvPage(1);
+                }}
+              >
+                <option value="all">Marca / EAN: Todos</option>
+                <option value="private_label">Solo marca propia</option>
+                <option value="national">Solo marca nacional</option>
+                <option value="with_ean">Con código EAN</option>
+                <option value="no_ean">Sin código EAN</option>
+                <option value="deprecated_candidate">Posible baja · Sin foto</option>
+              </select>
+
+              <select
+                aria-label="Ordenar inventario"
+                value={invSort}
+                onChange={(e) => {
+                  setInvSort(
+                    e.target.value as
+                      | "name_asc"
+                      | "price_asc"
+                      | "price_desc"
+                      | "pum_asc"
+                      | "recent"
+                  );
+                  setInvPage(1);
+                }}
+              >
+                <option value="name_asc">Nombre A–Z</option>
+                <option value="price_asc">Menor precio</option>
+                <option value="price_desc">Mayor precio</option>
+                <option value="pum_asc">Menor PUM</option>
+                <option value="recent">Más reciente</option>
+              </select>
+
+              <select
+                aria-label="Resultados por página"
+                value={invPageSize}
+                onChange={(e) => {
+                  setInvPageSize(Number(e.target.value));
+                  setInvPage(1);
+                }}
+              >
+                <option value={25}>25 / pág</option>
+                <option value={40}>40 / pág</option>
+                <option value={60}>60 / pág</option>
+                <option value={100}>100 / pág</option>
+              </select>
+
+              {(invStoreId ||
+                invQueryInput ||
+                invCategory ||
+                invStock !== "all" ||
+                invLabel !== "all" ||
+                invSort !== "name_asc") && (
+                <button
+                  type="button"
+                  className="admin-btn-ghost"
+                  onClick={() => {
+                    setInvStoreId("");
+                    setInvQueryInput("");
+                    setInvQuery("");
+                    setInvCategory("");
+                    setInvStock("all");
+                    setInvLabel("all");
+                    setInvSort("name_asc");
+                    setInvPage(1);
+                  }}
+                >
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
+
+            {/* Paginación superior */}
+            <div className="admin-pagination-bar">
+              <span className="muted tabular">
+                {invLoading
+                  ? "Consultando base de datos..."
+                  : invTotalCount === 0
+                    ? "0 productos coinciden con los filtros"
+                    : `Mostrando ${((invPage - 1) * invPageSize + 1).toLocaleString("es-CO")}–${Math.min(invPage * invPageSize, invTotalCount).toLocaleString("es-CO")} de ${invTotalCount.toLocaleString("es-CO")} productos`}
+              </span>
+              <div className="admin-pagination-controls">
+                <button
+                  type="button"
+                  className="admin-btn-ghost"
+                  disabled={invLoading || invPage <= 1}
+                  onClick={() => setInvPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft size={14} /> Anterior
+                </button>
+                <span className="tabular" style={{ fontSize: "0.82rem", fontWeight: 700 }}>
+                  Página {invPage} de {invTotalPages.toLocaleString("es-CO")}
+                </span>
+                <button
+                  type="button"
+                  className="admin-btn-ghost"
+                  disabled={invLoading || invPage >= invTotalPages}
+                  onClick={() => setInvPage((p) => Math.min(invTotalPages, p + 1))}
+                >
+                  Siguiente <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+
+            {invError ? (
+              <div className="empty-box">
+                <AlertTriangle size={26} />
+                <h3>Error cargando inventario</h3>
+                <p>{invError}</p>
+              </div>
+            ) : !invLoading && invItems.length === 0 ? (
+              <div className="empty-box">
+                <Package size={26} />
+                <h3>Sin resultados</h3>
+                <p>Prueba cambiando el filtro de tienda, categoría o término de búsqueda.</p>
+              </div>
+            ) : (
+              <div className="admin-inv-table-wrap">
+                <table className="admin-inv-table">
+                  <thead>
+                    <tr>
+                      <th>Producto</th>
+                      <th>Tienda</th>
+                      <th>Categoría</th>
+                      <th>Contenido</th>
+                      <th>Precio / PUM</th>
+                      <th>Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invItems.map((row) => {
+                      const safeHref =
+                        row.rawUrl && /^https?:\/\//i.test(row.rawUrl) ? row.rawUrl : null;
+                      return (
+                        <tr key={row.storeSkuId}>
+                          <td>
+                            <div className="admin-inv-prod-cell">
+                              <ProductThumb
+                                url={row.imageUrl}
+                                alt={row.rawName}
+                                sizeLabel={`${row.netContent} ${row.unitMeasure}`}
+                              />
+                              <div className="admin-inv-prod-meta">
+                                <div className="admin-inv-prod-title">
+                                  <strong title={row.rawName}>
+                                    {row.displayName || row.rawName}
+                                  </strong>
+                                  {safeHref && (
+                                    <a
+                                      href={safeHref}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      aria-label={`Abrir ${row.displayName || row.rawName} en ${row.storeName}`}
+                                      className="admin-ext-link"
+                                    >
+                                      <ExternalLink size={12} />
+                                    </a>
+                                  )}
+                                </div>
+                                <div className="admin-inv-prod-sub tabular">
+                                  <span>{row.brand || "Sin marca"}</span>
+                                  {row.isPrivateLabel && (
+                                    <span className="admin-cov-badge is-mid">Marca propia</span>
+                                  )}
+                                  {row.subPresentationLabel && (
+                                    <span className="admin-cov-badge is-ok">
+                                      {row.subPresentationLabel}
+                                    </span>
+                                  )}
+                                  <span>EAN: {row.ean || "—"}</span>
+                                  <span>SKU: {row.externalSku}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <span className="admin-store-chip">{row.storeName}</span>
+                          </td>
+                          <td>
+                            {row.canonicalName ? (
+                              <span className="admin-cov-badge is-ok">{row.canonicalName}</span>
+                            ) : (
+                              <span className="admin-cov-badge is-low">Sin categoría</span>
+                            )}
+                          </td>
+                          <td className="tabular">
+                            {row.netContent} {row.unitMeasure}
+                          </td>
+                          <td className="tabular">
+                            <strong>{copFormatter.format(row.calibratedPrice)}</strong>
+                            <div className="muted" style={{ fontSize: "0.75rem" }}>
+                              {pumFormatter.format(row.pumPrice)} / {row.unitMeasure}
+                            </div>
+                          </td>
+                          <td>
+                            <span
+                              className={`admin-cov-badge ${row.inStock ? "is-ok" : "is-low"}`}
+                            >
+                              {row.inStock ? "En stock" : "Agotado"}
+                            </span>
+                            {row.isDeprecatedCandidate && (
+                              <div style={{ marginTop: 4 }}>
+                                <span
+                                  className="admin-cov-badge is-mid"
+                                  title="Oculto al cliente por falta de imagen de referencia (posible versión desactualizada)"
+                                >
+                                  Posible baja · Sin foto
+                                </span>
+                              </div>
+                            )}
+                            <div className="muted" style={{ fontSize: "0.72rem", marginTop: 2 }}>
+                              {row.sourceOrigin}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Paginación inferior */}
+            {invTotalCount > invPageSize && (
+              <div className="admin-pagination-bar" style={{ marginTop: 12 }}>
+                <span className="muted tabular">
+                  Página {invPage} de {invTotalPages.toLocaleString("es-CO")}
+                </span>
+                <div className="admin-pagination-controls">
+                  <button
+                    type="button"
+                    className="admin-btn-ghost"
+                    disabled={invLoading || invPage <= 1}
+                    onClick={() => setInvPage((p) => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft size={14} /> Anterior
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-btn-ghost"
+                    disabled={invLoading || invPage >= invTotalPages}
+                    onClick={() => setInvPage((p) => Math.min(invTotalPages, p + 1))}
+                  >
+                    Siguiente <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         {activeTab === "reported" && (
           <section className="admin-section">

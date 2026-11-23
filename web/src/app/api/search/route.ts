@@ -7,9 +7,10 @@ export async function GET(request: NextRequest) {
   const query = (searchParams.get("q") ?? "").trim().slice(0, 80);
   const rawCategory = (searchParams.get("category") ?? "").trim().slice(0, 60);
   const categorySlug = /^[a-z0-9-]*$/.test(rawCategory) ? rawCategory : "";
+  const city = (searchParams.get("city") ?? "").trim().slice(0, 80);
 
   try {
-    const payload = await getDashboardData({ query, categorySlug });
+    const payload = await getDashboardData({ query, categorySlug, searchOnly: true, city });
     return NextResponse.json(payload, {
       headers: {
         "Cache-Control": "s-maxage=300, stale-while-revalidate=3600",

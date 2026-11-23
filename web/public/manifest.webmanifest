@@ -1,0 +1,17 @@
+{
+  "name": "MercaSabio — Comparador de Mercado Colombia",
+  "short_name": "MercaSabio",
+  "description": "Compara precios por unidad real (PUM), arma tu mercado y ahorra en las cadenas cercanas.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF4EB",
+  "theme_color": "#14432E",
+  "lang": "es-CO",
+  "icons": [
+    {
+      "src": "/icons/app-icon.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}

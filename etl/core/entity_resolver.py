@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Protocol
 
+from etl.core.match_safety import normalize_brand
 from etl.core.models import CDCStats, ScrapedProduct
 
 
@@ -22,6 +23,8 @@ class ResolutionGateway(Protocol):
         net_content: Decimal,
         unit_measure: str,
         threshold: float = 0.65,
+        *,
+        brand: str | None = None,
     ) -> str | None: ...
 
     async def create_master_product(self, payload: dict[str, Any]) -> str: ...
@@ -47,7 +50,7 @@ class EntityResolver:
         self._gateway = gateway
         self._trgm_threshold = trgm_threshold
         self._ean_cache: dict[str, str] = {}
-        self._trgm_cache: dict[tuple[str, Decimal, str], str] = {}
+        self._trgm_cache: dict[tuple[str, Decimal, str, str], str] = {}
         self._canonical_categories: dict[str, int] | None = None
 
     async def warm_up(self) -> None:
@@ -103,6 +106,7 @@ class EntityResolver:
             product.normalized_name,
             product.net_content,
             product.unit_measure.value,
+            normalize_brand(product.brand) or "",
         )
 
         # Nivel 2: Similitud léxica por trigramas acotada a idéntico contenido y unidad
@@ -119,6 +123,7 @@ class EntityResolver:
                 product.net_content,
                 product.unit_measure.value,
                 threshold=self._trgm_threshold,
+                brand=product.brand,
             )
             if matched_id is not None:
                 self._trgm_cache[trgm_key] = matched_id
@@ -140,6 +145,9 @@ class EntityResolver:
             "unit_measure": product.unit_measure.value,
             "is_private_label": product.is_private_label,
             "image_url": product.image_url,
+            "product_type": product.product_type,
+            "sub_presentation": product.sub_presentation,
+            "sub_presentation_label": product.sub_presentation_label,
         }
         created_id = await self._gateway.create_master_product(payload)
 

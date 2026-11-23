@@ -87,6 +87,11 @@ class ScrapedProduct(BaseModel):
     raw_url: str | None = None
     image_url: str | None = None
     canonical_category_slug: str | None = Field(default=None, max_length=100)
+    display_name: str | None = Field(default=None, max_length=255)
+    product_type: str | None = Field(default=None, max_length=80)
+    sub_presentation: str | None = Field(default=None, max_length=80)
+    sub_presentation_label: str | None = Field(default=None, max_length=100)
+    variant_tags: tuple[str, ...] = ()
     is_private_label: bool = False
     category_path: list[str] = Field(default_factory=list)
 
@@ -123,6 +128,40 @@ class ScrapedProduct(BaseModel):
     def ensure_list_price_consistency(self) -> ScrapedProduct:
         if self.raw_list_price < self.raw_sale_price:
             self.raw_list_price = self.raw_sale_price
+
+        from etl.core.product_enrichment import (
+            extract_product_metadata,
+            infer_broad_category_slug,
+            simplify_display_name,
+        )
+
+        if not self.canonical_category_slug:
+            self.canonical_category_slug = infer_broad_category_slug(
+                self.normalized_name,
+                self.net_content,
+                self.unit_measure,
+                category_path=self.category_path,
+            )
+        if not self.display_name:
+            self.display_name = simplify_display_name(
+                self.raw_name,
+                brand=self.brand,
+                net_content=self.net_content,
+                unit_measure=self.unit_measure,
+            )
+        if self.sub_presentation is None or not self.variant_tags:
+            meta = extract_product_metadata(
+                self.raw_name,
+                self.normalized_name,
+                is_private_label=self.is_private_label,
+            )
+            if self.product_type is None:
+                self.product_type = meta.product_type
+            if self.sub_presentation is None:
+                self.sub_presentation = meta.sub_presentation
+                self.sub_presentation_label = meta.sub_presentation_label
+            if not self.variant_tags and meta.variant_tags:
+                self.variant_tags = meta.variant_tags
         return self
 
 

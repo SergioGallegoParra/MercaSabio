@@ -10,25 +10,30 @@ from etl.core.models import NormalizedContent, UnitMeasure
 
 # Expresión regular especificada para extracción de contenido neto en títulos retail
 CONTENT_REGEX = re.compile(
-    r"(\d+(?:[\.,]\d+)?)\s*(g|gr|gramos|kg|ml|cc|l|lt|litros|und|unidades)\b",
+    r"(\d+(?:[\.,]\d+)?)\s*(g|gr|grm|grs|gramos|kg|kgs|ml|mls|cc|l|lt|lts|litros|und|unidades)\b",
     re.IGNORECASE,
 )
 
 # Patrón auxiliar para multipacks explícitos (ej. "6 x 330 ml", "4x500g")
 MULTIPACK_REGEX = re.compile(
-    r"\b(\d+)\s*[xX×]\s*(\d+(?:[\.,]\d+)?)\s*(g|gr|gramos|kg|ml|cc|l|lt|litros|und|unidades)\b",
+    r"\b(\d+)\s*[xX×]\s*(\d+(?:[\.,]\d+)?)\s*(g|gr|grm|grs|gramos|kg|kgs|ml|mls|cc|l|lt|lts|litros|und|unidades)\b",
     re.IGNORECASE,
 )
 
 _UNIT_CONVERSIONS: dict[str, tuple[UnitMeasure, Decimal]] = {
     "g": (UnitMeasure.G, Decimal("1")),
     "gr": (UnitMeasure.G, Decimal("1")),
+    "grm": (UnitMeasure.G, Decimal("1")),
+    "grs": (UnitMeasure.G, Decimal("1")),
     "gramos": (UnitMeasure.G, Decimal("1")),
     "kg": (UnitMeasure.G, Decimal("1000")),
+    "kgs": (UnitMeasure.G, Decimal("1000")),
     "ml": (UnitMeasure.ML, Decimal("1")),
+    "mls": (UnitMeasure.ML, Decimal("1")),
     "cc": (UnitMeasure.ML, Decimal("1")),
     "l": (UnitMeasure.ML, Decimal("1000")),
     "lt": (UnitMeasure.ML, Decimal("1000")),
+    "lts": (UnitMeasure.ML, Decimal("1000")),
     "litros": (UnitMeasure.ML, Decimal("1000")),
     "und": (UnitMeasure.UND, Decimal("1")),
     "unidades": (UnitMeasure.UND, Decimal("1")),
@@ -41,7 +46,7 @@ _UNIT_CONVERSIONS: dict[str, tuple[UnitMeasure, Decimal]] = {
     "kilogramo": (UnitMeasure.G, Decimal("1000")),
 }
 
-_THOUSANDS_DOT_UNITS = {"g", "gr", "gramos", "ml", "cc", "und", "unidades"}
+_THOUSANDS_DOT_UNITS = {"g", "gr", "grm", "grs", "gramos", "ml", "mls", "cc", "und", "unidades"}
 
 
 def _parse_numeric_token(raw_number: str, raw_unit: str) -> Decimal:

@@ -12,7 +12,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/ecosystem.test.ts"
+    "test": "node --test tests/ecosystem.test.ts tests/v3_features.test.ts"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.20.17",

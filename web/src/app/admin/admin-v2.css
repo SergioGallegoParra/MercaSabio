@@ -1,0 +1,328 @@
+/* Fixes contrast & responsive regressions on /admin in a parallel /v2/admin route */
+.ms2-admin-root {
+  background: #faf6ee;
+  color: #162019;
+  min-height: 100dvh;
+}
+
+.ms2-admin-banner {
+  background: #14432e;
+  color: #faf6ee;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.84rem;
+}
+
+.ms2-admin-banner a {
+  color: #f6cd77;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.ms2-admin-root .hero-badge {
+  background: #e6f2ea !important;
+  color: #103826 !important;
+  border: 1px solid #b5d4bf !important;
+}
+
+.ms2-admin-root .kpi-card {
+  background: #ffffff !important;
+  border: 1px solid #dfd7c8 !important;
+  color: #162019 !important;
+}
+
+.ms2-admin-root .kpi-label {
+  color: #556158 !important;
+  font-weight: 700 !important;
+}
+
+.ms2-admin-root .kpi-value {
+  color: #14432e !important;
+}
+
+.ms2-admin-root .admin-tab-btn {
+  background: #ffffff !important;
+  color: #3a473e !important;
+  border: 1px solid #dfd7c8 !important;
+  min-height: 42px;
+}
+
+.ms2-admin-root .admin-tab-btn.is-active {
+  background: #14432e !important;
+  border-color: #14432e !important;
+  color: #ffffff !important;
+}
+
+.ms2-admin-root .admin-tab-btn.is-active .tab-count {
+  background: #dead55 !important;
+  color: #14432e !important;
+}
+
+.ms2-admin-root .tab-count {
+  background: #f3ede2 !important;
+  color: #162019 !important;
+}
+
+@media (max-width: 767px) {
+  .ms2-admin-root {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .ms2-admin-root .site-navbar-inner {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+
+  .ms2-admin-root .admin-container {
+    padding: 14px !important;
+    max-width: 100% !important;
+  }
+
+  .ms2-admin-root .admin-hero {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .ms2-admin-root .admin-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .ms2-admin-root .admin-tabs {
+    display: flex !important;
+    overflow-x: auto !important;
+    max-width: 100% !important;
+    gap: 6px !important;
+  }
+
+  .ms2-admin-root .admin-tab-btn {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+  }
+
+  .ms2-admin-root .doubt-grid,
+  .ms2-admin-root .duel-list,
+  .ms2-admin-root .duel-card,
+  .ms2-admin-root .explorer-kanban {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* --- Inventario completo por tienda (Admin BD Explorer) --- */
+.admin-store-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.admin-store-sum-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px 13px;
+  border-radius: 14px;
+  border: 1px solid #dfd7c8;
+  background: #ffffff;
+  color: #162019;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.admin-store-sum-card:hover {
+  border-color: #14432e;
+  box-shadow: 0 4px 14px rgba(20, 67, 46, 0.08);
+  transform: translateY(-1px);
+}
+
+.admin-store-sum-card.is-selected {
+  border-color: #14432e;
+  background: #eff7f1;
+  box-shadow: 0 0 0 2px rgba(20, 67, 46, 0.18);
+}
+
+.admin-store-sum-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.admin-store-sum-count {
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: #14432e;
+}
+
+.admin-cov-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.admin-cov-badge.is-ok {
+  background: #e5f3ea;
+  color: #14432e;
+}
+
+.admin-cov-badge.is-mid {
+  background: #fdf2d6;
+  color: #7c5809;
+}
+
+.admin-cov-badge.is-low {
+  background: #fcebe8;
+  color: #962b1c;
+}
+
+.admin-inv-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid #dfd7c8;
+  background: #ffffff;
+}
+
+.admin-inv-search-wrap {
+  position: relative;
+  flex: 1 1 240px;
+  min-width: 200px;
+}
+
+.admin-inv-search-wrap .search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #556158;
+  pointer-events: none;
+}
+
+.admin-inv-search-wrap .search-input {
+  width: 100%;
+  padding-left: 32px;
+  min-height: 38px;
+}
+
+.admin-inv-filters select {
+  min-height: 38px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid #d5ccb9;
+  background: #faf6ee;
+  color: #162019;
+  font-size: 0.84rem;
+}
+
+.admin-pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.admin-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-inv-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 14px;
+  border: 1px solid #dfd7c8;
+  background: #ffffff;
+}
+
+.admin-inv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.admin-inv-table th {
+  text-align: left;
+  padding: 10px 12px;
+  background: #f4efe4;
+  color: #3a473e;
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid #dfd7c8;
+  white-space: nowrap;
+}
+
+.admin-inv-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #efe9dc;
+  vertical-align: middle;
+}
+
+.admin-inv-table tbody tr:hover {
+  background: #faf6ee;
+}
+
+.admin-inv-prod-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 260px;
+}
+
+.admin-inv-prod-cell .admin-thumb-img,
+.admin-inv-prod-cell .admin-thumb-placeholder {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 8px;
+}
+
+.admin-inv-prod-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-inv-prod-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-inv-prod-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  color: #556158;
+}
+
+.admin-ext-link {
+  color: #14432e;
+  display: inline-flex;
+  align-items: center;
+}

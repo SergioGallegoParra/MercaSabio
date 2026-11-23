@@ -6409,3 +6409,2952 @@ body {
   color: var(--h-ink);
   outline: none;
 }
+
+
+/* ============================================================================
+   MERCASABIO v3 — SHELL RESPONSIVO, COMPACT TILES, SABIÓMETRO Y ANÁLISIS AHORRO
+   ============================================================================ */
+
+/* Shell responsivo Desktop + Mobile */
+.hearth-shell-frame {
+  max-width: 440px;
+  padding-bottom: 72px;
+  background: var(--h-bg);
+}
+
+.desktop-only {
+  display: none !important;
+}
+
+.ms-v3-mobile-quick-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 6px 16px 2px;
+}
+
+.ms-v3-shell-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Header principal v3 */
+.ms-v3-top-header {
+  position: sticky;
+  top: 0;
+  z-index: 900;
+  background: rgba(250, 244, 235, 0.94);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--h-line);
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+[data-active-tab="inicio"] .ms-v3-top-header {
+  border-bottom-color: #c7d6cb;
+}
+[data-active-tab="canasta"] .ms-v3-top-header {
+  border-bottom-color: #d6cbb3;
+}
+[data-active-tab="ahorro"] .ms-v3-top-header {
+  border-bottom-color: #bfd7c6;
+}
+[data-active-tab="ruta"] .ms-v3-top-header {
+  border-bottom-color: #cde0d3;
+}
+
+.ms-v3-top-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 16px;
+}
+
+@media (max-width: 480px) {
+  .ms-v3-top-header-inner {
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .ms-logo-wordmark {
+    font-size: 1.02rem;
+  }
+
+  .ms-logo-mascot-box {
+    width: 30px;
+    height: 30px;
+  }
+
+  .ms-logo-sub {
+    font-size: 0.62rem;
+  }
+
+  .ms-v3-sync-chip {
+    padding: 4px 8px;
+    font-size: 0.65rem;
+  }
+}
+
+.ms-v3-brand-btn {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.ms-v3-desktop-nav {
+  display: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.ms-v3-desktop-nav-link {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--h-ink-2);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 7px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.ms-v3-desktop-nav-link:hover {
+  background: var(--h-surface-2);
+  color: var(--h-ink);
+}
+
+.ms-v3-desktop-nav-link.active {
+  background: var(--h-primary);
+  color: var(--h-on-primary);
+  border-color: var(--h-primary);
+}
+
+.ms-v3-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ms-v3-sync-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--h-surface);
+  border: 1px solid var(--h-line);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--h-ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ms-v3-sync-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #6c8475;
+}
+.ms-v3-sync-dot.synced {
+  background: #1b8a4b;
+}
+.ms-v3-sync-dot.syncing {
+  background: var(--h-secondary);
+}
+.ms-v3-sync-dot.offline {
+  background: #c4513b;
+}
+
+.ms-v3-icon-action {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--h-line);
+  background: var(--h-surface);
+  color: var(--h-ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.ms-v3-bell-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--h-secondary);
+  color: var(--h-ink);
+  font-size: 0.62rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ms-v3-pill-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--h-line);
+  background: var(--h-surface);
+  color: var(--h-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ms-v3-pill-action:hover {
+  background: var(--h-primary-soft);
+}
+
+/* Mobile Bottom Nav (4 pestañas exactas, verde bosque #14432E + píldora dorada #DEAD55) */
+.ms-v3-mobile-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 440px;
+  height: calc(64px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 920;
+  background: #14432e;
+  border-top: 1px solid #0d3221;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: stretch;
+}
+
+.ms-v3-bottom-nav-btn {
+  border: none;
+  background: transparent;
+  color: rgba(250, 244, 235, 0.78);
+  font-size: 0.69rem;
+  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  padding: 5px 4px;
+}
+
+.ms-v3-bottom-nav-btn.active {
+  color: #dead55;
+}
+
+.ms-v3-bottom-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 13px;
+  border-radius: 999px;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.ms-v3-bottom-nav-btn.active .ms-v3-bottom-icon-wrap {
+  background: #dead55;
+  color: #14432e;
+}
+
+.ms-v3-bottom-badge {
+  position: absolute;
+  top: -3px;
+  right: 1px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #faf4eb;
+  color: #14432e;
+  font-size: 0.6rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 767px) {
+  .hearth-shell-frame .hearth-sticky-footer {
+    bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Responsive Desktop Layout (>= 768px) */
+@media (min-width: 768px) {
+  .hearth-shell-frame {
+    max-width: min(1320px, 100%);
+    padding-bottom: 24px;
+  }
+
+  .desktop-only {
+    display: inline-flex !important;
+  }
+
+  .mobile-only {
+    display: none !important;
+  }
+
+  .ms-v3-top-header {
+    background: #14432e;
+    border-bottom-color: #0e3322;
+    color: #faf4eb;
+  }
+
+  .ms-v3-desktop-nav-link {
+    color: rgba(250, 244, 235, 0.86);
+  }
+
+  .ms-v3-desktop-nav-link:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+  }
+
+  .ms-v3-desktop-nav-link.active {
+    background: #dead55;
+    color: #14432e;
+    border-color: #dead55;
+  }
+
+  .ms-v3-top-header .ms-v3-pill-action,
+  .ms-v3-top-header .ms-v3-sync-chip,
+  .ms-v3-top-header .ms-v3-icon-action {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.22);
+    color: #faf4eb;
+  }
+
+  .ms-v3-top-header .ms-v3-pill-action:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .ms-v3-desktop-nav {
+    display: flex;
+  }
+
+  .ms-v3-mobile-quick-bar,
+  .ms-v3-mobile-bottom-nav {
+    display: none !important;
+  }
+
+  .ms-v3-top-header-inner {
+    padding: 10px 22px;
+  }
+
+  .hearth-shell-frame .hearth-main {
+    padding: 20px 26px 34px;
+  }
+
+  .hearth-shell-frame .hearth-sticky-footer {
+    padding: 14px 26px;
+  }
+}
+
+/* Logos exactos MercaSabio */
+.ms-logo-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ms-logo-mascot-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--h-surface);
+  border: 1px solid var(--h-line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ms-logo-wordmark-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1;
+}
+
+.ms-logo-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-family: var(--font-headline), "Outfit", sans-serif;
+  font-size: 1.18rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.08;
+  color: var(--h-primary);
+}
+
+.ms-logo-lockup.invertido .ms-logo-wordmark {
+  color: #faf4eb;
+}
+
+.ms-word-merca,
+.ms-word-merca-inv,
+.ms-word-sabio,
+.ms-word-sabio-inv {
+  display: inline-flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+
+.ms-word-dotless-i {
+  position: relative;
+  display: inline-block;
+  line-height: 1;
+}
+
+.ms-logo-sparks {
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  transform: translateX(-4px);
+  width: 16px;
+  height: 14px;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.ms-logo-sub {
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-ink-3);
+  margin-top: 2px;
+}
+
+/* Native <dialog> Top Layer Modals (Modern Web Guidance) */
+dialog.hearth-dialog {
+  border: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  max-width: 100vw;
+  max-height: 100dvh;
+  background: transparent;
+  overscroll-behavior: contain;
+}
+
+dialog.hearth-dialog::backdrop {
+  background: rgba(20, 39, 30, 0.45);
+  backdrop-filter: blur(3px);
+}
+
+dialog.hearth-dialog[open] {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+@media (min-width: 768px) {
+  dialog.hearth-dialog[open] {
+    align-items: center;
+    padding: 20px;
+  }
+
+  dialog.hearth-dialog .hearth-sheet,
+  dialog.hearth-dialog .ms-v3-product-sheet {
+    max-width: 560px;
+    border-radius: 22px;
+  }
+}
+
+.ms-v3-product-dialog .ms-v3-product-sheet {
+  max-width: 580px;
+}
+
+/* Profile nudge & Kicker */
+.ms-v3-profile-nudge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: #f2f8f4;
+  border: 1px solid #c7ddce;
+  border-radius: 14px;
+  padding: 10px 13px;
+}
+
+.ms-v3-profile-nudge-copy {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.78rem;
+  color: var(--h-ink);
+  flex: 1;
+  min-width: 180px;
+}
+
+.ms-v3-kicker-tag {
+  display: inline-block;
+  font-size: 0.67rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--h-primary);
+  background: var(--h-primary-soft);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+/* Transport selector in Location & Results */
+.ms-v3-transport-box {
+  background: var(--h-surface);
+  border: 1px solid var(--h-line);
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.ms-v3-transport-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ms-v3-transport-title {
+  font-size: 0.81rem;
+  font-weight: 800;
+  color: var(--h-ink);
+}
+
+.ms-v3-transport-sub {
+  font-size: 0.71rem;
+  color: var(--h-ink-3);
+}
+
+.ms-v3-transport-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ms-v3-transport-pill {
+  border: 1.5px solid var(--h-line);
+  background: var(--h-bg);
+  color: var(--h-ink-2);
+  border-radius: 999px;
+  padding: 6px 11px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ms-v3-transport-pill.active {
+  background: var(--h-primary);
+  border-color: var(--h-primary);
+  color: var(--h-on-primary);
+}
+
+.ms-v3-transport-mini {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.ms-v3-mini-pill {
+  border: 1px solid var(--h-line);
+  background: var(--h-surface);
+  color: var(--h-ink-2);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ms-v3-mini-pill.active {
+  background: var(--h-primary);
+  border-color: var(--h-primary);
+  color: var(--h-on-primary);
+}
+
+/* Resultados header, toolbar & view toggle */
+.ms-v3-results-hero-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ms-v3-results-quick-btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ms-v3-budget-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 999px;
+  background: var(--h-secondary);
+  color: var(--h-ink);
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 8px 13px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(222, 173, 85, 0.28);
+}
+
+.ms-v3-results-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--h-surface);
+  border: 1px solid var(--h-line);
+  border-radius: 14px;
+  padding: 9px 12px;
+}
+
+.ms-v3-sabio-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ms-v3-toolbar-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: var(--h-ink-2);
+}
+
+.ms-v3-view-toggle {
+  display: inline-flex;
+  background: var(--h-bg);
+  border: 1px solid var(--h-line);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.ms-v3-view-btn {
+  border: none;
+  background: transparent;
+  color: var(--h-ink-2);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.ms-v3-view-btn.active {
+  background: var(--h-primary);
+  color: var(--h-on-primary);
+}
+
+/* Banner de mercados gratis al año (calculado sobre mercado optimizado) */
+.ms-v3-savings-banner {
+  background: linear-gradient(135deg, #14432e 0%, #26543d 100%);
+  color: #faf4eb;
+  border-radius: 18px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  box-shadow: 0 10px 24px rgba(20, 67, 46, 0.16);
+}
+
+.ms-v3-savings-banner-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ms-v3-savings-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: rgba(222, 173, 85, 0.2);
+  color: var(--h-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ms-v3-savings-headline {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.ms-v3-savings-sub {
+  margin: 2px 0 0;
+  font-size: 0.73rem;
+  color: rgba(250, 244, 235, 0.85);
+}
+
+.ms-v3-savings-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  border-top: 1px solid rgba(250, 244, 235, 0.16);
+  padding-top: 9px;
+}
+
+.ms-v3-savings-metrics > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ms-v3-savings-metrics span {
+  font-size: 0.67rem;
+  color: rgba(250, 244, 235, 0.78);
+}
+
+.ms-v3-savings-metrics strong {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--h-secondary);
+}
+
+/* Barra de filtros alimentarios */
+.ms-v3-diet-bar {
+  background: var(--h-surface);
+  border: 1px solid var(--h-line);
+  border-radius: 16px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ms-v3-diet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ms-v3-diet-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--h-ink-2);
+}
+
+.ms-v3-diet-pill {
+  border: 1.5px solid var(--h-line);
+  background: var(--h-bg);
+  color: var(--h-ink-2);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ms-v3-diet-pill.active {
+  background: var(--h-primary-soft);
+  border-color: var(--h-primary);
+  color: var(--h-primary);
+}
+
+/* Cesta compacta: imagen + peso + precio COP + candado (Modern Web Guidance container query + fixed border) */
+.ms-v3-compact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(126px, 1fr));
+  gap: 10px;
+  padding-top: 6px;
+}
+
+.ms-v3-tile {
+  container-type: inline-size;
+  position: relative;
+  border: 1.5px solid var(--h-line);
+  border-radius: 16px;
+  background: var(--h-surface);
+  overflow: hidden;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.ms-v3-tile.selected {
+  border-color: var(--h-primary);
+  box-shadow: 0 4px 12px rgba(38, 84, 61, 0.14);
+}
+
+.ms-v3-tile.locked {
+  border-color: var(--h-secondary);
+  background: #fffcf5;
+}
+
+.ms-v3-tile-main-btn {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 8px 8px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ms-v3-tile-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 11px;
+  background: var(--h-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ms-v3-tile-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 4px;
+}
+
+.ms-v3-tile-fallback {
+  color: var(--h-ink-3);
+}
+
+.ms-v3-tile-weight {
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+  background: rgba(21, 41, 32, 0.86);
+  color: #ffffff;
+  font-size: 0.67rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.ms-v3-tile-qty {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  background: var(--h-secondary);
+  color: var(--h-ink);
+  font-size: 0.66rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+.ms-v3-tile-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.ms-v3-tile-price {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--h-primary);
+}
+
+.ms-v3-tile-store {
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--h-ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ms-v3-tile-lock {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--h-line);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--h-ink-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.ms-v3-tile-lock.locked {
+  background: var(--h-secondary);
+  border-color: var(--h-secondary);
+  color: var(--h-ink);
+}
+
+@container (max-width: 120px) {
+  .ms-v3-tile-price {
+    font-size: 0.78rem;
+  }
+}
+
+/* Lado a lado habitual (~60%) vs Recomendado grande */
+.ms-v3-swaps-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ms-v3-section-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ms-v3-swaps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ms-v3-swap-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(108px, 38%) auto minmax(160px, 1fr);
+  align-items: stretch;
+  gap: 8px;
+  background: var(--h-surface);
+  border: 1px solid var(--h-line);
+  border-radius: 18px;
+  padding: 10px;
+}
+
+@media (max-width: 520px) {
+  .ms-v3-swap-row {
+    grid-template-columns: 1fr;
+  }
+  .ms-v3-swap-bridge {
+    flex-direction: row !important;
+    justify-content: space-between;
+  }
+}
+
+.ms-v3-swap-habitual {
+  border: 1px dashed var(--h-line);
+  background: var(--h-bg);
+  border-radius: 12px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  text-align: left;
+  opacity: 0.92;
+}
+
+.ms-v3-swap-mini-tag {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--h-ink-3);
+}
+
+.ms-v3-swap-mini-media {
+  width: 44px;
+  height: 44px;
+  border-radius: 9px;
+  background: var(--h-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ms-v3-swap-mini-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ms-v3-swap-mini-name {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--h-ink-2);
+  line-height: 1.25;
+}
+
+.ms-v3-swap-mini-meta {
+  font-size: 0.66rem;
+  color: var(--h-ink-3);
+}
+
+.ms-v3-swap-mini-price {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #8c4a3e;
+  text-decoration: line-through;
+}
+
+.ms-v3-swap-bridge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--h-primary);
+}
+
+.ms-v3-swap-save-pill {
+  background: #e3f3ea;
+  color: #166534;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 0.67rem;
+  font-weight: 800;
+}
+
+.ms-v3-swap-recommended {
+  border: 1.5px solid #bfe0cb;
+  background: #f6fbf8;
+  border-radius: 13px;
+  padding: 9px 10px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ms-v3-swap-rec-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding-right: 28px;
+  flex-wrap: wrap;
+}
+
+.ms-v3-swap-rec-img-box {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  border-radius: 11px;
+  background: var(--h-surface);
+  border: 1px solid #d5e8dc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.ms-v3-swap-rec-img-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ms-v3-swap-rec-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.ms-v3-swap-rec-tag {
+  font-size: 0.63rem;
+  font-weight: 800;
+  color: var(--h-primary);
+  text-transform: uppercase;
+}
+
+.ms-v3-swap-rec-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--h-primary);
+}
+
+.ms-v3-tap-hint {
+  font-size: 0.67rem;
+  font-weight: 700;
+  color: var(--h-primary);
+}
+
+.ms-v3-swap-lock-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--h-line);
+  background: var(--h-surface);
+  color: var(--h-ink-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.ms-v3-swap-lock-btn.active {
+  background: var(--h-secondary);
+  border-color: var(--h-secondary);
+  color: var(--h-ink);
+}
+
+.ms-v3-diet-bar .hearth-scroll-pills {
+  flex-wrap: wrap;
+}
+
+@media (min-width: 1024px) {
+  .ms-v4-ws-col-2 .ms-v3-swap-row {
+    grid-template-columns: minmax(90px, 33%) 64px minmax(0, 1fr);
+    gap: 6px;
+    padding: 9px;
+  }
+}
+
+/* Detalle filas resultados + bloqueos + Badges */
+.ms-v3-res-main-click {
+  border: none;
+  background: transparent;
+  padding: 0;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ms-v3-lock-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--h-line);
+  background: var(--h-bg);
+  color: var(--h-ink-2);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 3px;
+}
+
+.ms-v3-lock-btn.locked {
+  background: var(--h-secondary);
+  border-color: var(--h-secondary);
+  color: var(--h-ink);
+}
+
+.ms-v3-detail-badges-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ms-v3-footer-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Sabiómetro Gauge & Pills */
+.ms-v3-sabio-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.71rem;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.ms-v3-sabio-pill.good {
+  background: #e3f3ea;
+  color: #166534;
+}
+.ms-v3-sabio-pill.mid {
+  background: #fef4dd;
+  color: #92600e;
+}
+.ms-v3-sabio-pill.warn {
+  background: #fdeae6;
+  color: #991b1b;
+}
+.ms-v3-sabio-pill.neutral {
+  background: var(--h-surface-2);
+  color: var(--h-ink-2);
+}
+
+.ms-v3-sabio-box {
+  border: 1px solid var(--h-line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: var(--h-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.ms-v3-sabio-box.good {
+  border-color: #bfe0cb;
+  background: #f3fbf6;
+}
+.ms-v3-sabio-box.mid {
+  border-color: #ecd8a9;
+  background: #fffaf0;
+}
+.ms-v3-sabio-box.warn {
+  border-color: #ebc2b9;
+  background: #fff6f4;
+}
+
+.ms-v3-sabio-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ms-v3-sabio-score-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 1px;
+}
+
+.ms-v3-sabio-score {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--h-primary);
+}
+
+.ms-v3-sabio-max {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--h-ink-3);
+}
+
+.ms-v3-sabio-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--h-ink);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ms-v3-sabio-meta {
+  font-size: 0.72rem;
+  color: var(--h-ink-2);
+}
+
+.ms-v3-sabio-review-flag {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #fde68a;
+  color: #78350f;
+}
+
+.ms-v3-sabio-bar-track {
+  height: 7px;
+  width: 100%;
+  border-radius: 999px;
+  background: var(--h-surface-2);
+  overflow: hidden;
+}
+
+.ms-v3-sabio-bar-fill {
+  height: 100%;
+  background: var(--h-primary);
+  border-radius: 999px;
+}
+
+.ms-v3-sabio-bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+  color: var(--h-ink-2);
+}
+
+.ms-v3-sabio-mini-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--h-primary);
+  background: var(--h-primary-soft);
+  border-radius: 999px;
+  padding: 2px 8px;
+  width: fit-content;
+}
+
+/* Misma Planta / Trampa Empaque / Pendientes */
+.ms-v3-same-plant-alert,
+.ms-v3-pack-trap,
+.ms-v3-invima-pending-note,
+.ms-v3-pending-module-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 9px 11px;
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.ms-v3-same-plant-alert {
+  background: #eef7f1;
+  border: 1px solid #c3dfd0;
+  color: var(--h-primary);
+}
+.ms-v3-same-plant-alert p,
+.ms-v3-pack-trap p {
+  margin: 2px 0 0;
+}
+
+.ms-v3-pack-trap {
+  background: #fff7e8;
+  border: 1px solid #ead19a;
+  color: #7c5210;
+}
+
+.ms-v3-invima-pending-note,
+.ms-v3-pending-module-note {
+  background: var(--h-bg);
+  border: 1px dashed var(--h-line);
+  color: var(--h-ink-2);
+}
+
+/* Ficha emergente de producto (ProductSheetModal) */
+.ms-v3-sheet-hero {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.ms-v3-sheet-img-box {
+  width: 82px;
+  height: 82px;
+  border-radius: 14px;
+  background: var(--h-bg);
+  border: 1px solid var(--h-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.ms-v3-sheet-img-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ms-v3-sheet-price-block {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ms-v3-sheet-price {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--h-primary);
+}
+
+.ms-v3-sheet-pum {
+  font-size: 0.75rem;
+  color: var(--h-ink-2);
+}
+
+.ms-v3-sheet-store-pill {
+  display: inline-block;
+  width: fit-content;
+  font-size: 0.69rem;
+  font-weight: 700;
+  background: var(--h-primary-soft);
+  color: var(--h-primary);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.ms-v3-why-box {
+  background: var(--h-bg);
+  border: 1px solid var(--h-line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.77rem;
+}
+
+.ms-v3-sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ms-v3-other-stores {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ms-v3-store-mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ms-v3-store-mini-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: var(--h-bg);
+  font-size: 0.76rem;
+}
+
+/* Votación Sabiómetro */
+.ms-v3-vote-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ms-v3-vote-option {
+  border: 1.5px solid var(--h-line);
+  background: var(--h-bg);
+  border-radius: 12px;
+  padding: 9px 10px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.76rem;
+}
+
+.ms-v3-vote-option small {
+  color: var(--h-ink-3);
+  font-size: 0.68rem;
+}
+
+.ms-v3-vote-option.active {
+  border-color: var(--h-primary);
+  background: #edf7f1;
+}
+
+/* Presupuesto y Candados */
+.ms-v3-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.ms-v3-seg-btn {
+  border: 1.5px solid var(--h-line);
+  background: var(--h-bg);
+  border-radius: 11px;
+  padding: 8px 10px;
+  font-size: 0.77rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ms-v3-seg-btn.active {
+  background: var(--h-primary);
+  border-color: var(--h-primary);
+  color: var(--h-on-primary);
+}
+
+.ms-v3-lock-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.ms-v3-lock-mini-card {
+  border: 1px solid var(--h-line);
+  background: var(--h-bg);
+  border-radius: 11px;
+  padding: 7px 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 0.73rem;
+  cursor: pointer;
+}
+
+.ms-v3-lock-mini-card.locked {
+  border-color: var(--h-secondary);
+  background: #fffaf0;
+}
+
+.ms-v3-lock-mini-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ms-v3-lock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.67rem;
+  font-weight: 700;
+  color: var(--h-ink-2);
+}
+
+.ms-v3-budget-result-box {
+  background: #f4faf6;
+  border: 1px solid #c6dfd0;
+  border-radius: 14px;
+  padding: 11px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ms-v3-unlock-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ms-v3-unlock-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #e7c994;
+  background: #fffcf5;
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+/* Análisis de Ahorro (100% español en Ahorro) */
+.ms-v3-ahorro-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ms-v3-section-tint-header.ahorro {
+  background: linear-gradient(135deg, #ecf6ef 0%, #f6efe0 100%);
+  border: 1px solid #cde0d3;
+  border-radius: 20px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ms-v3-ahorro-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.ms-v3-ahorro-subtab {
+  border: 1px solid var(--h-line);
+  background: var(--h-surface);
+  color: var(--h-ink-2);
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ms-v3-ahorro-subtab.active {
+  background: var(--h-primary);
+  border-color: var(--h-primary);
+  color: var(--h-on-primary);
+}
+
+.ms-v3-analysis-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ms-v3-row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ms-v3-inflation-headline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--h-bg);
+  border: 1px solid var(--h-line);
+  border-radius: 14px;
+  padding: 11px 13px;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.ms-v3-compare-table-wrap {
+  overflow-x: auto;
+}
+
+.ms-v3-compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.ms-v3-compare-table th,
+.ms-v3-compare-table td {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--h-surface-2);
+  text-align: left;
+}
+
+.ms-v3-spending-recs,
+.ms-v3-household-rec-row,
+.ms-v3-device-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.ms-v3-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+@media (max-width: 720px) {
+  .ms-v3-calendar-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.ms-v3-cal-cell {
+  border: 1px solid var(--h-line);
+  background: var(--h-bg);
+  border-radius: 12px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.71rem;
+}
+
+.ms-v3-cal-day {
+  font-weight: 800;
+  color: var(--h-primary);
+}
+
+/* Modales Dispositivos Automáticos & Hogar */
+.ms-v3-info-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  background: #edf6f0;
+  border: 1px solid #c6ded0;
+  border-radius: 13px;
+  padding: 10px 12px;
+  font-size: 0.76rem;
+  color: var(--h-ink);
+}
+
+.ms-v3-household-code-card {
+  background: var(--h-bg);
+  border: 1.5px solid #c6ded0;
+  border-radius: 16px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ms-v3-sync-pill {
+  font-size: 0.67rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e3f3ea;
+  color: #166534;
+}
+
+.ms-v3-code-display {
+  font-family: var(--font-mono), monospace;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--h-primary);
+}
+
+.ms-v3-code-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.ms-v3-join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ms-v3-join-row {
+  display: flex;
+  gap: 8px;
+}
+
+.ms-v3-device-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--h-bg);
+  border: 1px solid var(--h-line);
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+}
+
+.ms-v3-household-counters {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.ms-v3-counter-box {
+  background: var(--h-bg);
+  border: 1px solid var(--h-line);
+  border-radius: 13px;
+  padding: 9px 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ms-v3-confirm-summary {
+  background: #edf7f1;
+  border: 1px solid #c6dfd0;
+  border-radius: 13px;
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  color: var(--h-primary);
+}
+
+/* Ruta interactiva + calificar rápido */
+.ms-v3-route-item-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ms-v3-quick-rate-chip {
+  border: 1px solid var(--h-line);
+  background: var(--h-bg);
+  color: var(--h-primary);
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 0.69rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* FeatureGate banner (invisible por defecto cuando false) */
+.ms-v3-feature-gate {
+  border: 1px solid #e7c994;
+  background: #fffcf5;
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.ms-v3-feature-gate-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.ms-v3-invisible-inspect-trigger {
+  cursor: pointer;
+}
+
+/* --- MercaSabio v4: 3 Caminos Híbridos, Favoritos (1/10), Comunidad y Ayuda PUM (?) --- */
+.ms-v4-quick-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ms-v4-zone-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--h-primary);
+  color: var(--h-on-primary);
+  border: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ms-v4-zone-edit {
+  color: var(--h-secondary);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-decoration: underline;
+}
+
+.ms-v4-fav-trigger-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: #f6ecd3;
+  border: 1px solid #dead55;
+  color: #6d4b0f;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ms-v4-jump-opt-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #e4ede2;
+  border: 1px solid #b8d3bf;
+  color: var(--h-primary);
+  font-size: 0.73rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ms-v4-quick-search-card {
+  background: var(--h-surface);
+  border: 1px solid var(--h-line);
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 10px rgba(29, 64, 46, 0.04);
+}
+
+.ms-v4-quick-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.ms-v4-quick-offer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--h-bg);
+  border: 1px solid var(--h-line);
+  border-radius: 12px;
+  padding: 7px 9px;
+}
+
+.ms-v4-quick-offer-inspect {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.ms-v4-section-jump-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ms-v4-rule-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.ms-v4-rule-chip.generic {
+  background: #e4ede2;
+  color: var(--h-primary);
+}
+.ms-v4-rule-chip.brand {
+  background: #f1e9db;
+  color: #5b4c34;
+}
+.ms-v4-rule-chip.locked {
+  background: #fbf1dc;
+  border: 1px solid #dead55;
+  color: #7a5812;
+}
+
+.ms-v4-pum-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ms-v4-pum-q-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--h-bg);
+  border: 1px solid var(--h-line);
+  color: var(--h-primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.ms-v4-pum-q-btn:hover {
+  background: #e4ede2;
+  border-color: var(--h-primary);
+}
+
+.ms-v4-pum-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--h-bg);
+  border: 1px solid var(--h-line);
+  color: var(--h-primary);
+  font-size: 0.71rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ms-v4-pum-pill-btn > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 999px;
+  background: var(--h-primary);
+  color: #fffdf9;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.ms-v4-pum-example-box {
+  background: var(--h-bg);
+  border: 1px solid var(--h-line);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.ms-v4-pum-example-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--h-surface);
+  border: 1px solid var(--h-line);
+  border-radius: 11px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+.ms-v4-pum-example-row.winner {
+  border-color: #26543d;
+  background: #f4faf6;
+}
+
+.ms-v4-pum-tag {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+.ms-v4-pum-tag.warn {
+  background: #fbf1dc;
+  color: #7a5812;
+}
+.ms-v4-pum-tag.ok {
+  background: #dcf2e4;
+  color: #165e39;
+}
+
+.ms-v4-mode-segment {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.ms-v4-mode-seg-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  text-align: left;
+  padding: 10px 11px;
+  border-radius: 12px;
+  border: 1px solid var(--h-line);
+  background: var(--h-bg);
+  color: var(--h-ink);
+  cursor: pointer;
+}
+.ms-v4-mode-seg-btn strong {
+  display: block;
+  font-size: 0.8rem;
+}
+.ms-v4-mode-seg-btn span {
+  display: block;
+  font-size: 0.69rem;
+  opacity: 0.85;
+}
+.ms-v4-mode-seg-btn.active {
+  background: var(--h-primary);
+  border-color: var(--h-primary);
+  color: var(--h-on-primary);
+}
+
+.ms-v4-fav-kicker-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.ms-v4-quota-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #f6ecd3;
+  border: 1px solid #dead55;
+  color: #6d4b0f;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.ms-v4-fav-card {
+  background: var(--h-surface);
+  border: 1.5px solid #dead55;
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.ms-v4-premium-nudge {
+  background: #f6ecd3;
+  border: 1px solid #dead55;
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.ms-v4-publish-form {
+  background: var(--h-bg);
+  border: 1px solid var(--h-line);
+  border-radius: 14px;
+  padding: 12px;
+  margin-top: 10px;
+}
+
+.ms-v4-publish-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ms-v4-community-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+@media (min-width: 768px) {
+  .ms-v4-community-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.ms-v4-community-card {
+  background: var(--h-surface);
+  border: 1px solid var(--h-line);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.ms-v4-community-meta-box {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  background: var(--h-bg);
+  border: 1px solid var(--h-line);
+  border-radius: 12px;
+  padding: 8px 10px;
+  margin-top: 10px;
+}
+.ms-v4-community-meta-box span {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--h-ink-2);
+}
+.ms-v4-community-meta-box strong {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--h-primary);
+}
+
+.ms-v4-toast-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 16px 0;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: #e4ede2;
+  border: 1px solid #b8d3bf;
+  color: var(--h-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+
+/* ============================================================================
+   MERCASABIO STITCH PARITY — HEADER, DASHBOARD, CANASTA COMPACTA, 3-COL, GÓNDOLA Y COMPLETADO
+   ============================================================================ */
+
+.ms-v4-header-zone-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #26543d;
+  border: 1px solid #1b412f;
+  color: #faf4eb;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 195px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-v4-header-zone-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #dead55;
+  flex-shrink: 0;
+}
+
+.ms-v4-cta-gold {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: none;
+  background: #dead55;
+  color: #14432e;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ms-v4-header-admin-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #faf4eb;
+  text-decoration: none;
+}
+
+@media (min-width: 768px) {
+  .ms-v4-header-zone-pill {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.22);
+  }
+}
+
+/* Inicio Hero Banner (Stitch 01 & 08) */
+.ms-v4-hero-banner {
+  background: linear-gradient(135deg, #14432e 0%, #26543d 100%);
+  color: #faf4eb;
+  border-radius: 20px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  box-shadow: 0 10px 26px rgba(20, 67, 46, 0.18);
+}
+
+.ms-v4-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ms-v4-hero-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.67rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #dead55;
+}
+
+.ms-v4-hero-sync-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #faf4eb;
+}
+
+.ms-v4-hero-headline {
+  margin: 0;
+  font-family: var(--font-headline), "Outfit", sans-serif;
+  font-size: 1.15rem;
+  line-height: 1.3;
+  font-weight: 700;
+  color: #faf4eb;
+}
+
+.ms-v4-hero-gold {
+  color: #dead55;
+  font-weight: 800;
+}
+
+.ms-v4-hero-sub {
+  margin: 0;
+  font-size: 0.77rem;
+  color: rgba(250, 244, 235, 0.85);
+}
+
+/* Canasta Activa Summary Card */
+.ms-v4-active-basket-card {
+  background: var(--h-surface);
+  border: 1.5px solid #26543d;
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 4px 14px rgba(20, 67, 46, 0.06);
+}
+
+.ms-v4-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #166534;
+  background: #e3f3ea;
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+.ms-v4-save-green-line {
+  display: block;
+  font-size: 0.71rem;
+  font-weight: 800;
+  color: #166534;
+}
+
+.ms-v4-active-basket-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Cotizador 1 vs 1 al instante */
+.ms-v4-instant-quote-duel {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--h-surface-2);
+}
+
+.ms-v4-duel-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--h-ink-2);
+}
+
+.ms-v4-winner-pill {
+  font-size: 0.66rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #dcf2e4;
+  color: #14432e;
+}
+
+.ms-v4-duel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ms-v4-duel-side {
+  border-radius: 12px;
+  padding: 9px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ms-v4-duel-side.muted {
+  background: var(--h-bg);
+  border: 1px dashed var(--h-line);
+}
+
+.ms-v4-duel-side.winner {
+  background: #f3fbf6;
+  border: 1.5px solid #26543d;
+}
+
+.ms-v4-mini-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--h-bg);
+  border: 1px solid var(--h-line);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--h-ink-2);
+}
+
+/* Grid 3 modos en Desktop */
+@media (min-width: 900px) {
+  .ms-v4-mode-grid-desktop {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+/* Alertas Activas Grid */
+.ms-v4-alerts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (min-width: 900px) {
+  .ms-v4-alerts-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.ms-v4-alert-mini-card {
+  background: var(--h-surface);
+  border: 1px solid var(--h-line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ms-v4-alert-mini-card strong {
+  font-size: 0.78rem;
+  color: var(--h-ink);
+}
+
+.ms-v4-alert-mini-card span:last-child {
+  font-size: 0.69rem;
+  color: var(--h-ink-2);
+  line-height: 1.35;
+}
+
+.ms-v4-alert-kicker {
+  font-size: 0.63rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--h-primary);
+}
+
+/* Mis Mercados & Onboarding 4 pasos */
+.ms-v4-market-active-card {
+  background: #f4faf6;
+  border: 1.5px solid #26543d;
+  border-radius: 16px;
+  padding: 13px;
+}
+
+.ms-v4-habitual-star-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #fbf1dc;
+  border: 1px solid #dead55;
+  color: #6d4b0f;
+  font-size: 0.67rem;
+  font-weight: 800;
+}
+
+.ms-v4-household-steps-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--h-surface-2);
+  background: var(--h-bg);
+}
+
+.ms-v4-step-pill {
+  border: 1px solid var(--h-line);
+  background: var(--h-surface);
+  color: var(--h-ink-2);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.71rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ms-v4-step-pill.active {
+  background: #14432e;
+  border-color: #14432e;
+  color: #faf4eb;
+}
+
+/* Mi Canasta Compacta (Stitch 02) */
+.ms-v4-tile-rule-bar {
+  padding: 0 7px 7px;
+}
+
+.ms-v4-rule-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ms-v4-diet-chip-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.ms-v4-canasta-summary-card {
+  background: var(--h-surface);
+  border: 1.5px solid var(--h-line);
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.ms-v4-canasta-total-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+}
+
+.ms-v4-budget-outline-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1.5px dashed #dead55;
+  background: #fffaf0;
+  color: #6d4b0f;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* Workspace 3 Columnas Desktop (Stitch 09) */
+.ms-v4-results-workspace-3col {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.ms-v4-ws-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ms-v4-ws-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 1024px) {
+  .ms-v4-results-workspace-3col {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.15fr) minmax(0, 0.9fr);
+    gap: 16px;
+  }
+}
+
+/* Modo Góndola & Compra Finalizada (Stitch 14 & 15) */
+.ms-v4-route-view-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  background: var(--h-surface);
+  border: 1px solid var(--h-line);
+  border-radius: 14px;
+  padding: 4px;
+}
+
+.ms-v4-route-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--h-ink-2);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ms-v4-route-mode-btn.active {
+  background: #14432e;
+  color: #faf4eb;
+}
+
+.ms-v4-gondola-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ms-v4-gondola-banner {
+  background: #14432e;
+  color: #faf4eb;
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ms-v4-gondola-progress-track {
+  height: 9px;
+  width: 100%;
+  border-radius: 999px;
+  background: var(--h-surface-2);
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.ms-v4-gondola-progress-fill {
+  height: 100%;
+  background: #26543d;
+  border-radius: 999px;
+  transition: width 180ms ease;
+}
+
+.ms-v4-gondola-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (min-width: 768px) {
+  .ms-v4-gondola-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.ms-v4-gondola-card {
+  border: 1.5px solid var(--h-line);
+  border-radius: 16px;
+  background: var(--h-surface);
+  padding: 8px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  cursor: pointer;
+  transition: border-color 140ms ease, transform 100ms ease;
+}
+
+.ms-v4-gondola-card.in-cart {
+  border-color: #1b8a4b;
+  background: #f2f9f4;
+}
+
+.ms-v4-gondola-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 11px;
+  background: var(--h-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ms-v4-gondola-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 6px;
+}
+
+.ms-v4-gondola-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 67, 46, 0.72);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.ms-v4-gondola-check-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: #dead55;
+  color: #14432e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ms-v4-gondola-store {
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--h-ink-3);
+}
+
+.ms-v4-gondola-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.77rem;
+  color: var(--h-ink);
+  line-height: 1.25;
+}
+
+/* Compra Finalizada y Votos (Stitch 15) */
+.ms-v4-completed-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ms-v4-completed-hero {
+  background: #f4faf6;
+  border: 1.5px solid #26543d;
+  border-radius: 20px;
+  padding: 18px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.ms-v4-completed-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: #14432e;
+  color: #dead55;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.ms-v4-completed-title {
+  margin: 4px 0 0;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #14432e;
+}
+
+.ms-v4-sync-ok-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #166534;
+}
+
+.ms-v4-rate-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ms-v4-rate-card {
+  background: var(--h-bg);
+  border: 1px solid var(--h-line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ms-v4-one-tap-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.ms-v4-one-tap-btn {
+  border: 1px solid var(--h-line);
+  background: var(--h-surface);
+  color: var(--h-ink);
+  border-radius: 10px;
+  padding: 7px 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.ms-v4-one-tap-btn.selected {
+  background: #14432e;
+  border-color: #14432e;
+  color: #dead55;
+}
+
+.ms-v4-voted-confirm {
+  font-size: 0.71rem;
+  font-weight: 700;
+  color: #166534;
+}
+
+.ms-v4-community-split-desktop {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .ms-v4-community-split-desktop {
+    grid-template-columns: minmax(0, 1.8fr) minmax(270px, 0.9fr);
+    gap: 18px;
+  }
+}
+
+.ms-v4-community-fav-aside {
+  display: flex;
+  flex-direction: column;
+}
+
+.ms-v4-tablero-2x2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+@media (min-width: 900px) {
+  .ms-v4-tablero-2x2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
+
+.ms-v4-manual-budget-row {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ms-v4-manual-budget-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle, #e4ddd3);
+  background: #ffffff;
+}
+
+.ms-v4-manual-budget-input-wrap:focus-within {
+  border-color: #14432e;
+  box-shadow: 0 0 0 2px rgba(20, 67, 46, 0.12);
+}
+
+.ms-v4-currency-prefix {
+  font-weight: 800;
+  color: #14432e;
+  font-size: 0.92rem;
+}
+
+.ms-v4-manual-budget-input-wrap .ms-v3-text-input {
+  border: none;
+  padding: 2px 0;
+  background: transparent;
+  box-shadow: none;
+  width: 100%;
+}
+
+.ms-v4-manual-budget-input-wrap .ms-v3-text-input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.ms-v4-sheet-rate-end {
+  margin-top: 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #d9d0c1;
+  background: #faf6ef;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ms-v4-sheet-rate-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.82rem;
+  color: #4f584f;
+}
+
+.ms-v4-sheet-rate-copy strong {
+  color: #14432e;
+  font-size: 0.86rem;
+}
+
+.ms-v4-sheet-rate-btn {
+  width: 100%;
+  justify-content: center;
+}

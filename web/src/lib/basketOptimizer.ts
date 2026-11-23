@@ -3,8 +3,11 @@ import {
   normalizeComparableText,
   QUALITY_TIER_LABELS,
 } from "./comparisonEngine.ts";
+import { passesDiet } from "./dietaryFilter.ts";
+import { passesSabiometroFilter } from "./sabiometro.ts";
 import type {
   CompareMode,
+  DietFilter,
   NearbyStoreBranch,
   QualityTier,
   StoreOffer,
@@ -38,6 +41,8 @@ export interface BasketItemInput {
   sectionId?: "alacena" | "nevera" | "aseo";
   subsectionId?: string;
   originMode?: "generic_guided" | "habitual_guided" | "free_shop";
+  locked?: boolean;
+  minSabioIndex?: number;
 }
 
 export type BasketMatchKind = "exact" | "substitute_direct" | "substitute_similar";
@@ -114,6 +119,10 @@ export interface BasketOptimizeOptions {
   objective?: "nominal" | "real_pum";
   maxStores?: 1 | 2 | 3 | 4 | 5;
   maxDistanceMeters?: number;
+  activeDietFilters?: DietFilter[];
+  minSabioIndex?: number;
+  travelCostPerKmCop?: number;
+  perStopCostCop?: number;
 }
 
 interface TaggedCandidate {
@@ -186,11 +195,28 @@ function formatConstraintsLabel(item: BasketItemInput): string {
   return parts.join(" · ") || "Sin restricciones adicionales";
 }
 
+function resolveOfferYieldFactor(offer: StoreOffer): number {
+  if (
+    offer.sabiometro &&
+    offer.sabiometro.status === "published" &&
+    offer.sabiometro.voteMass >= 1 &&
+    offer.sabiometro.fYield > 0
+  ) {
+    return offer.sabiometro.fYield;
+  }
+  return offer.avgYieldFactor > 0 ? offer.avgYieldFactor : 1;
+}
+
 function resolveCandidateOffers(
   item: BasketItemInput,
-  offers: StoreOffer[]
+  offers: StoreOffer[],
+  options?: { activeDietFilters?: DietFilter[]; minSabioIndex?: number }
 ): { candidates: TaggedCandidate[]; baselineUnitPrice: number } {
-  const allowSubstitutes = item.allowSubstitutes ?? item.matchMode === "pum";
+  const allowSubstitutes = item.locked
+    ? false
+    : (item.allowSubstitutes ?? item.matchMode === "pum");
+  const dietFilters = options?.activeDietFilters ?? [];
+  const effectiveMinSabio = item.minSabioIndex ?? options?.minSabioIndex;
   const anchorBrandNorm = item.anchorBrand ? normalizeComparableText(item.anchorBrand) : null;
   const excludedBrandSet = new Set(
     (item.excludedBrands ?? [])
@@ -333,6 +359,20 @@ function resolveCandidateOffers(
     if (cand.matchKind !== "exact" && allowedTiers && !allowedTiers.has(inferredTier)) {
       continue;
     }
+    if (
+      cand.matchKind !== "exact" &&
+      dietFilters.length > 0 &&
+      passesDiet(cand.offer.productAttributes, dietFilters, cand.offer) !== "pass"
+    ) {
+      continue;
+    }
+    if (
+      cand.matchKind !== "exact" &&
+      effectiveMinSabio &&
+      !passesSabiometroFilter(cand.offer.sabiometro, effectiveMinSabio)
+    ) {
+      continue;
+    }
 
     if (cand.offer.calibratedPrice > highestMatchingPrice) {
       highestMatchingPrice = cand.offer.calibratedPrice;
@@ -399,7 +439,7 @@ function scoreAllocation(
   itemPriority?: "lowest_total" | "lowest_pum"
 ): number {
   const { offer, matchKind, effectivePum, weightDistance } = candidate;
-  const yieldFactor = offer.avgYieldFactor > 0 ? offer.avgYieldFactor : 1;
+  const yieldFactor = resolveOfferYieldFactor(offer);
 
   if (itemPriority === "lowest_pum" || (itemPriority !== "lowest_total" && objective === "real_pum")) {
     const tierPenalty = matchKind === "substitute_similar" ? 1.08 : 1;
@@ -504,7 +544,7 @@ function evaluateStoreCombination(
     const runnerUpEntry = inPlanRunnerUp ?? fallbackRunnerUp;
 
     coveredItems += 1;
-    const yieldFactor = chosenOffer.avgYieldFactor > 0 ? chosenOffer.avgYieldFactor : 1;
+    const yieldFactor = resolveOfferYieldFactor(chosenOffer);
     const nominalCost = chosenOffer.calibratedPrice * pool.quantity;
     const yieldAdjustedCost = nominalCost * yieldFactor;
     const nominalPum = chosenCandidate.effectivePum;
@@ -631,7 +671,8 @@ function attachBaselineComparisons(
   previousTier: BasketPlan | null,
   minExtraSavingsCop: number,
   minExtraSavingsPct: number,
-  objective: "nominal" | "real_pum"
+  objective: "nominal" | "real_pum",
+  travelOptions?: { travelCostPerKmCop?: number; perStopCostCop?: number }
 ): BasketPlan | null {
   if (!plan) return null;
   if (!baseline || plan === baseline) {
@@ -656,18 +697,27 @@ function attachBaselineComparisons(
     objective === "real_pum"
       ? reference.totalYieldAdjustedCost - plan.totalYieldAdjustedCost
       : reference.totalNominalCost - plan.totalNominalCost;
+  const extraDistKm = Math.max(0, (plan.totalDistanceMeters - reference.totalDistanceMeters) / 1000);
+  const extraStops = Math.max(0, plan.storeStops.length - reference.storeStops.length);
+  const travelCostCop = Math.round(
+    extraDistKm * (travelOptions?.travelCostPerKmCop ?? 0) +
+      extraStops * (travelOptions?.perStopCostCop ?? 0),
+  );
+  const netIncrementalCop = incrementalCop - travelCostCop;
   const refTotal =
     objective === "real_pum" ? reference.totalYieldAdjustedCost : reference.totalNominalCost;
-  const incrementalPct = refTotal > 0 ? (incrementalCop / refTotal) * 100 : 0;
+  const incrementalPct = refTotal > 0 ? (netIncrementalCop / refTotal) * 100 : 0;
 
   const worthExtraStop =
     incrementalCover ||
-    incrementalCop >= minExtraSavingsCop ||
-    incrementalPct >= minExtraSavingsPct;
+    (netIncrementalCop >= minExtraSavingsCop || incrementalPct >= minExtraSavingsPct) &&
+      netIncrementalCop > 0;
 
   const filterReason = worthExtraStop
     ? null
-    : `Ahorro adicional (${Math.max(0, Math.round(incrementalCop))} COP) menor al umbral mínimo de ${minExtraSavingsCop} COP para justificar visitar otra tienda.`;
+    : travelCostCop > 0
+      ? `Ahorro neto descontando desplazamiento (${Math.round(netIncrementalCop)} COP) no supera el costo de agregar otra parada.`
+      : `Ahorro adicional (${Math.max(0, Math.round(incrementalCop))} COP) menor al umbral mínimo de ${minExtraSavingsCop} COP para justificar visitar otra tienda.`;
 
   return {
     ...plan,
@@ -747,7 +797,10 @@ export function optimizeBasket(params: {
   const uncoveredItems: string[] = [];
   const itemPools: BuiltItemPool[] = items.map((item) => {
     const quantity = Math.max(1, Math.round(item.quantity ?? 1));
-    const { candidates, baselineUnitPrice } = resolveCandidateOffers(item, nearbyOffers);
+    const { candidates, baselineUnitPrice } = resolveCandidateOffers(item, nearbyOffers, {
+      activeDietFilters: options?.activeDietFilters,
+      minSabioIndex: options?.minSabioIndex,
+    });
     const byStore = new Map<string, TaggedCandidate[]>();
     for (const candidate of candidates) {
       const list = byStore.get(candidate.offer.storeId) ?? [];
@@ -845,13 +898,19 @@ export function optimizeBasket(params: {
     }
   }
 
+  const travelOpts = {
+    travelCostPerKmCop: options?.travelCostPerKmCop,
+    perStopCostCop: options?.perStopCostCop,
+  };
+
   const bestOneStore = attachBaselineComparisons(
     rawOne,
     rawOne,
     null,
     minExtraSavingsCop,
     minExtraSavingsPct,
-    objective
+    objective,
+    travelOpts
   );
   const bestTwoStores = attachBaselineComparisons(
     rawTwo,
@@ -859,7 +918,8 @@ export function optimizeBasket(params: {
     bestOneStore,
     minExtraSavingsCop,
     minExtraSavingsPct,
-    objective
+    objective,
+    travelOpts
   );
   const bestThreeStores = attachBaselineComparisons(
     rawThree,
@@ -867,7 +927,8 @@ export function optimizeBasket(params: {
     bestTwoStores?.worthExtraStop ? bestTwoStores : bestOneStore,
     minExtraSavingsCop,
     minExtraSavingsPct,
-    objective
+    objective,
+    travelOpts
   );
   const bestFourStores = attachBaselineComparisons(
     rawFour,
@@ -879,7 +940,8 @@ export function optimizeBasket(params: {
         : bestOneStore,
     minExtraSavingsCop,
     minExtraSavingsPct,
-    objective
+    objective,
+    travelOpts
   );
   const bestFiveStores = attachBaselineComparisons(
     rawFive,
@@ -893,7 +955,8 @@ export function optimizeBasket(params: {
           : bestOneStore,
     minExtraSavingsCop,
     minExtraSavingsPct,
-    objective
+    objective,
+    travelOpts
   );
 
   let recommendedPlan: BasketPlan | null = bestOneStore;

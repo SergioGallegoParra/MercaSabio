@@ -4,7 +4,12 @@ import {
   buildMultiTierComparisonGroups,
   KNOWN_SUBTYPE_OPTIONS,
 } from "@/lib/comparisonEngine";
-import { cleanProductTitle, isGroceryStoreId, isMercadoOffer } from "@/lib/productInsights";
+import {
+  cleanProductTitle,
+  isGroceryStoreId,
+  isMercadoOffer,
+  simplifyProductDisplayName,
+} from "@/lib/productInsights";
 import { getSupabaseConfig, supabaseRestGet, supabaseRpc } from "@/lib/supabase";
 import type {
   AdminCurationPayload,
@@ -19,10 +24,20 @@ import type {
   CurationReportReason,
   DashboardPayload,
   NearbyStoreBranch,
+  PaymentPartner,
+  PaymentPromotion,
+  ProductAttributes,
   ProductCurationOverride,
+  ProductManufacturingSummary,
   QualityTier,
+  RappiDiscountItem,
   ReviewStatus,
+  SabiometroConsensusLabel,
+  SabiometroSummary,
+  SabiometroSupportLabel,
+  SamePlantMatchLevel,
   StoreOffer,
+  StorePromoDay,
   UnitMeasure,
 } from "@/lib/types";
 
@@ -35,6 +50,7 @@ interface LatestPriceRow {
   master_product_id: string;
   canonical_category_id: number | null;
   raw_name: string;
+  display_name?: string | null;
   raw_url: string | null;
   normalized_name: string;
   brand: string | null;
@@ -51,6 +67,10 @@ interface LatestPriceRow {
   image_url: string | null;
   canonical_slug: string | null;
   canonical_name: string | null;
+  product_type?: string | null;
+  sub_presentation?: string | null;
+  sub_presentation_label?: string | null;
+  variant_tags?: string[] | null;
   positive_votes: number;
   total_votes: number;
   avg_yield_factor: string | number;
@@ -59,6 +79,28 @@ interface LatestPriceRow {
   shrinkflation_alert: boolean;
   previous_net_content: string | number | null;
   captured_at: string | Date;
+  available_cities?: string[] | null;
+  rappi_promo_price?: string | number | null;
+  rappi_savings_cop?: string | number | null;
+  rappi_savings_pct?: string | number | null;
+  rappi_promo_url?: string | null;
+}
+
+interface RappiDiscountRow {
+  store_sku_id: string;
+  store_id: string;
+  store_name: string;
+  display_name: string;
+  raw_name: string;
+  brand: string | null;
+  net_content: string | number;
+  unit_measure: UnitMeasure;
+  image_url: string | null;
+  standard_price: string | number;
+  rappi_promo_price: string | number;
+  rappi_savings_cop: string | number;
+  rappi_savings_pct: string | number;
+  rappi_promo_url: string | null;
 }
 
 interface BankPromotionRow {
@@ -592,6 +634,9 @@ function mapRowToOffer(row: LatestPriceRow): StoreOffer {
     masterProductId: row.master_product_id,
     canonicalCategoryId: row.canonical_category_id ?? null,
     rawName: cleanProductTitle(row.raw_name),
+    displayName:
+      (row.display_name ?? "").trim() ||
+      simplifyProductDisplayName(row.raw_name, row.unit_measure),
     rawUrl: row.raw_url,
     rawListPrice: Number(row.raw_list_price),
     rawSalePrice,
@@ -607,6 +652,10 @@ function mapRowToOffer(row: LatestPriceRow): StoreOffer {
     unitMeasure: row.unit_measure,
     canonicalSlug: row.canonical_slug,
     canonicalName: row.canonical_name,
+    productType: row.product_type ?? null,
+    subPresentation: row.sub_presentation ?? null,
+    subPresentationLabel: row.sub_presentation_label ?? null,
+    variantTags: Array.isArray(row.variant_tags) ? row.variant_tags : [],
     imageUrl: row.image_url,
     positiveVotes: Number(row.positive_votes ?? 0),
     totalVotes: Number(row.total_votes ?? 0),
@@ -620,6 +669,20 @@ function mapRowToOffer(row: LatestPriceRow): StoreOffer {
         : null,
     capturedAt:
       row.captured_at instanceof Date ? row.captured_at.toISOString() : String(row.captured_at),
+    availableCities: Array.isArray(row.available_cities) ? row.available_cities : null,
+    rappiPromoPrice:
+      row.rappi_promo_price !== null && row.rappi_promo_price !== undefined
+        ? Number(row.rappi_promo_price)
+        : null,
+    rappiSavingsCop:
+      row.rappi_savings_cop !== null && row.rappi_savings_cop !== undefined
+        ? Number(row.rappi_savings_cop)
+        : null,
+    rappiSavingsPct:
+      row.rappi_savings_pct !== null && row.rappi_savings_pct !== undefined
+        ? Number(row.rappi_savings_pct)
+        : null,
+    rappiPromoUrl: row.rappi_promo_url ?? null,
   };
 }
 
@@ -726,6 +789,7 @@ export function buildComparisonGroups(
 ): ComparisonGroup[] {
   const validOffers = offers.filter(
     (offer) =>
+      offer.inStock &&
       Number.isFinite(offer.calibratedPrice) &&
       offer.calibratedPrice > 0 &&
       isMercadoOffer(offer)
@@ -733,12 +797,156 @@ export function buildComparisonGroups(
   return buildMultiTierComparisonGroups(validOffers, mode, curationContext);
 }
 
+interface RawEnrichmentPayload {
+  sabiometro?: Array<{
+    master_product_id: string;
+    vote_mass: number | string;
+    p_hat: number | string | null;
+    r_bad: number | string | null;
+    f_yield: number | string | null;
+    wilson_lower: number | string | null;
+    value_index: number | string | null;
+    status: "insufficient" | "published" | "under_review";
+    consensus_label: SabiometroConsensusLabel | null;
+    support_label: SabiometroSupportLabel | null;
+    votes_count: number;
+    under_review: boolean;
+    frozen_at: string | null;
+    computed_at: string | null;
+  }>;
+  attributes?: Array<{
+    master_product_id: string;
+    lactose_free: boolean | null;
+    gluten_free: boolean | null;
+    vegan: boolean | null;
+    vegetarian: boolean | null;
+    sugar_g_100: number | string | null;
+    protein_g_100: number | string | null;
+    sodium_mg_100: number | string | null;
+    fat_g_100: number | string | null;
+    kcal_100: number | string | null;
+    front_warning_seals: string[] | null;
+    source: "label_scrape" | "open_food_facts" | "manual" | "inferred_name";
+    confidence: number | string;
+  }>;
+  manufacturing?: Array<{
+    masterProductId: string;
+    manufacturerName: string | null;
+    plantId: string | null;
+    plantName: string | null;
+    plantCity: string | null;
+    invimaRegistry: string | null;
+    evidenceType?: "invima_registry" | "label_photo" | "official_statement" | "community";
+    evidenceUrl?: string | null;
+    confidence: number;
+    verifiedByAdmin: boolean;
+  }>;
+}
+
+const DEMO_PAYMENT_PARTNERS: PaymentPartner[] = [
+  { id: "nu", name: "Nu Colombia", partnerType: "bank" },
+  { id: "tarjeta_exito", name: "Tarjeta Éxito / Carulla", partnerType: "store_card" },
+  { id: "nequi", name: "Nequi", partnerType: "wallet" },
+  { id: "bancolombia", name: "Bancolombia", partnerType: "bank" },
+  { id: "compensar", name: "Compensar (Subsidio)", partnerType: "caja_compensacion" },
+];
+
+async function attachOfferEnrichment(
+  supabaseConfig: NonNullable<ReturnType<typeof getSupabaseConfig>>,
+  offers: StoreOffer[],
+): Promise<StoreOffer[]> {
+  const uniqueMasterIds = Array.from(
+    new Set(offers.map((o) => o.masterProductId).filter(Boolean)),
+  );
+  if (uniqueMasterIds.length === 0) return offers;
+
+  try {
+    const raw = await supabaseRpc<RawEnrichmentPayload>(supabaseConfig, "get_product_enrichment", {
+      p_master_ids: uniqueMasterIds,
+    });
+    const sabioByMaster = new Map<string, SabiometroSummary>();
+    for (const s of raw?.sabiometro ?? []) {
+      sabioByMaster.set(s.master_product_id, {
+        masterProductId: s.master_product_id,
+        voteMass: Number(s.vote_mass ?? 0),
+        pHat: s.p_hat !== null ? Number(s.p_hat) : null,
+        rBad: s.r_bad !== null ? Number(s.r_bad) : null,
+        fYield: s.f_yield !== null ? Number(s.f_yield) : 1,
+        wilsonLower: s.wilson_lower !== null ? Number(s.wilson_lower) : null,
+        valueIndex: s.value_index !== null ? Number(s.value_index) : null,
+        status: s.status,
+        consensusLabel: s.consensus_label ?? "Sin calificación suficiente",
+        supportLabel: s.support_label ?? null,
+        votesCount: Number(s.votes_count ?? 0),
+        underReview: Boolean(s.under_review),
+        frozenAt: s.frozen_at,
+        computedAt: s.computed_at,
+      });
+    }
+
+    const attrsByMaster = new Map<string, ProductAttributes>();
+    for (const a of raw?.attributes ?? []) {
+      attrsByMaster.set(a.master_product_id, {
+        masterProductId: a.master_product_id,
+        lactoseFree: a.lactose_free,
+        glutenFree: a.gluten_free,
+        vegan: a.vegan,
+        vegetarian: a.vegetarian,
+        sugarG100: a.sugar_g_100 !== null ? Number(a.sugar_g_100) : null,
+        proteinG100: a.protein_g_100 !== null ? Number(a.protein_g_100) : null,
+        sodiumMg100: a.sodium_mg_100 !== null ? Number(a.sodium_mg_100) : null,
+        fatG100: a.fat_g_100 !== null ? Number(a.fat_g_100) : null,
+        kcal100: a.kcal_100 !== null ? Number(a.kcal_100) : null,
+        frontWarningSeals: Array.isArray(a.front_warning_seals) ? a.front_warning_seals : [],
+        source: a.source,
+        confidence: Number(a.confidence ?? 0.5),
+      });
+    }
+
+    const mfgByMaster = new Map<string, ProductManufacturingSummary>();
+    for (const m of raw?.manufacturing ?? []) {
+      mfgByMaster.set(m.masterProductId, {
+        masterProductId: m.masterProductId,
+        manufacturerName: m.manufacturerName,
+        plantId: m.plantId,
+        plantName: m.plantName,
+        plantCity: m.plantCity,
+        invimaRegistry: m.invimaRegistry,
+        evidenceType: m.evidenceType,
+        evidenceUrl: m.evidenceUrl,
+        confidence: Number(m.confidence ?? 0.5),
+        verifiedByAdmin: Boolean(m.verifiedByAdmin),
+      });
+    }
+
+    return offers.map((offer) => {
+      const sabio = sabioByMaster.get(offer.masterProductId);
+      const attrs = attrsByMaster.get(offer.masterProductId);
+      const mfg = mfgByMaster.get(offer.masterProductId);
+      if (!sabio && !attrs && !mfg) return offer;
+      return {
+        ...offer,
+        sabiometro: sabio ?? offer.sabiometro,
+        productAttributes: attrs ?? offer.productAttributes,
+        manufacturing: mfg ?? offer.manufacturing,
+      };
+    });
+  } catch (error) {
+    console.warn("[queries] No fue posible adjuntar enriquecimiento v3 (continúa búsqueda):", error);
+    return offers;
+  }
+}
+
 export async function getDashboardData(options?: {
   query?: string;
   categorySlug?: string;
+  searchOnly?: boolean;
+  city?: string;
 }): Promise<DashboardPayload> {
   const queryText = options?.query?.trim() ?? "";
   const categorySlug = options?.categorySlug?.trim() ?? "";
+  const cityText = options?.city?.trim() ?? "";
+  const searchOnly = Boolean(options?.searchOnly);
   const supabaseConfig = getSupabaseConfig();
 
   if (!supabaseConfig) {
@@ -760,6 +968,10 @@ export async function getDashboardData(options?: {
       pumGroups: buildComparisonGroups(filtered, "pum"),
       categories: DEMO_CATEGORIES,
       bankPromotions: DEMO_BANK_PROMOTIONS,
+      paymentPartners: DEMO_PAYMENT_PARTNERS,
+      paymentPromotions: [],
+      storePromoDays: [],
+      samePlantPairs: [],
       storesCount: new Set(DEMO_OFFERS.map((o) => o.storeId)).size,
       totalSkus: DEMO_OFFERS.length,
       isDemoData: true,
@@ -767,29 +979,111 @@ export async function getDashboardData(options?: {
     };
   }
 
-  const [offerRows, categoryRows, promoRows, statsRows, curationContext] = await Promise.all([
-    supabaseRpc<LatestPriceRow[]>(supabaseConfig, "search_latest_offers", {
-      p_query: queryText,
-      p_category_slug: categorySlug,
-      p_limit: queryText ? 180 : 250,
-    }),
-    supabaseRestGet<{ id: number; slug: string; name: string; base_unit: UnitMeasure }[]>(
-      supabaseConfig,
-      "canonical_categories?select=id,slug,name,base_unit&order=name.asc"
-    ),
-    supabaseRestGet<BankPromotionRow[]>(
-      supabaseConfig,
-      "bank_promotions?select=id,bank_name,store_id,canonical_category_id,discount_pct,valid_days,affiliate_url,terms_short,active&active=eq.true"
-    ),
-    supabaseRpc<{ stores_count: number; total_skus: number }[]>(
-      supabaseConfig,
-      "get_catalog_stats",
-      {}
-    ),
-    fetchCurationContext(supabaseConfig),
-  ]);
+  const [
+    offerRows,
+    categoryRows,
+    promoRows,
+    statsRows,
+    curationContext,
+    partnerRows,
+    paymentPromoRows,
+    storePromoDayRows,
+    samePlantRows,
+    rappiDiscountRows,
+  ] = searchOnly
+    ? await Promise.all([
+        supabaseRpc<LatestPriceRow[]>(supabaseConfig, "search_latest_offers", {
+          p_query: queryText,
+          p_category_slug: categorySlug,
+          p_limit: queryText ? 240 : 240,
+          p_city: cityText,
+        }),
+        Promise.resolve([]),
+        Promise.resolve([]),
+        Promise.resolve([]),
+        fetchCurationContext(supabaseConfig),
+        Promise.resolve([]),
+        Promise.resolve([]),
+        Promise.resolve([]),
+        Promise.resolve([]),
+        Promise.resolve([] as RappiDiscountRow[]),
+      ])
+    : await Promise.all([
+        supabaseRpc<LatestPriceRow[]>(supabaseConfig, "search_latest_offers", {
+          p_query: queryText,
+          p_category_slug: categorySlug,
+          p_limit: queryText ? 360 : 600,
+          p_city: cityText,
+        }),
+        supabaseRestGet<{ id: number; slug: string; name: string; base_unit: UnitMeasure }[]>(
+          supabaseConfig,
+          "canonical_categories?select=id,slug,name,base_unit&order=name.asc"
+        ),
+        supabaseRestGet<BankPromotionRow[]>(
+          supabaseConfig,
+          "bank_promotions?select=id,bank_name,store_id,canonical_category_id,discount_pct,valid_days,affiliate_url,terms_short,active&active=eq.true"
+        ),
+        supabaseRpc<{ stores_count: number; total_skus: number }[]>(
+          supabaseConfig,
+          "get_catalog_stats",
+          {}
+        ),
+        fetchCurationContext(supabaseConfig),
+        supabaseRestGet<Array<{ id: string; name: string; partner_type: PaymentPartner["partnerType"]; logo_url: string | null }>>(
+          supabaseConfig,
+          "payment_partners?select=id,name,partner_type,logo_url&active=eq.true&order=name.asc"
+        ).catch(() => []),
+        supabaseRestGet<Array<{
+          id: number;
+          partner_id: string;
+          partner_variant: string | null;
+          store_id: string | null;
+          canonical_category_id: number | null;
+          discount_type: PaymentPromotion["discountType"];
+          discount_value: number | string;
+          max_discount_cop: number | string | null;
+          min_purchase_cop: number | string | null;
+          valid_days: number[];
+          valid_from: string;
+          valid_to: string | null;
+          terms_short: string | null;
+          source_url: string | null;
+          affiliate_url: string | null;
+          active: boolean;
+          last_verified_at: string | null;
+        }>>(
+          supabaseConfig,
+          "payment_promotions?select=*&active=eq.true"
+        ).catch(() => []),
+        supabaseRestGet<Array<{ id: number; store_id: string; label: string; discount_pct: number | string | null; valid_days: number[]; active: boolean }>>(
+          supabaseConfig,
+          "store_promo_days?select=id,store_id,label,discount_pct,valid_days,active&active=eq.true"
+        ).catch(() => []),
+        supabaseRestGet<Array<{
+          product_a: string;
+          product_b: string;
+          match_level: SamePlantMatchLevel;
+          confidence: number | string;
+          verified_by_admin: boolean;
+          shared_invima_registry: string | null;
+          manufacturer_name: string | null;
+          plant_name: string | null;
+          plant_city: string | null;
+          evidence_url: string | null;
+        }>>(
+          supabaseConfig,
+          "v_same_plant_pairs?select=*&limit=250"
+        ).catch(() => []),
+        supabaseRpc<RappiDiscountRow[]>(supabaseConfig, "get_rappi_real_discounts", {
+          p_store_id: "isimo",
+          p_limit: 100,
+        }).catch(() => []),
+      ]);
 
-  const offers = offerRows.map(mapRowToOffer).filter(isMercadoOffer);
+  const offers = await attachOfferEnrichment(
+    supabaseConfig,
+    offerRows.map(mapRowToOffer).filter(isMercadoOffer),
+  );
   const categories: CanonicalCategoryOption[] = categoryRows.map((row) => ({
     id: row.id,
     slug: row.slug,
@@ -799,6 +1093,74 @@ export async function getDashboardData(options?: {
   const bankPromotions = promoRows
     .map(mapBankPromotionRow)
     .filter((promo) => promo.storeId === null || isGroceryStoreId(promo.storeId));
+
+  const paymentPartners: PaymentPartner[] = partnerRows.map((p) => ({
+    id: p.id,
+    name: p.name,
+    partnerType: p.partner_type,
+    logoUrl: p.logo_url,
+  }));
+  const partnerNameMap = new Map(paymentPartners.map((p) => [p.id, p.name]));
+
+  const paymentPromotions: PaymentPromotion[] = paymentPromoRows.map((row) => ({
+    id: row.id,
+    partnerId: row.partner_id,
+    partnerName: partnerNameMap.get(row.partner_id) ?? row.partner_id,
+    partnerVariant: row.partner_variant,
+    storeId: row.store_id,
+    canonicalCategoryId: row.canonical_category_id,
+    discountType: row.discount_type,
+    discountValue: Number(row.discount_value),
+    maxDiscountCop: row.max_discount_cop !== null ? Number(row.max_discount_cop) : null,
+    minPurchaseCop: row.min_purchase_cop !== null ? Number(row.min_purchase_cop) : null,
+    validDays: Array.isArray(row.valid_days) ? row.valid_days : [],
+    validFrom: row.valid_from,
+    validTo: row.valid_to,
+    termsShort: row.terms_short,
+    sourceUrl: row.source_url,
+    affiliateUrl: row.affiliate_url,
+    active: row.active,
+    lastVerifiedAt: row.last_verified_at,
+  }));
+
+  const storePromoDays: StorePromoDay[] = storePromoDayRows.map((row) => ({
+    id: row.id,
+    storeId: row.store_id,
+    label: row.label,
+    discountPct: row.discount_pct !== null ? Number(row.discount_pct) : null,
+    validDays: Array.isArray(row.valid_days) ? row.valid_days : [],
+    active: row.active,
+  }));
+
+  const samePlantPairs = samePlantRows.map((row) => ({
+    productA: row.product_a,
+    productB: row.product_b,
+    matchLevel: row.match_level,
+    confidence: Number(row.confidence ?? 0.5),
+    verifiedByAdmin: Boolean(row.verified_by_admin),
+    sharedInvimaRegistry: row.shared_invima_registry,
+    manufacturerName: row.manufacturer_name,
+    plantName: row.plant_name,
+    plantCity: row.plant_city,
+    evidenceUrl: row.evidence_url,
+  }));
+
+  const rappiDiscounts: RappiDiscountItem[] = (rappiDiscountRows ?? []).map((row) => ({
+    storeSkuId: row.store_sku_id,
+    storeId: row.store_id,
+    storeName: row.store_name,
+    displayName: cleanProductTitle(row.display_name || row.raw_name),
+    rawName: cleanProductTitle(row.raw_name),
+    brand: row.brand,
+    netContent: Number(row.net_content),
+    unitMeasure: row.unit_measure,
+    imageUrl: row.image_url,
+    standardPrice: Number(row.standard_price),
+    rappiPromoPrice: Number(row.rappi_promo_price),
+    rappiSavingsCop: Number(row.rappi_savings_cop),
+    rappiSavingsPct: Number(row.rappi_savings_pct),
+    rappiPromoUrl: row.rappi_promo_url ?? null,
+  }));
 
   const statsRow = statsRows[0];
   const validOffers = offers.filter(
@@ -811,6 +1173,11 @@ export async function getDashboardData(options?: {
     pumGroups,
     categories,
     bankPromotions,
+    paymentPartners,
+    paymentPromotions,
+    storePromoDays,
+    rappiDiscounts,
+    samePlantPairs,
     storesCount: Number(statsRow?.stores_count ?? 0),
     totalSkus: Number(statsRow?.total_skus ?? offers.length),
     isDemoData: false,
@@ -913,7 +1280,7 @@ export async function getAdminCurationData(options?: {
       supabaseRpc<LatestPriceRow[]>(supabaseConfig, "search_latest_offers", {
         p_query: queryText,
         p_category_slug: "",
-        p_limit: queryText ? 180 : 220,
+        p_limit: queryText ? 240 : 360,
       }),
       fetchCurationContext(supabaseConfig),
       supabaseRestGet<ComparisonReportRow[]>(

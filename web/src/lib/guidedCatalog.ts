@@ -12,6 +12,7 @@ export type PricePriorityMode = "lowest_total" | "lowest_pum";
 export interface BarrioLocationOption {
   id: string;
   city: string;
+  department?: string;
   barrio: string;
   label: string;
   lat: number;
@@ -20,38 +21,308 @@ export interface BarrioLocationOption {
 
 export const COLOMBIAN_CITIES: Array<{
   city: string;
+  department?: string;
   barrios: BarrioLocationOption[];
 }> = [
   {
     city: "Bogotá",
+    department: "Bogotá D.C.",
     barrios: [
-      { id: "bog-chapinero", city: "Bogotá", barrio: "Chapinero", label: "Bogotá · Chapinero", lat: 4.646, lng: -74.063 },
-      { id: "bog-chico", city: "Bogotá", barrio: "Chicó / Calle 85", label: "Bogotá · Chicó / Calle 85", lat: 4.669, lng: -74.054 },
-      { id: "bog-cedritos", city: "Bogotá", barrio: "Cedritos / Usaquén", label: "Bogotá · Cedritos / Usaquén", lat: 4.719, lng: -74.035 },
-      { id: "bog-teusaquillo", city: "Bogotá", barrio: "Teusaquillo / Galerías", label: "Bogotá · Teusaquillo / Galerías", lat: 4.642, lng: -74.074 },
-      { id: "bog-modelia", city: "Bogotá", barrio: "Modelia / Fontibón", label: "Bogotá · Modelia / Fontibón", lat: 4.669, lng: -74.124 },
-      { id: "bog-suba", city: "Bogotá", barrio: "Suba Imperial", label: "Bogotá · Suba", lat: 4.747, lng: -74.089 },
+      { id: "bog-chapinero", city: "Bogotá", department: "Bogotá D.C.", barrio: "Chapinero", label: "Bogotá · Chapinero", lat: 4.646, lng: -74.063 },
+      { id: "bog-chico", city: "Bogotá", department: "Bogotá D.C.", barrio: "Chicó / Calle 85", label: "Bogotá · Chicó / Calle 85", lat: 4.669, lng: -74.054 },
+      { id: "bog-cedritos", city: "Bogotá", department: "Bogotá D.C.", barrio: "Cedritos / Usaquén", label: "Bogotá · Cedritos / Usaquén", lat: 4.719, lng: -74.035 },
+      { id: "bog-teusaquillo", city: "Bogotá", department: "Bogotá D.C.", barrio: "Teusaquillo / Galerías", label: "Bogotá · Teusaquillo / Galerías", lat: 4.642, lng: -74.074 },
+      { id: "bog-modelia", city: "Bogotá", department: "Bogotá D.C.", barrio: "Modelia / Fontibón", label: "Bogotá · Modelia / Fontibón", lat: 4.669, lng: -74.124 },
+      { id: "bog-suba", city: "Bogotá", department: "Bogotá D.C.", barrio: "Suba Imperial", label: "Bogotá · Suba", lat: 4.747, lng: -74.089 },
+      { id: "bog-kennedy", city: "Bogotá", department: "Bogotá D.C.", barrio: "Kennedy / Plaza de las Américas", label: "Bogotá · Kennedy", lat: 4.619, lng: -74.136 },
+      { id: "bog-engativa", city: "Bogotá", department: "Bogotá D.C.", barrio: "Engativá / Álamos", label: "Bogotá · Engativá", lat: 4.699, lng: -74.115 },
+      { id: "bog-bosa", city: "Bogotá", department: "Bogotá D.C.", barrio: "Bosa / Autopista Sur", label: "Bogotá · Bosa", lat: 4.609, lng: -74.185 },
+      { id: "bog-centro", city: "Bogotá", department: "Bogotá D.C.", barrio: "Centro / San Martín", label: "Bogotá · Centro", lat: 4.616, lng: -74.069 },
     ],
   },
   {
     city: "Medellín",
+    department: "Antioquia",
     barrios: [
-      { id: "med-poblado", city: "Medellín", barrio: "El Poblado", label: "Medellín · El Poblado", lat: 6.209, lng: -75.572 },
-      { id: "med-laureles", city: "Medellín", barrio: "Laureles / Estadio", label: "Medellín · Laureles", lat: 6.245, lng: -75.594 },
-      { id: "med-envigado", city: "Medellín", barrio: "Envigado", label: "Medellín · Envigado", lat: 6.175, lng: -75.588 },
+      { id: "med-poblado", city: "Medellín", department: "Antioquia", barrio: "El Poblado", label: "Medellín · El Poblado", lat: 6.209, lng: -75.572 },
+      { id: "med-laureles", city: "Medellín", department: "Antioquia", barrio: "Laureles / Estadio", label: "Medellín · Laureles", lat: 6.245, lng: -75.594 },
+      { id: "med-envigado", city: "Medellín", department: "Antioquia", barrio: "Envigado", label: "Medellín · Envigado", lat: 6.175, lng: -75.588 },
+      { id: "med-belen", city: "Medellín", department: "Antioquia", barrio: "Belén", label: "Medellín · Belén", lat: 6.232, lng: -75.597 },
+      { id: "med-robledo", city: "Medellín", department: "Antioquia", barrio: "Robledo / Los Colores", label: "Medellín · Robledo", lat: 6.272, lng: -75.589 },
+      { id: "med-sabaneta", city: "Medellín", department: "Antioquia", barrio: "Sabaneta / Mayorca", label: "Medellín · Sabaneta", lat: 6.153, lng: -75.616 },
+      { id: "med-bello", city: "Medellín", department: "Antioquia", barrio: "Bello / Niquía", label: "Medellín · Bello", lat: 6.336, lng: -75.554 },
     ],
   },
   {
     city: "Cali",
+    department: "Valle del Cauca",
     barrios: [
-      { id: "cal-granada", city: "Cali", barrio: "Granada / Norte", label: "Cali · Granada / Norte", lat: 3.458, lng: -76.536 },
-      { id: "cal-jardin", city: "Cali", barrio: "Ciudad Jardín", label: "Cali · Ciudad Jardín", lat: 3.368, lng: -76.534 },
+      { id: "cal-granada", city: "Cali", department: "Valle del Cauca", barrio: "Granada / Norte", label: "Cali · Granada / Norte", lat: 3.458, lng: -76.536 },
+      { id: "cal-jardin", city: "Cali", department: "Valle del Cauca", barrio: "Ciudad Jardín / Sur", label: "Cali · Ciudad Jardín", lat: 3.368, lng: -76.534 },
+      { id: "cal-tequendama", city: "Cali", department: "Valle del Cauca", barrio: "Tequendama / San Fernando", label: "Cali · Tequendama", lat: 3.425, lng: -76.544 },
+      { id: "cal-lili", city: "Cali", department: "Valle del Cauca", barrio: "Valle del Lili", label: "Cali · Valle del Lili", lat: 3.379, lng: -76.526 },
+      { id: "cal-chipichape", city: "Cali", department: "Valle del Cauca", barrio: "Chipichape / Menga", label: "Cali · Chipichape", lat: 3.476, lng: -76.528 },
+      { id: "cal-calipso", city: "Cali", department: "Valle del Cauca", barrio: "Calipso / Oriente", label: "Cali · Calipso", lat: 3.418, lng: -76.497 },
     ],
   },
   {
     city: "Barranquilla",
+    department: "Atlántico",
     barrios: [
-      { id: "baq-altoprado", city: "Barranquilla", barrio: "Alto Prado / Riomar", label: "Barranquilla · Alto Prado", lat: 11.005, lng: -74.812 },
+      { id: "baq-altoprado", city: "Barranquilla", department: "Atlántico", barrio: "Alto Prado / Riomar", label: "Barranquilla · Alto Prado", lat: 11.005, lng: -74.812 },
+      { id: "baq-buenavista", city: "Barranquilla", department: "Atlántico", barrio: "Buenavista / Villa Carolina", label: "Barranquilla · Buenavista", lat: 11.012, lng: -74.826 },
+      { id: "baq-elprado", city: "Barranquilla", department: "Atlántico", barrio: "El Prado / Centro Norte", label: "Barranquilla · El Prado", lat: 10.991, lng: -74.796 },
+      { id: "baq-murillo", city: "Barranquilla", department: "Atlántico", barrio: "Murillo / Ciudadela 20 de Julio", label: "Barranquilla · Murillo", lat: 10.935, lng: -74.798 },
+      { id: "baq-soledad", city: "Barranquilla", department: "Atlántico", barrio: "Soledad / Plaza del Sol", label: "Barranquilla · Soledad", lat: 10.922, lng: -74.773 },
+    ],
+  },
+  {
+    city: "Cartagena",
+    department: "Bolívar",
+    barrios: [
+      { id: "ctg-bocagrande", city: "Cartagena", department: "Bolívar", barrio: "Bocagrande / Castillogrande", label: "Cartagena · Bocagrande", lat: 10.402, lng: -75.554 },
+      { id: "ctg-manga", city: "Cartagena", department: "Bolívar", barrio: "Manga / Pie de la Popa", label: "Cartagena · Manga", lat: 10.413, lng: -75.533 },
+      { id: "ctg-centro", city: "Cartagena", department: "Bolívar", barrio: "Centro / La Matuna", label: "Cartagena · Centro", lat: 10.424, lng: -75.547 },
+      { id: "ctg-castellana", city: "Cartagena", department: "Bolívar", barrio: "La Castellana / Ronda Real", label: "Cartagena · La Castellana", lat: 10.397, lng: -75.49 },
+      { id: "ctg-crespo", city: "Cartagena", department: "Bolívar", barrio: "Crespo / Marbella", label: "Cartagena · Crespo", lat: 10.445, lng: -75.515 },
+    ],
+  },
+  {
+    city: "Bucaramanga",
+    department: "Santander",
+    barrios: [
+      { id: "bga-cabecera", city: "Bucaramanga", department: "Santander", barrio: "Cabecera del Llano", label: "Bucaramanga · Cabecera", lat: 7.116, lng: -73.111 },
+      { id: "bga-canaveral", city: "Bucaramanga", department: "Santander", barrio: "Cañaveral / Floridablanca", label: "Bucaramanga · Cañaveral", lat: 7.068, lng: -73.105 },
+      { id: "bga-sotomayor", city: "Bucaramanga", department: "Santander", barrio: "Sotomayor / Conucos", label: "Bucaramanga · Sotomayor", lat: 7.113, lng: -73.117 },
+      { id: "bga-centro", city: "Bucaramanga", department: "Santander", barrio: "Centro / Rovira", label: "Bucaramanga · Centro", lat: 7.121, lng: -73.128 },
+      { id: "bga-realminas", city: "Bucaramanga", department: "Santander", barrio: "Ciudadela Real de Minas", label: "Bucaramanga · Real de Minas", lat: 7.108, lng: -73.124 },
+    ],
+  },
+  {
+    city: "Pereira",
+    department: "Risaralda",
+    barrios: [
+      { id: "pei-circunvalar", city: "Pereira", department: "Risaralda", barrio: "Circunvalar / Pinares", label: "Pereira · Circunvalar", lat: 4.807, lng: -75.684 },
+      { id: "pei-centro", city: "Pereira", department: "Risaralda", barrio: "Centro / Lago Uribe", label: "Pereira · Centro", lat: 4.814, lng: -75.694 },
+      { id: "pei-cerritos", city: "Pereira", department: "Risaralda", barrio: "Cerritos / Cuba", label: "Pereira · Cerritos", lat: 4.804, lng: -75.736 },
+      { id: "pei-dosquebradas", city: "Pereira", department: "Risaralda", barrio: "Dosquebradas / Molinos", label: "Pereira · Dosquebradas", lat: 4.832, lng: -75.676 },
+    ],
+  },
+  {
+    city: "Manizales",
+    department: "Caldas",
+    barrios: [
+      { id: "mzl-cable", city: "Manizales", department: "Caldas", barrio: "El Cable / Laureles", label: "Manizales · El Cable", lat: 5.056, lng: -75.485 },
+      { id: "mzl-centro", city: "Manizales", department: "Caldas", barrio: "Centro / Fundadores", label: "Manizales · Centro", lat: 5.069, lng: -75.517 },
+      { id: "mzl-palermo", city: "Manizales", department: "Caldas", barrio: "Palermo / Milán", label: "Manizales · Palermo", lat: 5.052, lng: -75.479 },
+      { id: "mzl-laenea", city: "Manizales", department: "Caldas", barrio: "La Enea / Lusitania", label: "Manizales · La Enea", lat: 5.034, lng: -75.461 },
+    ],
+  },
+  {
+    city: "Armenia",
+    department: "Quindío",
+    barrios: [
+      { id: "axm-norte", city: "Armenia", department: "Quindío", barrio: "Norte / Avenida Bolívar", label: "Armenia · Av. Bolívar", lat: 4.558, lng: -75.654 },
+      { id: "axm-centro", city: "Armenia", department: "Quindío", barrio: "Centro / Parque Sucre", label: "Armenia · Centro", lat: 4.537, lng: -75.671 },
+      { id: "axm-calima", city: "Armenia", department: "Quindío", barrio: "Calima / Sur", label: "Armenia · Calima", lat: 4.525, lng: -75.682 },
+    ],
+  },
+  {
+    city: "Ibagué",
+    department: "Tolima",
+    barrios: [
+      { id: "ibe-milladeoro", city: "Ibagué", department: "Tolima", barrio: "Milla de Oro / Calle 60", label: "Ibagué · Milla de Oro", lat: 4.442, lng: -75.188 },
+      { id: "ibe-centro", city: "Ibagué", department: "Tolima", barrio: "Centro / Carrera 3", label: "Ibagué · Centro", lat: 4.441, lng: -75.237 },
+      { id: "ibe-elvergel", city: "Ibagué", department: "Tolima", barrio: "El Vergel / Calambeo", label: "Ibagué · El Vergel", lat: 4.455, lng: -75.209 },
+      { id: "ibe-picalena", city: "Ibagué", department: "Tolima", barrio: "Picaleña / Mirolindo", label: "Ibagué · Mirolindo", lat: 4.426, lng: -75.162 },
+    ],
+  },
+  {
+    city: "Cúcuta",
+    department: "Norte de Santander",
+    barrios: [
+      { id: "cuc-caobos", city: "Cúcuta", department: "Norte de Santander", barrio: "Caobos / Quinta Vélez", label: "Cúcuta · Caobos", lat: 7.887, lng: -72.496 },
+      { id: "cuc-centro", city: "Cúcuta", department: "Norte de Santander", barrio: "Centro / Ventura Plaza", label: "Cúcuta · Centro", lat: 7.892, lng: -72.506 },
+      { id: "cuc-guaimaral", city: "Cúcuta", department: "Norte de Santander", barrio: "Guaimaral / La Ceiba", label: "Cúcuta · Guaimaral", lat: 7.898, lng: -72.487 },
+      { id: "cuc-atalaya", city: "Cúcuta", department: "Norte de Santander", barrio: "Atalaya", label: "Cúcuta · Atalaya", lat: 7.913, lng: -72.532 },
+    ],
+  },
+  {
+    city: "Santa Marta",
+    department: "Magdalena",
+    barrios: [
+      { id: "smr-rodadero", city: "Santa Marta", department: "Magdalena", barrio: "El Rodadero / Gaira", label: "Santa Marta · Rodadero", lat: 11.204, lng: -74.225 },
+      { id: "smr-bavaria", city: "Santa Marta", department: "Magdalena", barrio: "Bavaria / Ocean Mall", label: "Santa Marta · Bavaria", lat: 11.236, lng: -74.202 },
+      { id: "smr-centro", city: "Santa Marta", department: "Magdalena", barrio: "Centro Histórico", label: "Santa Marta · Centro", lat: 11.244, lng: -74.211 },
+      { id: "smr-buenavista", city: "Santa Marta", department: "Magdalena", barrio: "Buenavista / Mamatoco", label: "Santa Marta · Mamatoco", lat: 11.224, lng: -74.165 },
+    ],
+  },
+  {
+    city: "Villavicencio",
+    department: "Meta",
+    barrios: [
+      { id: "vvc-primavera", city: "Villavicencio", department: "Meta", barrio: "Primavera / Viva", label: "Villavicencio · Primavera", lat: 4.133, lng: -73.628 },
+      { id: "vvc-barzal", city: "Villavicencio", department: "Meta", barrio: "Barzal / Centro", label: "Villavicencio · Barzal", lat: 4.147, lng: -73.637 },
+      { id: "vvc-caudal", city: "Villavicencio", department: "Meta", barrio: "Caudal / Llanocentro", label: "Villavicencio · Caudal", lat: 4.151, lng: -73.626 },
+      { id: "vvc-porfia", city: "Villavicencio", department: "Meta", barrio: "Porfía / Amarilo", label: "Villavicencio · Porfía", lat: 4.101, lng: -73.658 },
+    ],
+  },
+  {
+    city: "Pasto",
+    department: "Nariño",
+    barrios: [
+      { id: "pso-norte", city: "Pasto", department: "Nariño", barrio: "Av. Los Estudiantes / Norte", label: "Pasto · Av. Los Estudiantes", lat: 1.222, lng: -77.285 },
+      { id: "pso-centro", city: "Pasto", department: "Nariño", barrio: "Centro / Plaza de Nariño", label: "Pasto · Centro", lat: 1.213, lng: -77.278 },
+      { id: "pso-unicentro", city: "Pasto", department: "Nariño", barrio: "Unicentro / Valle de Atriz", label: "Pasto · Unicentro", lat: 1.203, lng: -77.284 },
+    ],
+  },
+  {
+    city: "Montería",
+    department: "Córdoba",
+    barrios: [
+      { id: "mtr-alamedas", city: "Montería", department: "Córdoba", barrio: "Alamedas / Norte", label: "Montería · Alamedas", lat: 8.768, lng: -75.869 },
+      { id: "mtr-centro", city: "Montería", department: "Córdoba", barrio: "Centro / Avenida Primera", label: "Montería · Centro", lat: 8.754, lng: -75.888 },
+      { id: "mtr-castellana", city: "Montería", department: "Córdoba", barrio: "La Castellana / Recreo", label: "Montería · La Castellana", lat: 8.774, lng: -75.862 },
+    ],
+  },
+  {
+    city: "Neiva",
+    department: "Huila",
+    barrios: [
+      { id: "nva-sanpedro", city: "Neiva", department: "Huila", barrio: "San Pedro Plaza / Norte", label: "Neiva · Norte", lat: 2.952, lng: -75.289 },
+      { id: "nva-centro", city: "Neiva", department: "Huila", barrio: "Altico / Centro", label: "Neiva · Centro", lat: 2.927, lng: -75.287 },
+      { id: "nva-santalucia", city: "Neiva", department: "Huila", barrio: "Santa Lucía / La Toma", label: "Neiva · Santa Lucía", lat: 2.936, lng: -75.268 },
+    ],
+  },
+  {
+    city: "Valledupar",
+    department: "Cesar",
+    barrios: [
+      { id: "vup-guatapuri", city: "Valledupar", department: "Cesar", barrio: "Guatapurí / Norte", label: "Valledupar · Guatapurí", lat: 10.478, lng: -73.249 },
+      { id: "vup-centro", city: "Valledupar", department: "Cesar", barrio: "Centro / Calle 17", label: "Valledupar · Centro", lat: 10.474, lng: -73.25 },
+      { id: "vup-novalito", city: "Valledupar", department: "Cesar", barrio: "Novalito / Los Músicos", label: "Valledupar · Novalito", lat: 10.466, lng: -73.261 },
+    ],
+  },
+  {
+    city: "Popayán",
+    department: "Cauca",
+    barrios: [
+      { id: "ppn-campanario", city: "Popayán", department: "Cauca", barrio: "Campanario / Norte", label: "Popayán · Campanario", lat: 2.456, lng: -76.597 },
+      { id: "ppn-centro", city: "Popayán", department: "Cauca", barrio: "Centro Histórico", label: "Popayán · Centro", lat: 2.441, lng: -76.606 },
+      { id: "ppn-esmeralda", city: "Popayán", department: "Cauca", barrio: "La Esmeralda / Panamericana", label: "Popayán · La Esmeralda", lat: 2.446, lng: -76.62 },
+    ],
+  },
+  {
+    city: "Tunja",
+    department: "Boyacá",
+    barrios: [
+      { id: "tun-unicentro", city: "Tunja", department: "Boyacá", barrio: "Unicentro / Av. Universitaria", label: "Tunja · Av. Universitaria", lat: 5.552, lng: -73.35 },
+      { id: "tun-centro", city: "Tunja", department: "Boyacá", barrio: "Centro Histórico", label: "Tunja · Centro", lat: 5.533, lng: -73.362 },
+      { id: "tun-muiscas", city: "Tunja", department: "Boyacá", barrio: "Los Muiscas / Norte", label: "Tunja · Los Muiscas", lat: 5.561, lng: -73.356 },
+    ],
+  },
+  {
+    city: "Sincelejo",
+    department: "Sucre",
+    barrios: [
+      { id: "sin-guacari", city: "Sincelejo", department: "Sucre", barrio: "Guacarí / Venecia", label: "Sincelejo · Guacarí", lat: 9.297, lng: -75.382 },
+      { id: "sin-centro", city: "Sincelejo", department: "Sucre", barrio: "Centro / Las Majaguas", label: "Sincelejo · Centro", lat: 9.302, lng: -75.397 },
+      { id: "sin-laford", city: "Sincelejo", department: "Sucre", barrio: "La Ford / Florencia", label: "Sincelejo · La Ford", lat: 9.313, lng: -75.392 },
+    ],
+  },
+  {
+    city: "Riohacha",
+    department: "La Guajira",
+    barrios: [
+      { id: "rch-marina", city: "Riohacha", department: "La Guajira", barrio: "Viva Wajiira / La Marina", label: "Riohacha · La Marina", lat: 11.539, lng: -72.912 },
+      { id: "rch-centro", city: "Riohacha", department: "La Guajira", barrio: "Centro / Padilla", label: "Riohacha · Centro", lat: 11.547, lng: -72.907 },
+      { id: "rch-coquivacoa", city: "Riohacha", department: "La Guajira", barrio: "Coquivacoa", label: "Riohacha · Coquivacoa", lat: 11.532, lng: -72.899 },
+    ],
+  },
+  {
+    city: "Quibdó",
+    department: "Chocó",
+    barrios: [
+      { id: "uib-centro", city: "Quibdó", department: "Chocó", barrio: "Centro / Malecón", label: "Quibdó · Centro", lat: 5.692, lng: -76.661 },
+      { id: "uib-carano", city: "Quibdó", department: "Chocó", barrio: "El Caraño / Niño Jesús", label: "Quibdó · El Caraño", lat: 5.695, lng: -76.649 },
+    ],
+  },
+  {
+    city: "Florencia",
+    department: "Caquetá",
+    barrios: [
+      { id: "fla-granplaza", city: "Florencia", department: "Caquetá", barrio: "Gran Plaza / Centro", label: "Florencia · Centro", lat: 1.615, lng: -75.608 },
+      { id: "fla-juanxxiii", city: "Florencia", department: "Caquetá", barrio: "Juan XXIII / Norte", label: "Florencia · Juan XXIII", lat: 1.622, lng: -75.612 },
+    ],
+  },
+  {
+    city: "Yopal",
+    department: "Casanare",
+    barrios: [
+      { id: "eyp-alcaravan", city: "Yopal", department: "Casanare", barrio: "Alcaraván / Morichal", label: "Yopal · Alcaraván", lat: 5.332, lng: -72.39 },
+      { id: "eyp-centro", city: "Yopal", department: "Casanare", barrio: "Centro / Carrera 20", label: "Yopal · Centro", lat: 5.347, lng: -72.395 },
+      { id: "eyp-granplaza", city: "Yopal", department: "Casanare", barrio: "Gran Plaza / Llano", label: "Yopal · Gran Plaza", lat: 5.337, lng: -72.403 },
+    ],
+  },
+  {
+    city: "Mocoa",
+    department: "Putumayo",
+    barrios: [
+      { id: "mco-centro", city: "Mocoa", department: "Putumayo", barrio: "Centro / Parque Santander", label: "Mocoa · Centro", lat: 1.152, lng: -76.648 },
+      { id: "mco-avcolombia", city: "Mocoa", department: "Putumayo", barrio: "Avenida Colombia", label: "Mocoa · Av. Colombia", lat: 1.148, lng: -76.654 },
+    ],
+  },
+  {
+    city: "San Andrés",
+    department: "San Andrés y Providencia",
+    barrios: [
+      { id: "adz-centro", city: "San Andrés", department: "San Andrés y Providencia", barrio: "Centro / Spratt Bight", label: "San Andrés · Centro", lat: 12.583, lng: -81.694 },
+      { id: "adz-sanluis", city: "San Andrés", department: "San Andrés y Providencia", barrio: "San Luis / La Loma", label: "San Andrés · San Luis", lat: 12.556, lng: -81.709 },
+    ],
+  },
+  {
+    city: "Leticia",
+    department: "Amazonas",
+    barrios: [
+      { id: "let-centro", city: "Leticia", department: "Amazonas", barrio: "Centro / Parque Santander", label: "Leticia · Centro", lat: -4.215, lng: -69.942 },
+      { id: "let-internacional", city: "Leticia", department: "Amazonas", barrio: "Avenida Internacional", label: "Leticia · Av. Internacional", lat: -4.209, lng: -69.935 },
+    ],
+  },
+  {
+    city: "Arauca",
+    department: "Arauca",
+    barrios: [
+      { id: "auc-centro", city: "Arauca", department: "Arauca", barrio: "Centro / Paseo Carlos Isael", label: "Arauca · Centro", lat: 7.088, lng: -70.759 },
+      { id: "auc-meridiano", city: "Arauca", department: "Arauca", barrio: "Meridiano 70", label: "Arauca · Meridiano 70", lat: 7.079, lng: -70.751 },
+    ],
+  },
+  {
+    city: "San José del Guaviare",
+    department: "Guaviare",
+    barrios: [
+      { id: "sje-centro", city: "San José del Guaviare", department: "Guaviare", barrio: "Centro / Carrera 20", label: "San José del Guaviare · Centro", lat: 2.571, lng: -72.641 },
+      { id: "sje-eldorado", city: "San José del Guaviare", department: "Guaviare", barrio: "El Dorado", label: "San José del Guaviare · El Dorado", lat: 2.567, lng: -72.648 },
+    ],
+  },
+  {
+    city: "Inírida",
+    department: "Guainía",
+    barrios: [
+      { id: "pda-centro", city: "Inírida", department: "Guainía", barrio: "Centro / Puerto Inírida", label: "Inírida · Centro", lat: 3.865, lng: -67.923 },
+    ],
+  },
+  {
+    city: "Mitú",
+    department: "Vaupés",
+    barrios: [
+      { id: "mvp-centro", city: "Mitú", department: "Vaupés", barrio: "Centro / Malecón Vaupés", label: "Mitú · Centro", lat: 1.253, lng: -70.234 },
+    ],
+  },
+  {
+    city: "Puerto Carreño",
+    department: "Vichada",
+    barrios: [
+      { id: "pcr-centro", city: "Puerto Carreño", department: "Vichada", barrio: "Centro / Av. Orinoco", label: "Puerto Carreño · Centro", lat: 6.189, lng: -67.485 },
     ],
   },
 ];

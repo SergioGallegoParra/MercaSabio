@@ -8,7 +8,9 @@ import {
   Ban,
   BarChart3,
   Beef,
+  Bell,
   Building2,
+  CalendarDays,
   Car,
   Check,
   ChevronDown,
@@ -25,9 +27,12 @@ import {
   Footprints,
   Home,
   Info,
+  Laptop,
   Leaf,
   ListChecks,
   LocateFixed,
+  Lock,
+  LockOpen,
   MapPin,
   Milk,
   Minus,
@@ -37,18 +42,23 @@ import {
   PiggyBank,
   Plus,
   PlusCircle,
+  RefreshCw,
   RotateCcw,
   Route,
   Search,
   ShoppingBasket,
   ShoppingCart,
   SlidersHorizontal,
+  Smartphone,
   Snowflake,
   Sparkles,
   SprayCan,
   Store,
   Trash2,
+  TrendingUp,
+  Users,
   Utensils,
+  Wallet,
   WashingMachine,
   Wheat,
   X,
@@ -120,6 +130,16 @@ export type HearthIconName =
   | "directions_car"
   | "checklist"
   | "auto_awesome"
+  | "lock"
+  | "lock_open"
+  | "notifications"
+  | "trending_up"
+  | "calendar_month"
+  | "groups"
+  | "smartphone"
+  | "laptop"
+  | "refresh"
+  | "wallet"
   | (string & {});
 
 interface HearthIconProps {
@@ -265,6 +285,26 @@ export default function HearthIcon({
       return <Car {...props} />;
     case "checklist":
       return <ListChecks {...props} />;
+    case "lock":
+      return <Lock {...props} />;
+    case "lock_open":
+      return <LockOpen {...props} />;
+    case "notifications":
+      return <Bell {...props} />;
+    case "trending_up":
+      return <TrendingUp {...props} />;
+    case "calendar_month":
+      return <CalendarDays {...props} />;
+    case "groups":
+      return <Users {...props} />;
+    case "smartphone":
+      return <Smartphone {...props} />;
+    case "laptop":
+      return <Laptop {...props} />;
+    case "refresh":
+      return <RefreshCw {...props} />;
+    case "wallet":
+      return <Wallet {...props} />;
     default:
       return <Package {...props} />;
   }

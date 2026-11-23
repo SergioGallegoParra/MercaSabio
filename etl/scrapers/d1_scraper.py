@@ -18,6 +18,7 @@ from etl.scrapers.vtex_scraper import VtexScraper, parse_vtex_product_payload
 logger = logging.getLogger(__name__)
 
 D1_GRAPHQL_ENDPOINT = "/_v/private/graphql/v1"
+D1_DOMICILIOS_BASE_URL = "https://domicilios.tiendasd1.com"
 D1_PAGE_SIZE = 50
 D1_MAX_OFFSET = 2500
 
@@ -110,7 +111,7 @@ def default_d1_config(**overrides: Any) -> ScraperConfig:
 
 
 class D1Scraper(BaseScraper):
-    """Extractor GraphQL para Tiendas D1 con sesión `vtex_segment`."""
+    """Extractor GraphQL / REST VTEX para Tiendas D1 con sesión `vtex_segment`."""
 
     def __init__(
         self,
@@ -118,12 +119,14 @@ class D1Scraper(BaseScraper):
         *,
         client: httpx.AsyncClient | None = None,
         vtex_segment: str | None = None,
+        search_terms: list[str] | None = None,
     ) -> None:
         cfg = config or default_d1_config()
         if vtex_segment:
             headers = {**cfg.default_headers, "Cookie": f"vtex_segment={vtex_segment}"}
             cfg = cfg.model_copy(update={"default_headers": headers})
         super().__init__(cfg, client=client)
+        self.search_terms: list[str] = list(search_terms) if search_terms else []
 
     async def iter_batches(self) -> AsyncIterator[list[ScrapedProduct]]:
         """Intenta GraphQL con `vtex_segment` y hace fallback automático al catálogo REST VTEX."""
@@ -142,8 +145,31 @@ class D1Scraper(BaseScraper):
                 exc,
             )
 
+        async for batch in self._iter_vtex_rest_batches():
+            yield batch
+
+    async def _iter_vtex_rest_batches(self) -> AsyncIterator[list[ScrapedProduct]]:
+        """Consulta el catálogo REST VTEX de D1 y respalda con domicilios.tiendasd1.com en vivo."""
         rest_config = self.config.model_copy(update={"source_origin": "vtex_api"})
-        vtex_fallback = VtexScraper(rest_config, client=self.client)
+        vtex_fallback = VtexScraper(
+            rest_config,
+            client=self.client,
+            search_terms=self.search_terms,
+        )
+        if not self._external_client:
+            filters = await vtex_fallback.fetch_category_filters()
+            if len(filters) <= 1 and filters == [None]:
+                logger.info(
+                    "[%s] Reintentando árbol de categorías VTEX sobre %s",
+                    self.config.store_id,
+                    D1_DOMICILIOS_BASE_URL,
+                )
+                domicilios_cfg = rest_config.model_copy(update={"base_url": D1_DOMICILIOS_BASE_URL})
+                async with VtexScraper(domicilios_cfg, search_terms=self.search_terms) as dom_scraper:
+                    async for batch in dom_scraper.iter_batches():
+                        yield batch
+                return
+
         async for batch in vtex_fallback.iter_batches():
             yield batch
 
