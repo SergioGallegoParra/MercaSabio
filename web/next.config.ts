@@ -5,6 +5,11 @@ if (process.env.NODE_ENV === "development") {
   initOpenNextCloudflareForDev();
 }
 
+const isDev = process.env.NODE_ENV === "development";
+const scriptSrc = isDev
+  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+  : "script-src 'self' 'unsafe-inline'";
+
 const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
@@ -24,7 +29,7 @@ const nextConfig: NextConfig = {
           {
             key: "Content-Security-Policy",
             value:
-              "default-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https://router.project-osrm.org https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';",
+              `default-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https://router.project-osrm.org https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; ${scriptSrc}; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';`,
           },
         ],
       },

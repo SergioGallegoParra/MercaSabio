@@ -205,6 +205,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const syncTimerRef = useRef<number | null>(null);
   const credentialsRef = useRef<WorkspaceCredentials | null>(null);
   credentialsRef.current = credentials;
+  const basketsRef = useRef<SyncedBasket[]>([]);
+  basketsRef.current = baskets;
 
   const hydrateFromLocalStorage = useCallback(() => {
     setUserProfile(readStoredJson<UserProfile | null>(PROFILE_STORAGE_KEY, null));
@@ -519,7 +521,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     (items: BasketItemInput[], activeDietFilters?: DietFilter[]) => {
       const nowIso = new Date().toISOString();
       const wsId = credentialsRef.current?.workspaceId ?? "local";
-      const existingBasket = baskets[0];
+      const existingBasket = basketsRef.current[0];
       const basketId = existingBasket?.id ?? "00000000-0000-0000-0000-000000000001";
 
       const localBasket: SyncedBasket = {
@@ -597,7 +599,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           .catch(() => setSyncState("local"));
       }, 650);
     },
-    [authHeaders, baskets, userProfile?.transportMode]
+    [authHeaders, userProfile?.transportMode]
   );
 
   const recordPurchaseEvents = useCallback(

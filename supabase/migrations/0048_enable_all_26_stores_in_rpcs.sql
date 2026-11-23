@@ -418,7 +418,6 @@ BEGIN
           AND (
               ss.raw_name ILIKE v_like_raw
               OR ss.raw_name ILIKE v_like_stem
-              OR (ss.display_name IS NOT NULL AND ss.display_name ILIKE v_like_raw)
           )
         LIMIT 1500
     ),
