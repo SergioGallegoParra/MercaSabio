@@ -272,6 +272,23 @@ class SupabaseGateway:
         )
         return str(response.data[0]["id"])
 
+    async def backfill_master_images(self, updates: dict[str, str]) -> int:
+        updated = 0
+        for mid, url in updates.items():
+            if not url:
+                continue
+            response = await self._execute(
+                lambda client, m=mid, u=url: (
+                    client.table("master_products")
+                    .update({"image_url": u})
+                    .eq("id", m)
+                    .is_("image_url", "null")
+                    .execute()
+                )
+            )
+            updated += len(response.data or [])
+        return updated
+
     async def upsert_store_skus(self, rows: list[dict[str, Any]]) -> dict[str, str]:
         mapping: dict[str, str] = {}
         for chunk in _chunked(rows, WRITE_CHUNK_SIZE):
@@ -446,6 +463,15 @@ class InMemoryGateway:
             self.eans_index[ean] = mp_id
         return mp_id
 
+    async def backfill_master_images(self, updates: dict[str, str]) -> int:
+        updated = 0
+        for mid, url in updates.items():
+            mp = self.master_products.get(mid)
+            if mp is not None and url and not mp.get("image_url"):
+                mp["image_url"] = url
+                updated += 1
+        return updated
+
     async def upsert_store_skus(self, rows: list[dict[str, Any]]) -> dict[str, str]:
         result: dict[str, str] = {}
         for row in rows:
@@ -502,6 +528,7 @@ class CDCManager:
         self._resolver = resolver or EntityResolver(gateway)
         self._price_cache: dict[str, CachedPriceState] = {}
         self._sku_id_by_external: dict[str, str] = {}
+        self._image_checked_masters: set[str] = set()
         self.stats = CDCStats(store_id=store_id)
         self._initialized = False
 
@@ -606,11 +633,21 @@ class CDCManager:
         unchanged_sku_ids: list[str] = []
         changed_sku_ids: list[str] = []
         shrinkflation_findings = []
+        image_updates: dict[str, str] = {}
 
         for product in batch_items:
             self.stats.total_processed += 1
             store_sku_id = self._sku_id_by_external[product.external_sku]
             cached = self._price_cache.get(store_sku_id)
+
+            if (
+                cached is not None
+                and cached.master_product_id
+                and product.image_url
+                and cached.master_product_id not in self._image_checked_masters
+            ):
+                image_updates.setdefault(cached.master_product_id, product.image_url)
+                self._image_checked_masters.add(cached.master_product_id)
 
             if (
                 cached is not None
@@ -706,5 +743,8 @@ class CDCManager:
             self.stats.verified_touched += await self._gateway.touch_store_skus_verified(
                 skus_to_touch
             )
+
+        if image_updates and hasattr(self._gateway, "backfill_master_images"):
+            await self._gateway.backfill_master_images(image_updates)
 
         return self.stats

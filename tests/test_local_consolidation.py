@@ -691,6 +691,49 @@ class OptimizationUnitTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 chk.close()
 
+    async def test_cdc_and_entity_resolver_backfill_missing_master_image_url(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            lgw = LocalSqliteGateway(Path(tmp) / "img_backfill.db")
+            try:
+                p_no_img = ScrapedProduct(
+                    store_id="d1",
+                    external_sku="141",
+                    ean=None,
+                    raw_name="Queso Latti Mozzarella X 300 Gr Rallado",
+                    normalized_name="queso latti mozzarella x 300 gr rallado",
+                    brand="Latti",
+                    raw_list_price=Decimal("10950.00"),
+                    raw_sale_price=Decimal("10950.00"),
+                    calibrated_price=Decimal("10950.00"),
+                    net_content=Decimal("300.00"),
+                    unit_measure=UnitMeasure.G,
+                    pum_price=Decimal("36.5000"),
+                    in_stock=True,
+                    is_private_label=True,
+                    image_url=None,
+                    source_origin="vtex_api",
+                )
+                cdc = CDCManager(lgw, "d1")
+                await cdc.process_batch([p_no_img])
+
+                mid = lgw._conn.execute("SELECT master_product_id FROM store_skus WHERE external_sku = '141'").fetchone()[0]
+                self.assertIsNone(
+                    lgw._conn.execute("SELECT image_url FROM master_products WHERE id = ?", (mid,)).fetchone()[0]
+                )
+
+                # Segunda corrida con la foto ya disponible en VTEX: debe rellenar image_url en master_products
+                p_with_img = ScrapedProduct(
+                    **{**p_no_img.model_dump(), "image_url": "https://d1tiendas.vtexassets.com/arquivos/ids/203129.jpg"}
+                )
+                cdc2 = CDCManager(lgw, "d1")
+                await cdc2.process_batch([p_with_img])
+                self.assertEqual(
+                    lgw._conn.execute("SELECT image_url FROM master_products WHERE id = ?", (mid,)).fetchone()[0],
+                    "https://d1tiendas.vtexassets.com/arquivos/ids/203129.jpg",
+                )
+            finally:
+                await lgw.aclose()
+
 
 if __name__ == "__main__":
     unittest.main()

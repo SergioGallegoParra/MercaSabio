@@ -78,9 +78,12 @@ class EntityResolver:
             self._ean_cache.update(found)
 
         results: dict[str, ResolutionResult] = {}
+        image_updates: dict[str, str] = {}
         for product in products:
             res = await self._resolve_single(product)
             results[product.external_sku] = res
+            if product.image_url and res.method in {"ean", "trgm"}:
+                image_updates.setdefault(res.master_product_id, product.image_url)
             if stats is not None:
                 if res.method == "ean":
                     stats.master_matches_ean += 1
@@ -91,6 +94,9 @@ class EntityResolver:
                     stats.master_created += 1
                 else:
                     stats.master_created += 1
+
+        if image_updates and hasattr(self._gateway, "backfill_master_images"):
+            await self._gateway.backfill_master_images(image_updates)
 
         return results
 

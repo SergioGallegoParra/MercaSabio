@@ -281,6 +281,24 @@ class LocalSqliteGateway:
         self._conn.commit()
         return new_id
 
+    async def backfill_master_images(self, updates: dict[str, str]) -> int:
+        if not updates:
+            return 0
+        rows = [(url, mid) for mid, url in updates.items() if url]
+        if not rows:
+            return 0
+        cur = self._conn.executemany(
+            """
+            UPDATE master_products
+            SET image_url = ?
+            WHERE id = ?
+              AND (image_url IS NULL OR TRIM(image_url) = '')
+            """,
+            rows,
+        )
+        self._conn.commit()
+        return int(cur.rowcount if cur.rowcount != -1 else 0)
+
     async def upsert_store_skus(self, rows: list[dict[str, Any]]) -> dict[str, str]:
         if not rows:
             return {}

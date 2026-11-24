@@ -436,7 +436,7 @@ def parse_vtex_product_payload(
         calibrated_price = apply_calibration(sale_price, config.markup_discount_factor)
         pum_price = compute_pum(calibrated_price, content.net_content)
 
-        image_url = _extract_vtex_image_url(item)
+        image_url = _extract_vtex_image_url(item, raw_product)
         ean = normalize_ean(item.get("ean"))
         normalized_name = normalize_product_name(raw_name)
         canonical_slug = infer_canonical_category_slug(
@@ -546,12 +546,18 @@ def _build_vtex_product_url(raw_product: dict[str, Any], base_url: str) -> str |
     return None
 
 
-def _extract_vtex_image_url(item: dict[str, Any]) -> str | None:
-    images = item.get("images") or []
-    if isinstance(images, list) and images and isinstance(images[0], dict):
-        url = images[0].get("imageUrl")
-        if isinstance(url, str) and url.strip():
-            return url.strip()
+def _extract_vtex_image_url(item: dict[str, Any], raw_product: dict[str, Any] | None = None) -> str | None:
+    candidates: list[dict[str, Any]] = [item]
+    if raw_product:
+        for sibling in raw_product.get("items") or []:
+            if isinstance(sibling, dict) and sibling is not item:
+                candidates.append(sibling)
+    for cand in candidates:
+        images = cand.get("images") or []
+        if isinstance(images, list) and images and isinstance(images[0], dict):
+            url = images[0].get("imageUrl")
+            if isinstance(url, str) and url.strip():
+                return url.strip()
     return None
 
 
