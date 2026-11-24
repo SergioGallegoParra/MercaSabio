@@ -625,6 +625,72 @@ class OptimizationUnitTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 chk.close()
 
+    def test_fix_content_and_pum_local_splits_ean_pack_collisions_and_recalculates_pum(self) -> None:
+        from etl.fix_content_and_pum_local import fix_content_and_pum_local
+
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "local.db"
+            conn = sqlite3.connect(db_path)
+            conn.executescript(
+                """
+                CREATE TABLE master_products (id TEXT PRIMARY KEY, ean TEXT UNIQUE, canonical_category_id INTEGER, normalized_name TEXT, brand TEXT, net_content TEXT, unit_measure TEXT, is_private_label INTEGER, image_url TEXT, created_at TEXT, shrinkflation_alert INTEGER, product_type TEXT, sub_presentation TEXT, sub_presentation_label TEXT);
+                CREATE TABLE store_skus (id TEXT PRIMARY KEY, store_id TEXT, master_product_id TEXT, raw_name TEXT);
+                CREATE TABLE price_records (id INTEGER PRIMARY KEY, store_sku_id TEXT, calibrated_price TEXT, pum_price TEXT);
+
+                -- Caso 1: Colision EAN unidad (500g) vs paca (12500g)
+                INSERT INTO master_products VALUES ('m-paca', '7707222299122', 19, 'paca arroz zulia 12.5 kg', 'Zulia', '12500.00', 'g', 0, NULL, '2026-11-20', 0, NULL, NULL, NULL);
+                INSERT INTO store_skus VALUES ('s-paca', 'makro', 'm-paca', 'Paca Arroz Zulia 12.5 kg');
+                INSERT INTO store_skus VALUES ('s-unit', 'mercaldas', 'm-paca', 'Arroz ZULIA x500 g');
+                INSERT INTO price_records VALUES (1, 's-paca', '47500.00', '3.8000'), (2, 's-unit', '1900.00', '3.8000');
+
+                -- Caso 2: Maestro con 1.00 und pero raw_name 30 und + PUM inflado
+                INSERT INTO master_products VALUES ('m-huevos', NULL, 14, 'huevos frescos aa 30 und', NULL, '1.00', 'und', 0, NULL, '2026-11-20', 0, NULL, NULL, NULL);
+                INSERT INTO store_skus VALUES ('s-huevos', 'amy', 'm-huevos', 'Huevos frescos AA x 30 und');
+                INSERT INTO price_records VALUES (3, 's-huevos', '20300.00', '20300.0000');
+
+                -- Caso 3: Multipack bien en maestro (240g) pero PUM mal guardado sobre 3 und
+                INSERT INTO master_products VALUES ('m-atun', NULL, 25, 'atun van camps x3 240g', 'Van Camps', '240.00', 'g', 0, NULL, '2026-11-20', 0, NULL, NULL, NULL);
+                INSERT INTO store_skus VALUES ('s-atun', 'jumbo', 'm-atun', 'Atún Van Camps Aceite Oliva 3Und x 80 g');
+                INSERT INTO price_records VALUES (4, 's-atun', '17800.00', '5933.3333');
+                """
+            )
+            conn.commit()
+            conn.close()
+
+            st = fix_content_and_pum_local(db_path=db_path, create_backup=False)
+            self.assertEqual(st.masters_split_content, 1)
+            self.assertEqual(st.skus_reassigned, 1)
+            self.assertEqual(st.masters_content_updated, 1)
+            self.assertEqual(st.pum_records_updated, 2)
+
+            chk = sqlite3.connect(db_path)
+            try:
+                unit_row = chk.execute(
+                    """
+                    SELECT mp.id, mp.net_content, mp.unit_measure
+                    FROM store_skus ss JOIN master_products mp ON mp.id = ss.master_product_id
+                    WHERE ss.id = 's-unit'
+                    """
+                ).fetchone()
+                self.assertNotEqual(unit_row[0], "m-paca")
+                self.assertEqual(unit_row[1], "500.00")
+                self.assertEqual(unit_row[2], "g")
+
+                huevos_row = chk.execute(
+                    "SELECT net_content, unit_measure FROM master_products WHERE id = 'm-huevos'"
+                ).fetchone()
+                self.assertEqual(huevos_row, ("30.00", "und"))
+                self.assertEqual(
+                    chk.execute("SELECT pum_price FROM price_records WHERE id = 3").fetchone()[0],
+                    "676.6667",
+                )
+                self.assertEqual(
+                    chk.execute("SELECT pum_price FROM price_records WHERE id = 4").fetchone()[0],
+                    "74.1667",
+                )
+            finally:
+                chk.close()
+
 
 if __name__ == "__main__":
     unittest.main()
