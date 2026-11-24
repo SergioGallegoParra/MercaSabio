@@ -88,6 +88,7 @@ class LocalSqliteGateway:
                 sub_presentation TEXT,
                 sub_presentation_label TEXT,
                 variant_tags_json TEXT,
+                raw_category_path TEXT,
                 last_verified_at TEXT NOT NULL,
                 UNIQUE(store_id, external_sku)
             );
@@ -114,6 +115,12 @@ class LocalSqliteGateway:
             "INSERT OR IGNORE INTO canonical_categories (slug) VALUES (?)",
             [(slug,) for slug in slugs],
         )
+        sku_cols = {
+            str(r[1])
+            for r in self._conn.execute("PRAGMA table_info(store_skus)").fetchall()
+        }
+        if "raw_category_path" not in sku_cols:
+            self._conn.execute("ALTER TABLE store_skus ADD COLUMN raw_category_path TEXT")
         self._conn.commit()
 
     async def aclose(self) -> None:
@@ -312,13 +319,19 @@ class LocalSqliteGateway:
                 (store_id, ext_sku),
             ).fetchone()
             sku_id = str(existing["id"]) if existing is not None else str(uuid4())
+            raw_cat_path = row.get("category_path")
+            raw_cat_str = (
+                " > ".join(str(seg).strip() for seg in raw_cat_path if str(seg).strip())
+                if isinstance(raw_cat_path, (list, tuple))
+                else (str(raw_cat_path).strip() if raw_cat_path else None)
+            ) or None
             self._conn.execute(
                 """
                 INSERT INTO store_skus (
                     id, store_id, master_product_id, external_sku, raw_name,
                     display_name, raw_url, product_type, sub_presentation,
-                    sub_presentation_label, variant_tags_json, last_verified_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    sub_presentation_label, variant_tags_json, raw_category_path, last_verified_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(store_id, external_sku) DO UPDATE SET
                     master_product_id = excluded.master_product_id,
                     raw_name = excluded.raw_name,
@@ -328,6 +341,7 @@ class LocalSqliteGateway:
                     sub_presentation = excluded.sub_presentation,
                     sub_presentation_label = excluded.sub_presentation_label,
                     variant_tags_json = excluded.variant_tags_json,
+                    raw_category_path = COALESCE(excluded.raw_category_path, store_skus.raw_category_path),
                     last_verified_at = excluded.last_verified_at
                 """,
                 (
@@ -346,6 +360,7 @@ class LocalSqliteGateway:
                         if row.get("variant_tags")
                         else None
                     ),
+                    raw_cat_str,
                     now_iso,
                 ),
             )

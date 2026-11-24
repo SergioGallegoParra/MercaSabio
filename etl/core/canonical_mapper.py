@@ -139,6 +139,7 @@ CANONICAL_RULES: tuple[CanonicalRule, ...] = (
         slug="atun-lata-160g",
         unit_measure=UnitMeasure.G,
         required_keywords=("atun",),
+        excluded_keywords=("gato", "perro", "mascota", "alimento", "felix", "whiskas", "nutrecat"),
         min_content=Decimal("80"),
         max_content=Decimal("500"),
     ),

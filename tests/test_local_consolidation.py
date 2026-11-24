@@ -825,6 +825,68 @@ class OptimizationUnitTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 chk.close()
 
+    def test_store_path_priority_and_category_leak_prevention(self) -> None:
+        from decimal import Decimal
+        from etl.core.models import UnitMeasure
+        from etl.core.product_enrichment import infer_broad_category_slug
+        from etl.import_llm_category_fixes_local import import_llm_category_fixes_local
+
+        self.assertEqual(
+            infer_broad_category_slug(
+                "refresco soka lulo", Decimal("410"), UnitMeasure.ML
+            ),
+            "aguas-jugos-y-gaseosas",
+        )
+        self.assertEqual(
+            infer_broad_category_slug(
+                "pan perro bimbo", Decimal("205"), UnitMeasure.G
+            ),
+            "panaderia-y-arepas",
+        )
+        self.assertEqual(
+            infer_broad_category_slug(
+                "alimento felix classic gato atun", Decimal("85"), UnitMeasure.G
+            ),
+            "mascotas",
+        )
+        self.assertEqual(
+            infer_broad_category_slug(
+                "crema vitu hidratante mango lichi", Decimal("75"), UnitMeasure.ML
+            ),
+            "cuidado-personal-e-higiene",
+        )
+        self.assertEqual(
+            infer_broad_category_slug(
+                "bebida alu maracuya",
+                Decimal("310"),
+                UnitMeasure.ML,
+                category_path=["Mercado", "Bebidas", "Jugos y Refrescos"],
+            ),
+            "aguas-jugos-y-gaseosas",
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "test_cats.db"
+            conn = sqlite3.connect(str(db))
+            conn.executescript(
+                """
+                CREATE TABLE canonical_categories (id INTEGER PRIMARY KEY, slug TEXT);
+                CREATE TABLE master_products (id TEXT PRIMARY KEY, canonical_category_id INTEGER);
+                CREATE TABLE store_skus (id TEXT PRIMARY KEY, master_product_id TEXT, is_mercado INTEGER);
+                INSERT INTO canonical_categories VALUES (17, 'frutas-y-verduras'), (30, 'aguas-jugos-y-gaseosas');
+                INSERT INTO master_products VALUES ('m1', 17), ('m2', 17);
+                INSERT INTO store_skus VALUES ('s1', 'm1', 1), ('s2', 'm2', 1);
+                """
+            )
+            conn.commit()
+            conn.close()
+
+            txt = Path(tmp) / "cat_fixes.txt"
+            txt.write_text("m1 | MOVE | aguas-jugos-y-gaseosas\nm2 | PURGE |\n", encoding="utf-8")
+            st = import_llm_category_fixes_local(txt, db_path=db)
+            self.assertEqual(st.moved, 1)
+            self.assertEqual(st.purged, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

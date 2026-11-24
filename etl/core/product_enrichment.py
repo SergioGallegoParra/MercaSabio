@@ -379,6 +379,7 @@ BROAD_CATEGORY_RULES: tuple[BroadCategoryRule, ...] = (
             r"ringo|mirringo|pro\s*plan|nutra\s*nuggets|felix\s+gato|arena\s+(?:para\s+)?gato|"
             r"hueso\s+(?:para\s+)?perro|collar\s+(?:perro|gato))\b"
         ),
+        exclude=_rx(r"\b(pan\s+(?:super\s+)?perro|pan\s+bimbo.*perro|salchicha.*perro\s+caliente|gato\s+negro)\b"),
     ),
     BroadCategoryRule(
         "bebes-y-maternidad",
@@ -411,7 +412,7 @@ BROAD_CATEGORY_RULES: tuple[BroadCategoryRule, ...] = (
             r"gel\s+(?:para\s+)?cabello|tinte\s+(?:de\s+|para\s+)?(?:pelo|cabello)|rizadores?\s+de\s+pelo|"
             r"varillas.*onduladoras|esmalte|labial|delineador|corrector\s+.*(?:conceal|ojeras|facial)|"
             r"maquillaje|pestanina|rimel|rubor|polvo\s+compacto|agua\s+micelar|serum\s+facial|protector\s+solar|"
-            r"bloqueador\s+solar|crema\s+(?:dental|facial|corporal|hidratante|manos|piel|noche|dia|antiedad)|"
+            r"bloqueador\s+solar|crema\s+(?:[a-z0-9]+\s+)?(?:dental|facial|corporal|hidratante|manos|piel|noche|dia|antiedad)|"
             r"pasta\s+dental|dentrifico|cepillo\s+(?:de\s+)?dientes|enjuague\s+bucal|seda\s+dental|colgate|oral\s*b|"
             r"sensodyne|desodorante|antitranspirante|jabon\s+(?:de\s+bano|tocador|corporal|liquido\s+manos|en\s+barra)|"
             r"papel\s+higienic\w*|toallas?\s+higienicas?|protector\s+diario|tampon(?:es)?|panuelos\s+faciales|"
@@ -461,7 +462,7 @@ BROAD_CATEGORY_RULES: tuple[BroadCategoryRule, ...] = (
     BroadCategoryRule(
         "yogures-y-kumis",
         _rx(r"\b(yogur(?:t)?|kumis|kefir|yox|bon\s*yurt|regene?ris|finesse\s+yogur|avena\s+alpina|bebida\s+lactea\s+fermentada)\b"),
-        exclude=_rx(r"\b(galleta|cereal|helado\s+de\s+yogurt)\b"),
+        exclude=_rx(r"\b(galleta|cereal|helado\s+de\s+yogurt|jabon|shampoo|crema\s+(?:facial|corporal|manos))\b"),
     ),
     # 8. Quesos y mantequillas
     BroadCategoryRule(
@@ -497,6 +498,7 @@ BROAD_CATEGORY_RULES: tuple[BroadCategoryRule, ...] = (
             r"champinon(?:es)?\s+enlatad|antipasto|esparragos|melocoton(?:es)?\s+en\s+almibar|pina\s+en\s+almibar|"
             r"frijol(?:es)?\s+(?:enlatad|lata|refrit|antioquen|ranchero)|ensalada\s+en\s+lata)\b"
         ),
+        exclude=_rx(r"\b(gato|gatos|perro|perros|mascota|alimento\s+humedo|felix|nutrecat|whiskas)\b"),
     ),
     # 12. Jamones y embutidos
     BroadCategoryRule(
@@ -600,6 +602,7 @@ BROAD_CATEGORY_RULES: tuple[BroadCategoryRule, ...] = (
             r"pasabocas|doritos|cheetos|detodito|tostacos|platanitos|tajaditas|rosquillas|achiras|chicharron\s+snack|"
             r"mani|almendras|pistachos|maranon|nueces|mix\s+frutos\s+secos|crispetas|maiz\s+tostado|nachos|totopos|barra\s+cereal)\b"
         ),
+        exclude=_rx(r"\b(jabon|shampoo|crema\s+(?:corporal|facial|manos)|perro|gato|mascota)\b"),
     ),
     # 23. Dulces, mermeladas y chocolatería
     BroadCategoryRule(
@@ -616,9 +619,11 @@ BROAD_CATEGORY_RULES: tuple[BroadCategoryRule, ...] = (
         _rx(
             r"\b(agua\s+(?:mineral|con\s+gas|sin\s+gas|purificada|saborizada|cristal|brisa|manantial|hatsan)|"
             r"gaseosa|coca\s*cola|pepsi|sprite|fanta|quatro|colombiana|manzana\s+postobon|uva\s+postobon|"
-            r"soda|tonica|ginger|jugo|nectar|hit\b|del\s+valle|cifrut|tampico|mr\s+tea|fuze\s+tea|"
+            r"soda|tonica|ginger|jugo|nectar|refresco|bebida\s+(?:refrescante|sabor|frutal|en\s+polvo)|"
+            r"hit\b|del\s+valle|cifrut|tampico|mr\s+tea|fuze\s+tea|frutto|soka|clight|boka|flashlyte|"
             r"te\s+helado|gatorade|powerade|squash|hidratante|vive\s*100|red\s+bull|monster|energizante|pony\s+malta)\b"
         ),
+        exclude=_rx(r"\b(shampoo|jabon|crema|hidratante\s+(?:corporal|facial|labial|piel|manos)|desodorante|suavizante|detergente|limpiador|gelatina)\b"),
     ),
     # 25. Frutas y verduras frescas
     BroadCategoryRule(
@@ -629,7 +634,12 @@ BROAD_CATEGORY_RULES: tuple[BroadCategoryRule, ...] = (
             r"cebolla\s+(?:cabezona|larga|roja)|papa\s+(?:criolla|pastusa|sabanera|capira)|zanahoria|lechuga|"
             r"cilantro|perejil|espinaca|brocoli|coliflor|pimenton|pepino\s+cohombro|ajo\s+fresco|platano|yuca|ahuyama)\b"
         ),
-        exclude=_rx(r"\b(shampoo|jabon|crema|salsa|galleta|jugo|yogurt|sabor|te\s+bitaco|aromatizante|gomita)\b"),
+        exclude=_rx(
+            r"\b(shampoo|jabon|crema|mascarilla|aceite|salsa|galleta|jugo|bebida|refresco|nectar|gaseosa|soda|"
+            r"hidratante|energizante|yogurt|lacte[oa]|helado|sabor|te\s+(?:bitaco|verde|negro|helado)|"
+            r"aromatizante|gomita|caramelo|dulce|mermelada|compota|tortilla|tostones|llamadientes|snack|"
+            r"frutto|soka|clight|boka|flashlyte)\b"
+        ),
     ),
     # 26. Cocina y desechables
     BroadCategoryRule(
@@ -641,6 +651,49 @@ BROAD_CATEGORY_RULES: tuple[BroadCategoryRule, ...] = (
         ),
     ),
 )
+
+
+STORE_PATH_CATEGORY_RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("mascotas", _rx(r"\b(mascotas?|perros?|gatos?)\b")),
+    ("bebes-y-maternidad", _rx(r"\b(bebes?|maternidad|panales)\b")),
+    ("cuidado-personal-e-higiene", _rx(r"\b(cuidado\s+personal|higiene\s+personal|belleza|cosmeticos|cuidado\s+capilar|cuidado\s+oral|salud\s+y\s+belleza)\b")),
+    ("aseo-hogar-y-lavanderia", _rx(r"\b(aseo\s+(?:del\s+)?hogar|limpieza\s+del\s+hogar|lavanderia|detergentes)\b")),
+    ("frutas-y-verduras", _rx(r"\b(frutas\s+y\s+verduras|fruver|verduras\s+y\s+hortalizas|frutas\s+frescas)\b")),
+    ("aguas-jugos-y-gaseosas", _rx(r"\b(aguas|jugos|gaseosas|bebidas\s+no\s+alcoholicas|refrescos|hidratantes|energizantes)\b")),
+    ("vinos-cervezas-y-licores", _rx(r"\b(vinos|cervezas|licores|bebidas\s+alcoholicas)\b")),
+    ("carnes-pollo-pescado", _rx(r"\b(carnes|pollo|aves|pescados?\s+y\s+mariscos|carniceria)\b")),
+    ("jamones-y-embutidos", _rx(r"\b(jamones|embutidos|carnes\s+frias|charcuteria|salchichoneria)\b")),
+    ("quesos-y-mantequillas", _rx(r"\b(quesos|mantequillas|margarinas)\b")),
+    ("yogures-y-kumis", _rx(r"\b(yogures?|kumis|kefir)\b")),
+    ("lacteos-y-leches", _rx(r"\b(lacteos|leches)\b")),
+    ("huevos-y-derivados", _rx(r"\b(huevos)\b")),
+    ("panaderia-y-arepas", _rx(r"\b(panaderia|arepas|pasteleria)\b")),
+    ("cafe-te-y-chocolate", _rx(r"\b(cafe|te\s+e\s+infusiones|chocolate\s+de\s+mesa)\b")),
+    ("galletas-y-snacks", _rx(r"\b(galletas|snacks|pasabocas)\b")),
+    ("dulces-y-chocolateria", _rx(r"\b(dulces|confiteria|chocolateria|mermeladas)\b")),
+    ("enlatados-y-conservas", _rx(r"\b(enlatados|conservas)\b")),
+    ("congelados-y-helados", _rx(r"\b(congelados|helados)\b")),
+    ("arroces-y-granos", _rx(r"\b(arroz|arroces|granos|legumbres)\b")),
+    ("pastas-y-fideos", _rx(r"\b(pastas|fideos)\b")),
+    ("harinas-y-reposteria", _rx(r"\b(harinas|reposteria)\b")),
+    ("aceites-y-vinagres", _rx(r"\b(aceites|vinagres)\b")),
+    ("azucar-panela-miel", _rx(r"\b(azucar|panela|endulzantes|miel)\b")),
+    ("salsas-y-condimentos", _rx(r"\b(salsas|condimentos|especias|caldos)\b")),
+)
+
+
+def infer_category_from_store_path(category_path: Sequence[str] | None) -> str | None:
+    """Mapea la ruta de categoría oficial reportada por el supermercado a un slug canónico."""
+    if not category_path:
+        return None
+    for seg in reversed(category_path):
+        norm_seg = _strip_accents_lower(seg)
+        if not norm_seg:
+            continue
+        for slug, rx in STORE_PATH_CATEGORY_RULES:
+            if rx.search(norm_seg):
+                return slug
+    return None
 
 
 def infer_broad_category_slug(
@@ -663,6 +716,10 @@ def infer_broad_category_slug(
     strict = infer_canonical_category_slug(normalized_name, dec_content, unit_enum)
     if strict is not None:
         return strict
+
+    from_store = infer_category_from_store_path(category_path)
+    if from_store is not None:
+        return from_store
 
     joined_path = " ".join(_strip_accents_lower(seg) for seg in (category_path or ()) if seg)
     text = f"{_strip_accents_lower(normalized_name)} {joined_path}".strip()

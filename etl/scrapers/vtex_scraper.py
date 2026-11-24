@@ -11,7 +11,8 @@ import httpx
 
 from etl.core.base_scraper import BaseScraper, ScraperHTTPError
 from etl.core.calibrator import apply_calibration
-from etl.core.canonical_mapper import infer_canonical_category_slug, is_store_private_label
+from etl.core.canonical_mapper import is_store_private_label
+from etl.core.product_enrichment import infer_broad_category_slug
 from etl.core.grocery_filter import (
     _MIXED_PARENT_CONTAINER_NORMS,
     evaluate_category_path_whitelist,
@@ -439,10 +440,11 @@ def parse_vtex_product_payload(
         image_url = _extract_vtex_image_url(item, raw_product)
         ean = normalize_ean(item.get("ean"))
         normalized_name = normalize_product_name(raw_name)
-        canonical_slug = infer_canonical_category_slug(
+        canonical_slug = infer_broad_category_slug(
             normalized_name,
             content.net_content,
             content.unit_measure,
+            category_path=category_path,
         )
         private_label = is_store_private_label(config.store_id, brand, ean)
 
