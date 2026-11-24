@@ -29,6 +29,12 @@ interface SqliteDatabase {
 
 const require = createRequire(import.meta.url);
 
+let cachedSummaryData: {
+  expiresAt: number;
+  summary: AdminStoreSummaryItem[];
+  categories: CanonicalCategoryOption[];
+} | null = null;
+
 export function isLocalAdminEnvironment(): boolean {
   return !process.env.VERCEL && resolveLocalStagingDbPath() !== null;
 }
@@ -74,10 +80,16 @@ export function queryLocalAdminCatalog(params: {
   }
 
   try {
+    const now = Date.now();
+    const useCachedSummary =
+      params.includeSummary && cachedSummaryData !== null && cachedSummaryData.expiresAt > now;
+
     const summary: AdminStoreSummaryItem[] = params.includeSummary
-      ? db
-          .prepare(
-            `
+      ? useCachedSummary
+        ? cachedSummaryData!.summary
+        : db
+            .prepare(
+              `
             SELECT
               s.id AS store_id,
               s.name AS store_name,
@@ -94,32 +106,42 @@ export function queryLocalAdminCatalog(params: {
             GROUP BY s.id, s.name
             ORDER BY total_skus DESC, s.name ASC
             `,
-          )
-          .all()
-          .map((r) => ({
-            storeId: String(r.store_id),
-            storeName: String(r.store_name),
-            totalSkus: Number(r.total_skus ?? 0),
-            categorizedSkus: Number(r.categorized_skus ?? 0),
-            uncategorizedSkus: Number(r.uncategorized_skus ?? 0),
-            withEanSkus: Number(r.with_ean_skus ?? 0),
-            withImageSkus: Number(r.with_image_skus ?? 0),
-            privateLabelSkus: Number(r.private_label_skus ?? 0),
-            lastVerifiedAt: r.last_verified_at ? String(r.last_verified_at) : null,
-          }))
+            )
+            .all()
+            .map((r) => ({
+              storeId: String(r.store_id),
+              storeName: String(r.store_name),
+              totalSkus: Number(r.total_skus ?? 0),
+              categorizedSkus: Number(r.categorized_skus ?? 0),
+              uncategorizedSkus: Number(r.uncategorized_skus ?? 0),
+              withEanSkus: Number(r.with_ean_skus ?? 0),
+              withImageSkus: Number(r.with_image_skus ?? 0),
+              privateLabelSkus: Number(r.private_label_skus ?? 0),
+              lastVerifiedAt: r.last_verified_at ? String(r.last_verified_at) : null,
+            }))
       : [];
 
     const categories: CanonicalCategoryOption[] = params.includeSummary
-      ? db
-          .prepare("SELECT id, slug, COALESCE(name, slug) AS name, base_unit FROM canonical_categories ORDER BY name ASC")
-          .all()
-          .map((c) => ({
-            id: Number(c.id),
-            slug: String(c.slug),
-            name: String(c.name),
-            baseUnit: (c.base_unit ? String(c.base_unit) : "g") as UnitMeasure,
-          }))
+      ? useCachedSummary
+        ? cachedSummaryData!.categories
+        : db
+            .prepare("SELECT id, slug, COALESCE(name, slug) AS name, base_unit FROM canonical_categories ORDER BY name ASC")
+            .all()
+            .map((c) => ({
+              id: Number(c.id),
+              slug: String(c.slug),
+              name: String(c.name),
+              baseUnit: (c.base_unit ? String(c.base_unit) : "g") as UnitMeasure,
+            }))
       : [];
+
+    if (params.includeSummary && !useCachedSummary) {
+      cachedSummaryData = {
+        expiresAt: now + 30_000,
+        summary,
+        categories,
+      };
+    }
 
     const where: string[] = ["ss.is_mercado = 1"];
     const args: unknown[] = [];
@@ -152,6 +174,12 @@ export function queryLocalAdminCatalog(params: {
       where.push("mp.is_private_label = 1");
     } else if (params.labelFilter === "national") {
       where.push("mp.is_private_label = 0");
+    } else if (params.labelFilter === "with_ean") {
+      where.push("mp.ean IS NOT NULL AND TRIM(mp.ean) <> ''");
+    } else if (params.labelFilter === "no_ean") {
+      where.push("(mp.ean IS NULL OR TRIM(mp.ean) = '')");
+    } else if (params.labelFilter === "deprecated_candidate") {
+      where.push("ss.is_deprecated_candidate = 1");
     }
 
     const whereSql = where.join(" AND ");
@@ -162,60 +190,99 @@ export function queryLocalAdminCatalog(params: {
           ? "CAST(COALESCE(lp.calibrated_price, 0) AS REAL) DESC"
           : params.sort === "pum_asc"
             ? "CAST(COALESCE(lp.pum_price, 0) AS REAL) ASC"
-            : "COALESCE(ss.display_name, ss.raw_name) ASC";
+            : params.sort === "recent"
+              ? "COALESCE(lp.captured_at, ss.last_verified_at) DESC"
+              : "COALESCE(ss.display_name, ss.raw_name) ASC";
 
-    const baseFrom = `
+    const needsPriceJoinInFilter =
+      params.stockFilter === "in_stock" || params.stockFilter === "out_of_stock";
+    const needsPriceJoinInSort =
+      params.sort === "price_asc" ||
+      params.sort === "price_desc" ||
+      params.sort === "pum_asc" ||
+      params.sort === "recent";
+
+    const coreFrom = `
       FROM store_skus ss
       JOIN stores s ON s.id = ss.store_id
       JOIN master_products mp ON mp.id = ss.master_product_id
       LEFT JOIN canonical_categories cc ON cc.id = mp.canonical_category_id
+    `;
+    const priceJoin = `
       LEFT JOIN price_records lp ON lp.id = (
         SELECT pr.id FROM price_records pr WHERE pr.store_sku_id = ss.id ORDER BY pr.id DESC LIMIT 1
       )
-      WHERE ${whereSql}
     `;
 
-    const countRow = db.prepare(`SELECT COUNT(*) AS cnt ${baseFrom}`).get(...args);
+    const countRow = db
+      .prepare(
+        `SELECT COUNT(*) AS cnt ${coreFrom} ${needsPriceJoinInFilter ? priceJoin : ""} WHERE ${whereSql}`
+      )
+      .get(...args);
     const totalCount = Number(countRow?.cnt ?? 0);
     const offset = (params.page - 1) * params.pageSize;
 
-    const rows = db
-      .prepare(
+    const selectColumns = `
+      ss.id AS store_sku_id,
+      ss.store_id,
+      s.name AS store_name,
+      ss.external_sku,
+      ss.raw_name,
+      COALESCE(ss.display_name, ss.raw_name) AS display_name,
+      ss.raw_url,
+      mp.brand,
+      mp.ean,
+      mp.net_content,
+      mp.unit_measure,
+      mp.is_private_label,
+      mp.image_url,
+      cc.slug AS canonical_slug,
+      cc.name AS canonical_name,
+      COALESCE(ss.product_type, mp.product_type) AS product_type,
+      COALESCE(ss.sub_presentation, mp.sub_presentation) AS sub_presentation,
+      COALESCE(ss.sub_presentation_label, mp.sub_presentation_label) AS sub_presentation_label,
+      ss.variant_tags_json,
+      ss.is_deprecated_candidate,
+      ss.deprecated_reason,
+      COALESCE(lp.calibrated_price, '0') AS calibrated_price,
+      COALESCE(lp.raw_list_price, '0') AS raw_list_price,
+      COALESCE(lp.pum_price, '0') AS pum_price,
+      COALESCE(lp.in_stock, 0) AS in_stock,
+      COALESCE(lp.source_origin, 'local') AS source_origin,
+      COALESCE(lp.captured_at, ss.last_verified_at) AS captured_at
+    `;
+
+    // When sorting by name and not filtering by stock, paginate store_skus BEFORE joining price_records
+    // so SQLite only evaluates the correlated latest-price lookup for the 40 visible rows (~10x faster).
+    const rowsSql =
+      !needsPriceJoinInFilter && !needsPriceJoinInSort
+        ? `
+          WITH page_skus AS (
+            SELECT ss.id AS store_sku_id
+            ${coreFrom}
+            WHERE ${whereSql}
+            ORDER BY ${orderSql}
+            LIMIT ? OFFSET ?
+          )
+          SELECT ${selectColumns}
+          FROM page_skus p
+          JOIN store_skus ss ON ss.id = p.store_sku_id
+          JOIN stores s ON s.id = ss.store_id
+          JOIN master_products mp ON mp.id = ss.master_product_id
+          LEFT JOIN canonical_categories cc ON cc.id = mp.canonical_category_id
+          ${priceJoin}
+          ORDER BY ${orderSql}
         `
-        SELECT
-          ss.id AS store_sku_id,
-          ss.store_id,
-          s.name AS store_name,
-          ss.external_sku,
-          ss.raw_name,
-          COALESCE(ss.display_name, ss.raw_name) AS display_name,
-          ss.raw_url,
-          mp.brand,
-          mp.ean,
-          mp.net_content,
-          mp.unit_measure,
-          mp.is_private_label,
-          mp.image_url,
-          cc.slug AS canonical_slug,
-          cc.name AS canonical_name,
-          COALESCE(ss.product_type, mp.product_type) AS product_type,
-          COALESCE(ss.sub_presentation, mp.sub_presentation) AS sub_presentation,
-          COALESCE(ss.sub_presentation_label, mp.sub_presentation_label) AS sub_presentation_label,
-          ss.variant_tags_json,
-          ss.is_deprecated_candidate,
-          ss.deprecated_reason,
-          COALESCE(lp.calibrated_price, '0') AS calibrated_price,
-          COALESCE(lp.raw_list_price, '0') AS raw_list_price,
-          COALESCE(lp.pum_price, '0') AS pum_price,
-          COALESCE(lp.in_stock, 0) AS in_stock,
-          COALESCE(lp.source_origin, 'local') AS source_origin,
-          COALESCE(lp.captured_at, ss.last_verified_at) AS captured_at
-        ${baseFrom}
-        ORDER BY ${orderSql}
-        LIMIT ? OFFSET ?
-        `,
-      )
-      .all(...args, params.pageSize, offset);
+        : `
+          SELECT ${selectColumns}
+          ${coreFrom}
+          ${priceJoin}
+          WHERE ${whereSql}
+          ORDER BY ${orderSql}
+          LIMIT ? OFFSET ?
+        `;
+
+    const rows = db.prepare(rowsSql).all(...args, params.pageSize, offset);
 
     const items: AdminCatalogBrowseRow[] = rows.map((r) => {
       let variantTags: string[] = [];
@@ -314,6 +381,7 @@ export function applyLocalAdminCuration(params: {
     } else if (params.action === "exclude_sku" && params.storeSkuId) {
       db.prepare("UPDATE store_skus SET is_mercado = 0 WHERE id = ?").run(params.storeSkuId);
     }
+    cachedSummaryData = null;
     return { ok: true, local: true };
   } finally {
     db.close();

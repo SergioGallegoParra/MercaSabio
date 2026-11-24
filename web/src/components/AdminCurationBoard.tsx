@@ -119,6 +119,7 @@ export default function AdminCurationBoard({ initialData }: AdminCurationBoardPr
   const [toast, setToast] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [draggedSkuId, setDraggedSkuId] = useState<string | null>(null);
   const [dragOverTier, setDragOverTier] = useState<QualityTier | null>(null);
+  const [editingSubtypeSkuId, setEditingSubtypeSkuId] = useState<string | null>(null);
 
   // Estado del explorador completo de BD por tienda (paginado en servidor)
   const [invSummary, setInvSummary] = useState<AdminStoreSummaryItem[]>([]);
@@ -141,9 +142,16 @@ export default function AdminCurationBoard({ initialData }: AdminCurationBoardPr
   const [invPage, setInvPage] = useState(1);
   const [invPageSize, setInvPageSize] = useState(40);
   const invSummaryLoadedRef = useRef(false);
+  const invAbortRef = useRef<AbortController | null>(null);
+  const invReqSeqRef = useRef(0);
 
   const loadInventoryPage = useCallback(
     async (opts?: { forceSummary?: boolean; pageOverride?: number; queryOverride?: string }) => {
+      invAbortRef.current?.abort();
+      const controller = new AbortController();
+      invAbortRef.current = controller;
+      const reqSeq = ++invReqSeqRef.current;
+
       setInvLoading(true);
       setInvError(null);
       try {
@@ -163,9 +171,11 @@ export default function AdminCurationBoard({ initialData }: AdminCurationBoardPr
         });
         const res = await fetch(`/api/admin/catalog?${params.toString()}`, {
           cache: "no-store",
+          signal: controller.signal,
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const payload = (await res.json()) as AdminStoreCatalogPayload;
+        if (reqSeq !== invReqSeqRef.current) return;
         if (needSummary && Array.isArray(payload.summary) && payload.summary.length > 0) {
           setInvSummary(payload.summary);
           invSummaryLoadedRef.current = true;
@@ -175,10 +185,14 @@ export default function AdminCurationBoard({ initialData }: AdminCurationBoardPr
         }
         setInvItems(payload.items ?? []);
         setInvTotalCount(payload.totalCount ?? 0);
-      } catch {
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        if (reqSeq !== invReqSeqRef.current) return;
         setInvError("No se pudo consultar el inventario completo de la base de datos.");
       } finally {
-        setInvLoading(false);
+        if (reqSeq === invReqSeqRef.current) {
+          setInvLoading(false);
+        }
       }
     },
     [invStoreId, invQuery, invCategory, invStock, invLabel, invSort, invPage, invPageSize]
@@ -186,8 +200,11 @@ export default function AdminCurationBoard({ initialData }: AdminCurationBoardPr
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setInvQuery(invQueryInput);
-      setInvPage(1);
+      setInvQuery((prev) => {
+        if (prev === invQueryInput) return prev;
+        setInvPage(1);
+        return invQueryInput;
+      });
     }, 280);
     return () => window.clearTimeout(timer);
   }, [invQueryInput]);
@@ -196,6 +213,9 @@ export default function AdminCurationBoard({ initialData }: AdminCurationBoardPr
     if (activeTab === "inventory" || !invSummaryLoadedRef.current) {
       void loadInventoryPage();
     }
+    return () => {
+      invAbortRef.current?.abort();
+    };
   }, [activeTab, loadInventoryPage]);
 
   const totalDbSkus = useMemo(
@@ -376,15 +396,40 @@ export default function AdminCurationBoard({ initialData }: AdminCurationBoardPr
 
   function renderSubtypeSelect(item: AdminCatalogItem) {
     const actionKey = `sub-${item.offer.storeSkuId}`;
+    const isEditing = editingSubtypeSkuId === item.offer.storeSkuId;
+    if (!isEditing) {
+      const currentMeta = data.subtypeOptions.find(
+        (s) => s.subtype === item.signature.subtypeFamily
+      );
+      const label = currentMeta
+        ? `${currentMeta.label} (${currentMeta.count})`
+        : `${item.signature.familyLabel} (auto)`;
+      return (
+        <button
+          type="button"
+          aria-label={`Subtipo de ${item.offer.rawName}`}
+          className="admin-subtype-select"
+          style={{ textAlign: "left", cursor: "pointer" }}
+          disabled={busyKey === actionKey}
+          onClick={() => setEditingSubtypeSkuId(item.offer.storeSkuId)}
+          title="Clic para cambiar subtipo"
+        >
+          {label} ▾
+        </button>
+      );
+    }
     return (
       <select
+        autoFocus
         aria-label={`Subtipo de ${item.offer.rawName}`}
         className="admin-subtype-select"
         value={item.signature.subtypeFamily}
         disabled={busyKey === actionKey}
+        onBlur={() => setEditingSubtypeSkuId(null)}
         onChange={(e) => {
           const nextSubtype = e.target.value;
           const meta = data.subtypeOptions.find((s) => s.subtype === nextSubtype);
+          setEditingSubtypeSkuId(null);
           void runCurationAction(
             actionKey,
             {
@@ -1347,7 +1392,7 @@ export default function AdminCurationBoard({ initialData }: AdminCurationBoardPr
                 {TIERS.map((col) => {
                   const colItems = filteredExplorerItems
                     .filter((i) => i.qualityTier === col.id)
-                    .slice(0, 60);
+                    .slice(0, 24);
                   return (
                     <div
                       key={col.id}
