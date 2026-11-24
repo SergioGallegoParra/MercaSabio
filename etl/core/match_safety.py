@@ -194,11 +194,23 @@ def strip_accents_lower(text: str) -> str:
     return re.sub(r"\s+", " ", stripped.lower()).strip()
 
 
+_PUNCTUATED_BRAND_ALIASES: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"^(?:harina\s+)?p\.?\s*a\.?\s*n\.?$"), "harina pan"),
+)
+_TEXT_BRAND_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\bp\.a\.n\.?\b|\bharina\s+(?:de\s+maiz\s+)?pan\b"), "harina pan"),
+)
+
+
 def normalize_brand(brand: str | None) -> str | None:
     """Normaliza una marca comercial o retorna `None` si es genérica o vacía."""
     if not brand:
         return None
-    cleaned = re.sub(r"[^a-z0-9\s]", "", strip_accents_lower(brand))
+    raw_lower = strip_accents_lower(brand)
+    for rx, canonical in _PUNCTUATED_BRAND_ALIASES:
+        if rx.match(raw_lower):
+            return canonical
+    cleaned = re.sub(r"[^a-z0-9\s]", "", raw_lower)
     cleaned = " ".join(cleaned.split())
     if not cleaned or cleaned in _NON_BRAND_PLACEHOLDERS or cleaned in _GENERIC_WORDS_NOT_BRANDS:
         return None
@@ -319,6 +331,9 @@ def extract_product_signature(
         for mb in multi_brands:
             if f" {mb} " in padded:
                 found_brands.add(mb)
+    for rx, canonical in _TEXT_BRAND_PATTERNS:
+        if rx.search(combined):
+            found_brands.add(canonical)
 
     meta = extract_product_metadata(raw_name, normalized_name, is_private_label=is_private_label)
 

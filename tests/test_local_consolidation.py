@@ -771,6 +771,60 @@ class OptimizationUnitTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 chk.close()
 
+    def test_pan_brand_normalization_and_llm_brand_import(self) -> None:
+        from etl.core.match_safety import brands_compatible, extract_product_signature, normalize_brand
+        from etl.import_llm_brand_fixes_local import import_llm_brand_fixes_local
+
+        self.assertEqual(normalize_brand("P.A.N."), "harina pan")
+        self.assertEqual(normalize_brand("PAN"), "harina pan")
+        self.assertFalse(brands_compatible("P.A.N.", "Diana"))
+        self.assertTrue(brands_compatible("P.A.N.", "PAN"))
+
+        sig_diana = extract_product_signature(
+            "Harina de maiz DIANA amarilla x1000 g",
+            single_brands=frozenset({"diana"}),
+        )
+        sig_bread = extract_product_signature(
+            "Pan tajado Bimbo blanco 450g",
+            single_brands=frozenset({"bimbo"}),
+        )
+        self.assertIn("diana", sig_diana.detected_brands)
+        self.assertNotIn("harina pan", sig_diana.detected_brands)
+        self.assertNotIn("harina pan", sig_bread.detected_brands)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "test_brands.db"
+            conn = sqlite3.connect(str(db))
+            conn.executescript(
+                """
+                CREATE TABLE master_products (
+                    id TEXT PRIMARY KEY, ean TEXT, brand TEXT, is_private_label INTEGER
+                );
+                CREATE TABLE store_skus (
+                    id TEXT PRIMARY KEY, store_id TEXT, master_product_id TEXT
+                );
+                INSERT INTO master_products VALUES ('m1', NULL, 'P.A.N.', 0);
+                INSERT INTO master_products VALUES ('m2', NULL, 'FRIKO', 0);
+                INSERT INTO store_skus VALUES ('s1', 'mercaldas', 'm1');
+                INSERT INTO store_skus VALUES ('s2', 'mercamio', 'm2');
+                """
+            )
+            conn.commit()
+            conn.close()
+
+            txt = Path(tmp) / "fixes.txt"
+            txt.write_text("m1 | FIX | Diana\nm2 | CLEAR |\n", encoding="utf-8")
+            st = import_llm_brand_fixes_local(txt, db_path=db)
+            self.assertEqual(st.brands_fixed, 1)
+            self.assertEqual(st.brands_cleared, 1)
+
+            chk = sqlite3.connect(str(db))
+            try:
+                self.assertEqual(chk.execute("SELECT brand FROM master_products WHERE id='m1'").fetchone()[0], "Diana")
+                self.assertIsNone(chk.execute("SELECT brand FROM master_products WHERE id='m2'").fetchone()[0])
+            finally:
+                chk.close()
+
 
 if __name__ == "__main__":
     unittest.main()

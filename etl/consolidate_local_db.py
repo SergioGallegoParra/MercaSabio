@@ -665,13 +665,21 @@ def consolidate_and_optimize(
                 new_mid = cand_id if cand_id not in masters_by_id else str(uuid4())
 
                 detected_list = sorted(rep_sig.detected_brands)
+                rep_brand = rep.get("_brand")
+                rep_brand_norm = normalize_brand(rep_brand)
+                rep_brand_in_text = bool(
+                    rep_brand_norm
+                    and (
+                        rep_brand_norm in rep_sig.norm_text.replace("-", "")
+                        or (detected_list and any(brands_compatible(rep_brand_norm, db) for db in detected_list))
+                    )
+                )
                 new_brand: str | None = None
-                if rep.get("_brand") and (
-                    not detected_list or any(brands_compatible(rep["_brand"], db) for db in detected_list)
-                ):
-                    new_brand = rep["_brand"]
+                if rep_brand and rep_brand_in_text:
+                    new_brand = rep_brand
                 elif detected_list:
-                    new_brand = detected_list[0].title()
+                    first_brand = detected_list[0]
+                    new_brand = "P.A.N." if first_brand == "harina pan" else first_brand.title()
 
                 new_pl = 1 if is_store_private_label(rep["store_id"], new_brand, None) else 0
                 meta = extract_product_metadata(rep["raw_name"], new_norm, is_private_label=bool(new_pl))
