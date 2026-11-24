@@ -1305,6 +1305,14 @@ export async function getAdminCurationData(options?: {
     }));
   }
 
+  return buildAdminCurationPayload(offers, curationContext, reports);
+}
+
+export function buildAdminCurationPayload(
+  offers: StoreOffer[],
+  curationContext: CurationContext,
+  reports: ComparisonReportItem[] = []
+): AdminCurationPayload {
   const items = buildAdminCatalogItems(offers, curationContext);
 
   const subtypeCounts = new Map<string, AdminSubtypeOption>();

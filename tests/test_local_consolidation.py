@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -428,6 +429,199 @@ class OptimizationUnitTests(unittest.IsolatedAsyncioTestCase):
                 b2_mid = chk.execute("SELECT master_product_id FROM store_skus WHERE id = 'sk-b2'").fetchone()[0]
                 self.assertNotEqual(b1_mid, b2_mid)
                 self.assertEqual(chk.execute("SELECT COUNT(*) FROM store_skus").fetchone()[0], 4)
+            finally:
+                chk.close()
+
+    def test_import_llm_anomalies_local_reclassifies_and_purges_respecting_overrides(self) -> None:
+        from etl.import_llm_anomalies_local import apply_llm_anomalies_to_local_db
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            db_path = root / "local.db"
+            index_path = root / "anom_index.txt"
+            res_dir = root / "R"
+            res_dir.mkdir(parents=True)
+
+            m_reclas = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+            m_drop = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+            m_keep = "cccccccc-cccc-cccc-cccc-cccccccccccc"
+            m_prot = "dddddddd-dddd-dddd-dddd-dddddddddddd"
+
+            conn = sqlite3.connect(db_path)
+            conn.executescript(
+                f"""
+                CREATE TABLE canonical_categories (id INTEGER PRIMARY KEY, slug TEXT UNIQUE);
+                CREATE TABLE master_products (id TEXT PRIMARY KEY, canonical_category_id INTEGER, normalized_name TEXT);
+                CREATE TABLE store_skus (id TEXT PRIMARY KEY, store_id TEXT, master_product_id TEXT, raw_name TEXT);
+                CREATE TABLE price_records (id INTEGER PRIMARY KEY, store_sku_id TEXT, raw_sale_price TEXT);
+                CREATE TABLE product_price_daily (master_product_id TEXT, store_id TEXT, day TEXT, PRIMARY KEY (master_product_id, store_id, day));
+                CREATE TABLE product_curation_overrides (store_sku_id TEXT PRIMARY KEY, master_product_id TEXT);
+
+                INSERT INTO canonical_categories VALUES (1, 'lacteos-y-leches'), (2, 'cuidado-personal-e-higiene'), (3, 'bebes-y-maternidad');
+                INSERT INTO master_products VALUES ('{m_reclas}', 1, 'termoprotector leche y miel'), ('{m_drop}', 3, 'silla comedor bebe'), ('{m_keep}', 2, 'shampoo herbal'), ('{m_prot}', 3, 'coche protegido');
+                INSERT INTO store_skus VALUES ('sk-r', 'exito', '{m_reclas}', 'Termoprotector'), ('sk-d', 'exito', '{m_drop}', 'Silla Bebe'), ('sk-k', 'd1', '{m_keep}', 'Shampoo'), ('sk-p', 'd1', '{m_prot}', 'Coche Protegido');
+                INSERT INTO price_records VALUES (1, 'sk-r', '25000'), (2, 'sk-d', '350000'), (3, 'sk-k', '12000'), (4, 'sk-p', '450000');
+                INSERT INTO product_price_daily VALUES ('{m_drop}', 'exito', '2026-11-23'), ('{m_keep}', 'd1', '2026-11-23');
+                INSERT INTO product_curation_overrides VALUES ('sk-p', '{m_prot}');
+                """
+            )
+            conn.commit()
+            conn.close()
+
+            index_path.write_text(
+                f"row_id\tmaster_product_id\n1\t{m_reclas}\n2\t{m_drop}\n3\t{m_keep}\n4\t{m_prot}\n",
+                encoding="utf-8",
+            )
+            (res_dir / "A1.txt").write_text(
+                "1\tRECLASIFICAR\tcuidado-personal-e-higiene 2\tEXCLUIR_NO_MERCADO\n"
+                "3\tMANTENER\n4\tEXCLUIR_NO_MERCADO\n",
+                encoding="utf-8",
+            )
+
+            st = apply_llm_anomalies_to_local_db(
+                db_path=db_path,
+                results_dir=res_dir,
+                index_path=index_path,
+                create_backup=False,
+            )
+            self.assertEqual(st.reclassify_rows, 1)
+            self.assertEqual(st.exclude_rows, 2)
+            self.assertEqual(st.keep_rows, 1)
+            self.assertEqual(st.invalid_slug_rows, 0)
+            self.assertEqual(st.masters_purged, 1)
+            self.assertEqual(st.skus_purged, 1)
+
+            chk = sqlite3.connect(db_path)
+            try:
+                self.assertEqual(
+                    chk.execute("SELECT canonical_category_id FROM master_products WHERE id = ?", (m_reclas,)).fetchone()[0],
+                    2,
+                )
+                self.assertIsNone(
+                    chk.execute("SELECT 1 FROM master_products WHERE id = ?", (m_drop,)).fetchone()
+                )
+                self.assertIsNotNone(
+                    chk.execute("SELECT 1 FROM master_products WHERE id = ?", (m_prot,)).fetchone()
+                )
+                self.assertEqual(chk.execute("SELECT COUNT(*) FROM product_price_daily").fetchone()[0], 1)
+                self.assertEqual(chk.execute("SELECT COUNT(*) FROM store_skus").fetchone()[0], 3)
+            finally:
+                chk.close()
+
+    def test_export_llm_depuracion_lotes_unifies_toilet_paper_and_splits_batches(self) -> None:
+        from etl.export_llm_depuracion_lotes import build_depuracion_batches
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            db_path = root / "local.db"
+            by_cat_path = root / "by_cat.json"
+            global_path = root / "global.json"
+            out_dir = root / "lotes"
+            index_path = root / "idx.txt"
+
+            conn = sqlite3.connect(db_path)
+            conn.executescript(
+                """
+                CREATE TABLE canonical_categories (id INTEGER PRIMARY KEY, slug TEXT UNIQUE);
+                CREATE TABLE master_products (id TEXT PRIMARY KEY, canonical_category_id INTEGER, normalized_name TEXT, brand TEXT);
+                CREATE TABLE store_skus (id TEXT PRIMARY KEY, master_product_id TEXT, display_name TEXT, raw_name TEXT);
+
+                INSERT INTO canonical_categories VALUES (1, 'cuidado-personal-e-higiene'), (2, 'hogar-y-desechables'), (3, 'bebes-y-maternidad');
+                INSERT INTO master_products VALUES
+                    ('m-ph', 2, 'papel higienico rosal x12', 'Rosal'),
+                    ('m-tetero', 3, 'tetero avent 9oz', 'Avent'),
+                    ('m-vela', 2, 'vela sagrado corazon', 'Sagrado'),
+                    ('m-turbana', 2, 'chips turbana platano', 'Turbana');
+                INSERT INTO store_skus VALUES
+                    ('s1', 'm-ph', 'Papel Higiénico Rosal x12', 'Papel Higiénico Rosal x12'),
+                    ('s2', 'm-tetero', 'Tetero Avent 9oz', 'Tetero Avent 9oz'),
+                    ('s3', 'm-vela', 'Vela Sagrado Corazón', 'Vela Sagrado Corazón'),
+                    ('s4', 'm-turbana', 'Chips Turbana Plátano', 'Chips Turbana Plátano');
+                """
+            )
+            conn.commit()
+            conn.close()
+
+            by_cat_path.write_text(
+                json.dumps({"bebes-y-maternidad#02": ["m-tetero"], "hogar-y-desechables#21": ["m-vela"]}),
+                encoding="utf-8",
+            )
+            global_path.write_text(json.dumps({"288": ["m-turbana"]}), encoding="utf-8")
+
+            res = build_depuracion_batches(
+                db_path=db_path,
+                by_cat_map_path=by_cat_path,
+                global_map_path=global_path,
+                out_dir=out_dir,
+                index_path=index_path,
+                batch_size=2,
+            )
+            self.assertEqual(res["toilet_paper_unified"], 1)
+            self.assertEqual(res["exported_rows"], 3)
+            self.assertEqual(res["batch_files"], 2)
+            self.assertTrue((out_dir / "depuracion_01.txt").exists())
+            self.assertTrue((out_dir / "depuracion_02.txt").exists())
+            self.assertEqual(len(index_path.read_text(encoding="utf-8").splitlines()), 4)
+
+            chk = sqlite3.connect(db_path)
+            try:
+                self.assertEqual(
+                    chk.execute("SELECT canonical_category_id FROM master_products WHERE id = 'm-ph'").fetchone()[0],
+                    1,
+                )
+            finally:
+                chk.close()
+
+    def test_cleanup_stores_and_categories_local(self) -> None:
+        from etl.cleanup_stores_and_categories_local import apply_store_and_category_cleanup_local
+
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "local.db"
+            conn = sqlite3.connect(db_path)
+            conn.executescript(
+                """
+                CREATE TABLE stores (id TEXT PRIMARY KEY, name TEXT);
+                CREATE TABLE store_branches (id TEXT PRIMARY KEY, store_id TEXT, branch_name TEXT);
+                CREATE TABLE canonical_categories (id INTEGER PRIMARY KEY, slug TEXT UNIQUE, name TEXT);
+                CREATE TABLE master_products (id TEXT PRIMARY KEY, canonical_category_id INTEGER, normalized_name TEXT);
+                CREATE TABLE store_skus (id TEXT PRIMARY KEY, store_id TEXT, master_product_id TEXT);
+                CREATE TABLE price_records (id INTEGER PRIMARY KEY, store_sku_id TEXT);
+                CREATE TABLE product_price_daily (master_product_id TEXT, store_id TEXT, day TEXT);
+
+                INSERT INTO stores VALUES ('exito', 'Éxito'), ('alkosto', 'Alkosto'), ('ktronix', 'Ktronix'), ('oxxo', 'OXXO'), ('rappi', 'Rappi');
+                INSERT INTO store_branches VALUES ('b1', 'oxxo', 'Oxxo 1'), ('b2', 'exito', 'Exito 1');
+                INSERT INTO product_price_daily VALUES ('m1', 'alkosto', '2026-11-23'), ('m1', 'exito', '2026-11-23');
+                INSERT INTO canonical_categories VALUES
+                    (1, 'arroz-blanco-1000g', 'Arroz Blanco 1000 g'),
+                    (2, 'arroces-y-granos', 'Arroces, Granos y Cereales'),
+                    (3, 'huevos-aa-30und', 'Huevos AA 30 Unidades'),
+                    (4, 'huevos-y-derivados', 'Huevos (Otras Presentaciones)');
+                INSERT INTO master_products VALUES ('m1', 1, 'arroz diana'), ('m2', 3, 'huevos aa');
+                INSERT INTO store_skus VALUES ('s1', 'exito', 'm1'), ('s2', 'exito', 'm2');
+                """
+            )
+            conn.commit()
+            conn.close()
+
+            st = apply_store_and_category_cleanup_local(db_path=db_path, create_backup=False)
+            self.assertEqual(st.stores_deleted, 4)
+            self.assertEqual(st.branches_deleted, 1)
+            self.assertEqual(st.daily_deleted, 1)
+            self.assertEqual(st.masters_reassigned, 2)
+            self.assertEqual(st.categories_deleted, 2)
+            self.assertEqual(st.final_stores, 1)
+            self.assertEqual(st.final_categories, 2)
+
+            chk = sqlite3.connect(db_path)
+            try:
+                self.assertEqual(
+                    chk.execute("SELECT canonical_category_id FROM master_products WHERE id = 'm1'").fetchone()[0],
+                    2,
+                )
+                self.assertEqual(
+                    chk.execute("SELECT name FROM canonical_categories WHERE slug = 'huevos-y-derivados'").fetchone()[0],
+                    "Huevos y Derivados",
+                )
             finally:
                 chk.close()
 

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { applyLocalAdminCuration, isLocalAdminEnvironment } from "@/lib/localAdminDb";
-import { getAdminCurationData } from "@/lib/queries";
+import {
+  applyLocalAdminCuration,
+  getLocalAdminBoardInputs,
+  isLocalAdminEnvironment,
+} from "@/lib/localAdminDb";
+import { buildAdminCurationPayload, getAdminCurationData } from "@/lib/queries";
 import { getSupabaseConfig, supabaseRpc } from "@/lib/supabase";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -35,7 +39,12 @@ export async function GET(request: NextRequest) {
   const query = (request.nextUrl.searchParams.get("q") ?? "").trim().slice(0, 80);
 
   try {
-    const payload = await getAdminCurationData({ query });
+    const payload = isLocalAdminEnvironment()
+      ? (() => {
+          const { offers, curationContext } = getLocalAdminBoardInputs(query);
+          return buildAdminCurationPayload(offers, curationContext, []);
+        })()
+      : await getAdminCurationData({ query });
     return NextResponse.json(payload, {
       headers: {
         "Cache-Control": "no-store",

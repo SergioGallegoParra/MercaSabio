@@ -2,11 +2,17 @@ import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 
+import { cleanProductTitle, simplifyProductDisplayName } from "@/lib/productInsights";
 import type {
   AdminCatalogBrowseRow,
   AdminStoreCatalogPayload,
   AdminStoreSummaryItem,
   CanonicalCategoryOption,
+  CurationContext,
+  ProductCurationOverride,
+  QualityTier,
+  ReviewStatus,
+  StoreOffer,
   UnitMeasure,
 } from "@/lib/types";
 
@@ -309,6 +315,193 @@ export function applyLocalAdminCuration(params: {
       db.prepare("UPDATE store_skus SET is_mercado = 0 WHERE id = ?").run(params.storeSkuId);
     }
     return { ok: true, local: true };
+  } finally {
+    db.close();
+  }
+}
+
+function normalizeLocalReviewStatus(rawStatus: unknown): ReviewStatus {
+  const value = String(rawStatus ?? "").trim();
+  if (value === "approved" || value === "verified") return "verified";
+  if (value === "excluded" || value === "reported" || value === "needs_review") return value;
+  return "provisional_auto";
+}
+
+export function getLocalAdminBoardInputs(queryText = ""): {
+  offers: StoreOffer[];
+  curationContext: CurationContext;
+} {
+  const db = openLocalSqlite(true);
+  if (!db) {
+    throw new Error("Base local SQLite no disponible");
+  }
+  const needle = queryText.trim().toLowerCase();
+  const limit = needle ? 240 : 360;
+
+  try {
+    const where: string[] = ["ss.is_mercado = 1"];
+    const args: unknown[] = [];
+    if (needle) {
+      where.push(
+        "(LOWER(ss.raw_name) LIKE ? OR LOWER(COALESCE(ss.display_name, '')) LIKE ? OR LOWER(COALESCE(mp.brand, '')) LIKE ? OR COALESCE(mp.ean, '') LIKE ?)"
+      );
+      const like = `%${needle}%`;
+      args.push(like, like, like, like);
+    }
+
+    const rows = db
+      .prepare(
+        `
+        SELECT
+          ss.id AS store_sku_id,
+          ss.store_id,
+          s.name AS store_name,
+          s.channel_type,
+          s.markup_discount_factor,
+          ss.master_product_id,
+          mp.canonical_category_id,
+          ss.raw_name,
+          ss.display_name,
+          ss.raw_url,
+          mp.brand,
+          mp.ean,
+          mp.net_content,
+          mp.unit_measure,
+          mp.is_private_label,
+          mp.image_url,
+          cc.slug AS canonical_slug,
+          cc.name AS canonical_name,
+          COALESCE(ss.product_type, mp.product_type) AS product_type,
+          COALESCE(ss.sub_presentation, mp.sub_presentation) AS sub_presentation,
+          COALESCE(ss.sub_presentation_label, mp.sub_presentation_label) AS sub_presentation_label,
+          ss.variant_tags_json,
+          mp.positive_votes,
+          mp.total_votes,
+          mp.avg_yield_factor,
+          mp.invima_registry,
+          mp.actual_manufacturer,
+          mp.shrinkflation_alert,
+          mp.previous_net_content,
+          COALESCE(lp.raw_list_price, '0') AS raw_list_price,
+          COALESCE(lp.raw_sale_price, '0') AS raw_sale_price,
+          COALESCE(lp.calibrated_price, '0') AS calibrated_price,
+          COALESCE(lp.pum_price, '0') AS pum_price,
+          COALESCE(lp.in_stock, 0) AS in_stock,
+          COALESCE(lp.source_origin, 'local') AS source_origin,
+          COALESCE(lp.captured_at, ss.last_verified_at) AS captured_at
+        FROM store_skus ss
+        JOIN stores s ON s.id = ss.store_id
+        JOIN master_products mp ON mp.id = ss.master_product_id
+        LEFT JOIN canonical_categories cc ON cc.id = mp.canonical_category_id
+        LEFT JOIN price_records lp ON lp.id = (
+          SELECT pr.id FROM price_records pr WHERE pr.store_sku_id = ss.id ORDER BY pr.id DESC LIMIT 1
+        )
+        WHERE ${where.join(" AND ")}
+        LIMIT ?
+        `
+      )
+      .all(...args, limit);
+
+    const offers: StoreOffer[] = rows.map((r) => {
+      const calibratedPrice = Number(r.calibrated_price ?? 0);
+      const rawSalePrice = Number(r.raw_sale_price ?? 0);
+      const markupFactor = Number(r.markup_discount_factor ?? 1);
+      const unitMeasure = String(r.unit_measure ?? "und") as UnitMeasure;
+      const rawName = cleanProductTitle(String(r.raw_name ?? ""));
+      let variantTags: string[] = [];
+      if (r.variant_tags_json) {
+        try {
+          const parsed = JSON.parse(String(r.variant_tags_json));
+          if (Array.isArray(parsed)) variantTags = parsed.map(String);
+        } catch {
+          variantTags = [];
+        }
+      }
+
+      return {
+        storeSkuId: String(r.store_sku_id),
+        storeId: String(r.store_id),
+        storeName: String(r.store_name),
+        channelType: String(r.channel_type ?? "retailer"),
+        masterProductId: String(r.master_product_id),
+        canonicalCategoryId:
+          r.canonical_category_id !== null && r.canonical_category_id !== undefined
+            ? Number(r.canonical_category_id)
+            : null,
+        rawName,
+        displayName:
+          String(r.display_name ?? "").trim() ||
+          simplifyProductDisplayName(String(r.raw_name ?? ""), unitMeasure),
+        rawUrl: r.raw_url ? String(r.raw_url) : null,
+        rawListPrice: Number(r.raw_list_price ?? 0),
+        rawSalePrice,
+        calibratedPrice,
+        pumPrice: Number(r.pum_price ?? 0),
+        inStock: Boolean(r.in_stock),
+        sourceOrigin: String(r.source_origin ?? "local"),
+        isEstimatedPhysicalPrice:
+          String(r.source_origin ?? "") === "rappi_api" ||
+          markupFactor !== 1 ||
+          Math.abs(calibratedPrice - rawSalePrice) > 0.01,
+        isPrivateLabel: Boolean(r.is_private_label),
+        brand: r.brand ? String(r.brand) : null,
+        ean: r.ean ? String(r.ean) : null,
+        netContent: Number(r.net_content ?? 1),
+        unitMeasure,
+        canonicalSlug: r.canonical_slug ? String(r.canonical_slug) : null,
+        canonicalName: r.canonical_name ? String(r.canonical_name) : null,
+        productType: r.product_type ? String(r.product_type) : null,
+        subPresentation: r.sub_presentation ? String(r.sub_presentation) : null,
+        subPresentationLabel: r.sub_presentation_label ? String(r.sub_presentation_label) : null,
+        variantTags,
+        imageUrl: r.image_url ? String(r.image_url) : null,
+        positiveVotes: Number(r.positive_votes ?? 0),
+        totalVotes: Number(r.total_votes ?? 0),
+        avgYieldFactor: Number(r.avg_yield_factor ?? 1) || 1,
+        invimaRegistry: r.invima_registry ? String(r.invima_registry) : null,
+        actualManufacturer: r.actual_manufacturer ? String(r.actual_manufacturer) : null,
+        shrinkflationAlert: Boolean(r.shrinkflation_alert),
+        previousNetContent:
+          r.previous_net_content !== null && r.previous_net_content !== undefined
+            ? Number(r.previous_net_content)
+            : null,
+        capturedAt: String(r.captured_at ?? ""),
+      };
+    });
+
+    const overrideRows = db
+      .prepare(
+        `
+        SELECT
+          store_sku_id, master_product_id, override_subtype, override_broad_family,
+          override_quality_tier, review_status, doubt_reason, admin_notes, updated_at
+        FROM product_curation_overrides
+        `
+      )
+      .all();
+
+    const overridesBySkuId: Record<string, ProductCurationOverride> = {};
+    for (const row of overrideRows) {
+      const skuId = String(row.store_sku_id);
+      overridesBySkuId[skuId] = {
+        storeSkuId: skuId,
+        masterProductId: row.master_product_id ? String(row.master_product_id) : null,
+        overrideSubtype: row.override_subtype ? String(row.override_subtype) : null,
+        overrideBroadFamily: row.override_broad_family ? String(row.override_broad_family) : null,
+        overrideQualityTier: row.override_quality_tier
+          ? (String(row.override_quality_tier) as QualityTier)
+          : null,
+        reviewStatus: normalizeLocalReviewStatus(row.review_status),
+        doubtReason: row.doubt_reason ? String(row.doubt_reason) : null,
+        adminNotes: row.admin_notes ? String(row.admin_notes) : null,
+        updatedAt: String(row.updated_at ?? ""),
+      };
+    }
+
+    return {
+      offers,
+      curationContext: { overridesBySkuId, pairRules: [] },
+    };
   } finally {
     db.close();
   }

@@ -1,6 +1,6 @@
 import AdminCurationBoard from "@/components/AdminCurationBoard";
-import { isLocalAdminEnvironment } from "@/lib/localAdminDb";
-import { getAdminCurationData } from "@/lib/queries";
+import { getLocalAdminBoardInputs, isLocalAdminEnvironment } from "@/lib/localAdminDb";
+import { buildAdminCurationPayload } from "@/lib/queries";
 
 import "./admin-v2.css";
 
@@ -26,7 +26,8 @@ export default async function AdminCurationPage() {
     );
   }
 
-  const initialData = await getAdminCurationData();
+  const { offers, curationContext } = getLocalAdminBoardInputs();
+  const initialData = buildAdminCurationPayload(offers, curationContext, []);
   return (
     <div className="ms2-admin-root">
       <AdminCurationBoard initialData={initialData} />

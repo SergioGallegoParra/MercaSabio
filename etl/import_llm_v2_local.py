@@ -160,6 +160,71 @@ def _assign_sku_to_branches(
     return buckets
 
 
+def load_protected_curation_ids(conn: sqlite3.Connection) -> tuple[set[str], set[str]]:
+    """Retorna `(protected_sku_ids, protected_master_ids)` desde `product_curation_overrides`."""
+    protected_sku_ids = {
+        str(r[0]) for r in conn.execute("SELECT store_sku_id FROM product_curation_overrides").fetchall()
+    }
+    protected_master_ids = {
+        str(r[0])
+        for r in conn.execute(
+            "SELECT master_product_id FROM product_curation_overrides WHERE master_product_id IS NOT NULL"
+        ).fetchall()
+    }
+    return protected_sku_ids, protected_master_ids
+
+
+def purge_masters_respecting_overrides(
+    conn: sqlite3.Connection,
+    purge_master_ids: set[str],
+    protected_sku_ids: set[str],
+    protected_master_ids: set[str],
+) -> tuple[int, int]:
+    """Purga `price_records`, `store_skus`, `master_products` y `product_price_daily` sin tocar overrides."""
+    effective_masters = purge_master_ids - protected_master_ids
+    if not effective_masters:
+        return 0, 0
+
+    purge_list = [(mid,) for mid in effective_masters]
+    conn.execute("CREATE TEMP TABLE IF NOT EXISTS _tmp_purge_masters (id TEXT PRIMARY KEY)")
+    conn.execute("DELETE FROM _tmp_purge_masters")
+    conn.executemany("INSERT OR IGNORE INTO _tmp_purge_masters (id) VALUES (?)", purge_list)
+
+    sku_rows_to_del = conn.execute(
+        "SELECT id FROM store_skus WHERE master_product_id IN (SELECT id FROM _tmp_purge_masters)"
+    ).fetchall()
+    sku_ids_to_del = [(str(r[0]),) for r in sku_rows_to_del if str(r[0]) not in protected_sku_ids]
+    skus_purged = len(sku_ids_to_del)
+
+    if sku_ids_to_del:
+        conn.execute("CREATE TEMP TABLE IF NOT EXISTS _tmp_purge_skus (id TEXT PRIMARY KEY)")
+        conn.execute("DELETE FROM _tmp_purge_skus")
+        conn.executemany("INSERT OR IGNORE INTO _tmp_purge_skus (id) VALUES (?)", sku_ids_to_del)
+        conn.execute("DELETE FROM price_records WHERE store_sku_id IN (SELECT id FROM _tmp_purge_skus)")
+        conn.execute("DELETE FROM store_skus WHERE id IN (SELECT id FROM _tmp_purge_skus)")
+
+    orphaned_masters = int(
+        conn.execute(
+            """
+            SELECT COUNT(*) FROM master_products
+            WHERE id IN (SELECT id FROM _tmp_purge_masters)
+              AND id NOT IN (SELECT master_product_id FROM store_skus)
+            """
+        ).fetchone()[0]
+    )
+    conn.execute(
+        """
+        DELETE FROM master_products
+        WHERE id IN (SELECT id FROM _tmp_purge_masters)
+          AND id NOT IN (SELECT master_product_id FROM store_skus)
+        """
+    )
+    conn.execute(
+        "DELETE FROM product_price_daily WHERE master_product_id NOT IN (SELECT id FROM master_products)"
+    )
+    return skus_purged, orphaned_masters
+
+
 def apply_llm_v2_to_local_db(
     *,
     db_path: Path = DEFAULT_LOCAL_DB_PATH,
@@ -195,15 +260,7 @@ def apply_llm_v2_to_local_db(
         stats.sec_a_rows_parsed = len(sec_a_results)
         stats.sec_b_rows_parsed = len(sec_b_results)
 
-        protected_sku_ids = {
-            str(r[0]) for r in conn.execute("SELECT store_sku_id FROM product_curation_overrides").fetchall()
-        }
-        protected_master_ids = {
-            str(r[0])
-            for r in conn.execute(
-                "SELECT master_product_id FROM product_curation_overrides WHERE master_product_id IS NOT NULL"
-            ).fetchall()
-        }
+        protected_sku_ids, protected_master_ids = load_protected_curation_ids(conn)
 
         cat_updates: list[tuple[int, str]] = []
         purge_master_ids: set[str] = set()
@@ -243,43 +300,9 @@ def apply_llm_v2_to_local_db(
             )
 
             # 2) Purgar NO_MERCADO y EXCLUIR_NO_MERCADO (respetando overrides)
-            if purge_master_ids:
-                purge_list = [(mid,) for mid in purge_master_ids]
-                conn.execute("CREATE TEMP TABLE IF NOT EXISTS _tmp_purge_masters (id TEXT PRIMARY KEY)")
-                conn.execute("DELETE FROM _tmp_purge_masters")
-                conn.executemany("INSERT OR IGNORE INTO _tmp_purge_masters (id) VALUES (?)", purge_list)
-
-                sku_rows_to_del = conn.execute(
-                    "SELECT id FROM store_skus WHERE master_product_id IN (SELECT id FROM _tmp_purge_masters)"
-                ).fetchall()
-                sku_ids_to_del = [(str(r[0]),) for r in sku_rows_to_del if str(r[0]) not in protected_sku_ids]
-                stats.skus_purged_no_mercado = len(sku_ids_to_del)
-
-                if sku_ids_to_del:
-                    conn.execute("CREATE TEMP TABLE IF NOT EXISTS _tmp_purge_skus (id TEXT PRIMARY KEY)")
-                    conn.execute("DELETE FROM _tmp_purge_skus")
-                    conn.executemany("INSERT OR IGNORE INTO _tmp_purge_skus (id) VALUES (?)", sku_ids_to_del)
-                    conn.execute("DELETE FROM price_records WHERE store_sku_id IN (SELECT id FROM _tmp_purge_skus)")
-                    conn.execute("DELETE FROM store_skus WHERE id IN (SELECT id FROM _tmp_purge_skus)")
-
-                orphaned_masters = conn.execute(
-                    """
-                    SELECT COUNT(*) FROM master_products
-                    WHERE id IN (SELECT id FROM _tmp_purge_masters)
-                      AND id NOT IN (SELECT master_product_id FROM store_skus)
-                    """
-                ).fetchone()[0]
-                stats.masters_purged_no_mercado = int(orphaned_masters)
-                conn.execute(
-                    """
-                    DELETE FROM master_products
-                    WHERE id IN (SELECT id FROM _tmp_purge_masters)
-                      AND id NOT IN (SELECT master_product_id FROM store_skus)
-                    """
-                )
-                conn.execute(
-                    "DELETE FROM product_price_daily WHERE master_product_id NOT IN (SELECT id FROM master_products)"
-                )
+            stats.skus_purged_no_mercado, stats.masters_purged_no_mercado = purge_masters_respecting_overrides(
+                conn, purge_master_ids, protected_sku_ids, protected_master_ids
+            )
 
             # 3) Ejecutar separación semántica de Sección B (SEPARAR_VARIANTES)
             for old_mid, note in split_candidates.items():

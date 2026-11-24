@@ -396,9 +396,12 @@ BROAD_CATEGORY_RULES: tuple[BroadCategoryRule, ...] = (
             r"aguila|poker|club\s+colombia|heineken|stella\s+artois|corona\s+extra|budweiser|costena|"
             r"whisky|whiskey|buchanan|old\s+parr|johnnie\s+walker|ron\s+(?:medellin|caldas|viejo|santa\s+fe)|"
             r"aguardiente|nectar\s+(?:verde|rojo|azul)|antioqueno|vodka|smirnoff|tequila|jose\s+cuervo|"
-            r"ginebra|gin|champagne|prosecco|espumoso|licor(?:es)?|sangria|sixpack\s+cerveza)\b"
+            r"ginebra|gin|champagne|prosecco|vino\s+espumoso|licor(?:es)?|sangria|sixpack\s+cerveza)\b"
         ),
-        exclude=_rx(r"\b(vinagre|copas?\s+cristal|salchicha|jamon|chorizo)\b"),
+        exclude=_rx(
+            r"\b(vinagre|copas?\s+cristal|salchicha|jamon|chorizo|cafe|cappuccino|capuchino|"
+            r"mokaccino|mokachino|jabon|gel|limpiador|facial|shampoo|champu)\b"
+        ),
     ),
     # 3. Cuidado personal y belleza
     BroadCategoryRule(
