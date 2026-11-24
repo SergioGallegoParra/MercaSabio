@@ -273,8 +273,25 @@ class SupabaseGateway:
         return str(response.data[0]["id"])
 
     async def backfill_master_images(self, updates: dict[str, str]) -> int:
+        clean = {mid: url for mid, url in updates.items() if url}
+        if not clean:
+            return 0
+        missing_ids: list[str] = []
+        for chunk in _chunked(list(clean), 100):
+            resp = await self._execute(
+                lambda client, ids=chunk: (
+                    client.table("master_products")
+                    .select("id")
+                    .in_("id", ids)
+                    .is_("image_url", "null")
+                    .execute()
+                )
+            )
+            missing_ids.extend(str(r["id"]) for r in (resp.data or []))
+
         updated = 0
-        for mid, url in updates.items():
+        for mid in missing_ids:
+            url = clean.get(mid)
             if not url:
                 continue
             response = await self._execute(
