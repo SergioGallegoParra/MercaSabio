@@ -124,8 +124,29 @@ export function filterOffersByStoreIds(
 }
 
 /**
+ * Cobertura conocida por ciudad para cadenas regionales de Colombia.
+ * Garantiza que nunca se filtren cadenas de otra ciudad (ej. Belalcázar de Cali
+ * en Manizales) incluso si no tienen sedes cargadas en `store_branches` o mientras
+ * termina `/api/nearby`.
+ */
+export const REGIONAL_STORE_CITIES: Record<string, readonly string[]> = {
+  belalcazar: ["cali", "yumbo", "jamundi", "palmira"],
+  canaveral: ["cali", "jamundi", "yumbo"],
+  mercamio: ["cali", "palmira", "jamundi", "yumbo"],
+  supermu: ["medellin", "envigado", "sabaneta", "itagui", "bello", "rionegro"],
+  superboom: ["medellin", "envigado", "sabaneta", "itagui", "bello", "rionegro"],
+  euro: ["medellin", "envigado", "sabaneta", "itagui", "bello", "rionegro", "la ceja"],
+  mercaldas: ["manizales", "villamaria", "chinchina", "pereira", "dosquebradas", "armenia"],
+  mercacentro: ["ibague", "espinal"],
+  amy: ["bucaramanga", "floridablanca", "giron", "piedecuesta"],
+  mxm: ["bucaramanga", "floridablanca", "giron", "piedecuesta"],
+  megatiendas: ["cartagena", "barranquilla", "santa marta", "monteria", "sincelejo", "valledupar", "bogota"],
+  zapatoca: ["bogota", "soacha", "funza", "mosquera", "madrid", "chia"],
+};
+
+/**
  * Filtra ofertas por disponibilidad regional en la ciudad elegida.
- * - Si `availableCities` es `null` o `undefined`, el SKU es nacional/no segmentado y se conserva.
+ * - Si la cadena es regional (`REGIONAL_STORE_CITIES`), solo se conserva en sus ciudades.
  * - Si `availableCities` es un arreglo (`string[]`), solo se conserva cuando incluye `chosenCity`.
  */
 export function filterOffersByCityAvailability(
@@ -135,6 +156,10 @@ export function filterOffersByCityAvailability(
   const normCity = normalizeColombiaCityName(chosenCity);
   if (!normCity) return [...offers];
   return offers.filter((offer) => {
+    const regionalCities = REGIONAL_STORE_CITIES[offer.storeId.toLowerCase()];
+    if (regionalCities && !regionalCities.includes(normCity)) {
+      return false;
+    }
     if (!Array.isArray(offer.availableCities)) return true;
     return offer.availableCities.some((c) => normalizeColombiaCityName(c) === normCity);
   });

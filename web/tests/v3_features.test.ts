@@ -874,6 +874,30 @@ test("filterOffersByCityAvailability filtra SKUs segun availableCities por ciuda
   // Sin ciudad elegida (fallback) no filtra por regionalidad
   const allOffers = filterOffersByCityAvailability(offers, "");
   assert.equal(allOffers.length, 4);
+
+  // Cadenas regionales (ej. Belalcázar de Cali) nunca deben salir en Manizales aunque availableCities sea null
+  const regionalOffers = [
+    makeOffer({
+      storeSkuId: "o-belalcazar",
+      storeId: "belalcazar",
+      rawName: "Leche Entera Belalcázar 1000 ml",
+      availableCities: null,
+    }),
+    makeOffer({
+      storeSkuId: "o-mercaldas",
+      storeId: "mercaldas",
+      rawName: "Leche Entera Mercaldas 1000 ml",
+      availableCities: null,
+    }),
+  ];
+  assert.deepEqual(
+    filterOffersByCityAvailability(regionalOffers, "Manizales").map((o) => o.storeSkuId),
+    ["o-mercaldas"]
+  );
+  assert.deepEqual(
+    filterOffersByCityAvailability(regionalOffers, "Cali").map((o) => o.storeSkuId),
+    ["o-belalcazar"]
+  );
 });
 
 test("simplifyProductDisplayName limpia gramajes repetidos y homogeneiza Title Case en español", () => {

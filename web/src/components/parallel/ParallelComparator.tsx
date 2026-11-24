@@ -123,6 +123,7 @@ function ParallelComparatorInner({
   const [radiusMeters, setRadiusMeters] = useState<number>(3000);
   const [allNearbyBranches, setAllNearbyBranches] = useState<NearbyStoreBranch[]>([]);
   const [branchesLoaded, setBranchesLoaded] = useState(false);
+  const [branchesError, setBranchesError] = useState(false);
   const [locLoading, setLocLoading] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
 
@@ -292,6 +293,7 @@ function ParallelComparatorInner({
     async function loadNearby() {
       setLocLoading(true);
       setBranchesLoaded(false);
+      setBranchesError(false);
       setLocError(null);
       try {
         const res = await fetch(
@@ -305,7 +307,10 @@ function ParallelComparatorInner({
           setBranchesLoaded(true);
         }
       } catch {
-        if (active) setLocError("No se pudieron consultar sucursales cercanas.");
+        if (active) {
+          setBranchesError(true);
+          setLocError("No se pudieron consultar sucursales cercanas.");
+        }
       } finally {
         if (active) setLocLoading(false);
       }
@@ -339,12 +344,12 @@ function ParallelComparatorInner({
   // y disponibilidad regional por SKU en esa ciudad
   const visibleOffers = useMemo(() => {
     const activeOnly = knownOffersList.filter((o) => o.inStock && o.calibratedPrice > 0);
-    const storeScoped =
-      !branchesLoaded || locError
-        ? activeOnly
-        : filterOffersByStoreIds(activeOnly, branchScope.visibleStoreIds);
-    return filterOffersByCityAvailability(storeScoped, chosenCity);
-  }, [knownOffersList, branchesLoaded, locError, branchScope.visibleStoreIds, chosenCity]);
+    const cityScoped = filterOffersByCityAvailability(activeOnly, chosenCity);
+    if (!branchesLoaded || branchesError) {
+      return cityScoped;
+    }
+    return filterOffersByStoreIds(cityScoped, branchScope.visibleStoreIds);
+  }, [knownOffersList, branchesLoaded, branchesError, branchScope.visibleStoreIds, chosenCity]);
 
   const samePlantIndex = useMemo(
     () => indexSamePlantPairs(initialData.samePlantPairs ?? []),
