@@ -734,6 +734,43 @@ class OptimizationUnitTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 await lgw.aclose()
 
+    def test_propagate_master_images_copies_same_product_and_skips_private_label_or_other_brand(self) -> None:
+        from etl.propagate_master_images import propagate_images_local
+
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "prop.db"
+            conn = sqlite3.connect(db_path)
+            conn.executescript(
+                """
+                CREATE TABLE master_products (id TEXT PRIMARY KEY, normalized_name TEXT, brand TEXT, net_content TEXT, unit_measure TEXT, canonical_category_id INTEGER, is_private_label INTEGER, image_url TEXT);
+                INSERT INTO master_products VALUES
+                    ('m-donor', 'arroz roa blanco fortiplus 1000 gr', 'Roa', '1000.00', 'g', 19, 0, 'https://cdn.example.com/roa.jpg'),
+                    ('m-recv', 'arroz blanco fortiplus roa bolsa 1000g', NULL, '1000.00', 'g', 19, 0, NULL),
+                    ('m-other-brand', 'arroz diana blanco 1000g', 'Diana', '1000.00', 'g', 19, 0, NULL),
+                    ('m-private', 'arroz blanco fortiplus roa 1000g', 'Marca Propia', '1000.00', 'g', 19, 1, NULL);
+                """
+            )
+            conn.commit()
+            conn.close()
+
+            st = propagate_images_local(db_path=db_path)
+            self.assertEqual(st.updated_rows, 1)
+
+            chk = sqlite3.connect(db_path)
+            try:
+                self.assertEqual(
+                    chk.execute("SELECT image_url FROM master_products WHERE id = 'm-recv'").fetchone()[0],
+                    "https://cdn.example.com/roa.jpg",
+                )
+                self.assertIsNone(
+                    chk.execute("SELECT image_url FROM master_products WHERE id = 'm-other-brand'").fetchone()[0]
+                )
+                self.assertIsNone(
+                    chk.execute("SELECT image_url FROM master_products WHERE id = 'm-private'").fetchone()[0]
+                )
+            finally:
+                chk.close()
+
 
 if __name__ == "__main__":
     unittest.main()
