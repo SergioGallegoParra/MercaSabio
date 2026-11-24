@@ -74,6 +74,9 @@ const BASKET_STORAGE_KEY = "mercasabio_basket_v1";
 const LOCATION_STORAGE_KEY = "mercasabio_loc_v1";
 
 function collectOffersFromPayload(payload: DashboardPayload): StoreOffer[] {
+  if (Array.isArray(payload.offers) && payload.offers.length > 0) {
+    return payload.offers;
+  }
   const seen = new Map<string, StoreOffer>();
   for (const group of [...payload.eanGroups, ...payload.pumGroups]) {
     for (const offer of group.offers) seen.set(offer.storeSkuId, offer);
@@ -402,25 +405,30 @@ function ParallelComparatorInner({
         .slice(0, 20);
       if (!pending.length) return;
       const cityQuery = chosenCity ? `&city=${encodeURIComponent(chosenCity)}` : "";
-      await Promise.all(
-        pending.map(async (term) => {
-          prefetchedRef.current.add(`${cityKey}:${term}`);
-          try {
-            const res = await fetch(`/api/search?q=${encodeURIComponent(term)}${cityQuery}`);
-            if (!res.ok) return;
-            const json = (await res.json()) as DashboardPayload;
-            const collected = collectOffersFromPayload(json);
-            if (!collected.length) return;
-            setKnownOffers((prev) => {
-              const merged = new Map(prev);
-              for (const o of collected) merged.set(o.storeSkuId, o);
-              return merged;
-            });
-          } catch {
-            // Silent
-          }
-        })
-      );
+      const collectedAll: StoreOffer[] = [];
+      for (let i = 0; i < pending.length; i += 4) {
+        const chunk = pending.slice(i, i + 4);
+        await Promise.all(
+          chunk.map(async (term) => {
+            prefetchedRef.current.add(`${cityKey}:${term}`);
+            try {
+              const res = await fetch(`/api/search?q=${encodeURIComponent(term)}${cityQuery}`);
+              if (!res.ok) return;
+              const json = (await res.json()) as DashboardPayload;
+              collectedAll.push(...collectOffersFromPayload(json));
+            } catch {
+              // Silent
+            }
+          })
+        );
+      }
+      if (collectedAll.length > 0) {
+        setKnownOffers((prev) => {
+          const merged = new Map(prev);
+          for (const o of collectedAll) merged.set(o.storeSkuId, o);
+          return merged;
+        });
+      }
     },
     [chosenCity]
   );

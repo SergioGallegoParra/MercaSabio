@@ -235,6 +235,7 @@ export interface RappiDiscountItem {
 }
 
 export interface DashboardPayload {
+  offers?: StoreOffer[];
   eanGroups: ComparisonGroup[];
   pumGroups: ComparisonGroup[];
   categories: CanonicalCategoryOption[];

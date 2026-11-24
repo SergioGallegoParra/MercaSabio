@@ -964,6 +964,7 @@ export async function getDashboardData(options?: {
     });
 
     return {
+      offers: filtered,
       eanGroups: buildComparisonGroups(filtered, "ean"),
       pumGroups: buildComparisonGroups(filtered, "pum"),
       categories: DEMO_CATEGORIES,
@@ -1012,7 +1013,7 @@ export async function getDashboardData(options?: {
         supabaseRpc<LatestPriceRow[]>(supabaseConfig, "search_latest_offers", {
           p_query: queryText,
           p_category_slug: categorySlug,
-          p_limit: queryText ? 360 : 600,
+          p_limit: queryText ? 240 : 240,
           p_city: cityText,
         }),
         supabaseRestGet<{ id: number; slug: string; name: string; base_unit: UnitMeasure }[]>(
@@ -1166,11 +1167,12 @@ export async function getDashboardData(options?: {
   const validOffers = offers.filter(
     (offer) => Number.isFinite(offer.calibratedPrice) && offer.calibratedPrice > 0
   );
-  const { eanGroups, pumGroups } = buildBothComparisonModes(validOffers, curationContext);
-
+  // El comparador de cliente (ParallelComparator) agrupa y optimiza en navegador;
+  // evitar buildBothComparisonModes O(N^2) en el Worker previene Error 1102 por CPU.
   return {
-    eanGroups,
-    pumGroups,
+    offers: validOffers,
+    eanGroups: [],
+    pumGroups: [],
     categories,
     bankPromotions,
     paymentPartners,
