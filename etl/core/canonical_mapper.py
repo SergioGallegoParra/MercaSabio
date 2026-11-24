@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
+import unicodedata
 
 from etl.core.models import UnitMeasure
 
@@ -174,8 +175,34 @@ PRIVATE_LABEL_BRANDS_BY_STORE: dict[str, frozenset[str]] = {
             "frescampo",
         }
     ),
-    "exito": frozenset({"ekono", "exito", "taeq", "frescampo"}),
-    "carulla": frozenset({"carulla", "pomona"}),
+    "exito": frozenset(
+        {
+            "ekono",
+            "exito",
+            "exito marca propia",
+            "marca propia exito",
+            "exito wow",
+            "taeq",
+            "frescampo",
+            "carulla",
+            "carulla marca propia",
+            "marca propia carulla",
+        }
+    ),
+    "carulla": frozenset(
+        {
+            "carulla",
+            "carulla marca propia",
+            "marca propia carulla",
+            "pomona",
+            "exito",
+            "exito marca propia",
+            "marca propia exito",
+            "ekono",
+            "taeq",
+            "frescampo",
+        }
+    ),
     "olimpica": frozenset({"olimpica", "medalla de oro"}),
     "euro": frozenset({"euro", "marca propia euro"}),
     "mercaldas": frozenset({"mercaldas"}),
@@ -233,8 +260,13 @@ def is_store_private_label(
     store_key = store_id.strip().lower()
     known_brands = PRIVATE_LABEL_BRANDS_BY_STORE.get(store_key, frozenset())
     if brand:
-        brand_norm = " ".join(brand.strip().lower().split())
-        if brand_norm in known_brands:
+        brand_ascii = (
+            unicodedata.normalize("NFKD", brand)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+        )
+        brand_norm = " ".join(brand_ascii.strip().lower().split())
+        if brand_norm in known_brands or "marca propia" in brand_norm:
             return True
     if store_key in {"d1", "ara", "isimo"} and ean is None:
         return True
