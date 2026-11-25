@@ -131,18 +131,37 @@ def push_local_to_supabase(
         stores = lc.execute(
             "SELECT id, name, channel_type, markup_discount_factor, COALESCE(updated_at, CURRENT_TIMESTAMP) AS updated_at FROM stores"
         ).fetchall()
+        lc_mp_cols = {str(r[1]) for r in lc.execute("PRAGMA table_info(master_products)").fetchall()}
+        has_v3_cols = {"product_group_key", "variant_core", "clean_canonical_name", "canonical_search_text"} <= lc_mp_cols
+        v3_select = (
+            "product_group_key, variant_core, clean_canonical_name, canonical_search_text"
+            if has_v3_cols
+            else "NULL AS product_group_key, NULL AS variant_core, NULL AS clean_canonical_name, NULL AS canonical_search_text"
+        )
         masters = lc.execute(
-            """
+            f"""
             SELECT id, ean, canonical_category_id, normalized_name, brand, net_content, unit_measure,
                    is_private_label, image_url, created_at, invima_registry, actual_manufacturer,
                    COALESCE(positive_votes, 0) AS positive_votes,
                    COALESCE(total_votes, 0) AS total_votes,
                    COALESCE(avg_yield_factor, '1.0000') AS avg_yield_factor,
                    shrinkflation_alert, previous_net_content, product_type, sub_presentation,
-                   sub_presentation_label
+                   sub_presentation_label, {v3_select}
             FROM master_products
             """
         ).fetchall()
+        has_sub_table = bool(
+            lc.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='substitution_groups'"
+            ).fetchone()
+        )
+        sub_groups = (
+            lc.execute(
+                "SELECT product_type, substitution_group, impact_tier, yield_factor FROM substitution_groups"
+            ).fetchall()
+            if has_sub_table
+            else []
+        )
         skus = lc.execute(
             """
             SELECT id, store_id, master_product_id, external_sku, raw_name, raw_url, last_verified_at,
@@ -235,7 +254,8 @@ def push_local_to_supabase(
                             id, ean, canonical_category_id, normalized_name, brand, net_content, unit_measure,
                             is_private_label, image_url, created_at, invima_registry, actual_manufacturer,
                             positive_votes, total_votes, avg_yield_factor, shrinkflation_alert,
-                            previous_net_content, product_type, sub_presentation, sub_presentation_label
+                            previous_net_content, product_type, sub_presentation, sub_presentation_label,
+                            product_group_key, variant_core, clean_canonical_name, canonical_search_text
                         ) FROM STDIN
                         """
                     ) as copy:
@@ -259,9 +279,13 @@ def push_local_to_supabase(
                                     Decimal(str(r["avg_yield_factor"])),
                                     bool(r["shrinkflation_alert"]),
                                     Decimal(str(r["previous_net_content"])) if r["previous_net_content"] is not None else None,
-                                    r["product_type"],
-                                    r["sub_presentation"],
-                                    r["sub_presentation_label"],
+                                    str(r["product_type"])[:80] if r["product_type"] else None,
+                                    str(r["sub_presentation"])[:80] if r["sub_presentation"] else None,
+                                    str(r["sub_presentation_label"])[:100] if r["sub_presentation_label"] else None,
+                                    str(r["product_group_key"])[:160] if r["product_group_key"] else None,
+                                    str(r["variant_core"])[:80] if r["variant_core"] else None,
+                                    str(r["clean_canonical_name"])[:255] if r["clean_canonical_name"] else None,
+                                    r["canonical_search_text"],
                                 )
                             )
                 pg.commit()
@@ -363,6 +387,32 @@ def push_local_to_supabase(
                 pg.commit()
                 time.sleep(0.1)
             logger.info("product_price_daily cargados: %s", len(daily))
+
+            if sub_groups:
+                with pg.cursor() as cur:
+                    cur.execute("DELETE FROM public.substitution_groups")
+                    cur.executemany(
+                        """
+                        INSERT INTO public.substitution_groups (
+                            product_type, substitution_group, impact_tier, yield_factor
+                        ) VALUES (%s, %s, %s, %s)
+                        ON CONFLICT (product_type) DO UPDATE SET
+                            substitution_group = EXCLUDED.substitution_group,
+                            impact_tier = EXCLUDED.impact_tier,
+                            yield_factor = EXCLUDED.yield_factor
+                        """,
+                        [
+                            (
+                                str(r["product_type"])[:80],
+                                str(r["substitution_group"])[:80],
+                                str(r["impact_tier"])[:20],
+                                Decimal(str(r["yield_factor"])),
+                            )
+                            for r in sub_groups
+                        ],
+                    )
+                pg.commit()
+                logger.info("substitution_groups sincronizados: %s", len(sub_groups))
 
             # 4. Restaurar registros de usuario/curación
             with pg.cursor() as cur:
