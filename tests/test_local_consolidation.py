@@ -887,6 +887,83 @@ class OptimizationUnitTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(st.moved, 1)
             self.assertEqual(st.purged, 1)
 
+    def test_catalog_v3_infra_phonetic_grouping_and_export_import(self) -> None:
+        from etl.core.catalog_infra import (
+            build_product_group_key,
+            phonetic_search_normalize,
+        )
+        from etl.export_llm_catalog_v3 import export_llm_catalog_v3
+        from etl.import_llm_catalog_v3_local import import_llm_catalog_v3_local
+
+        self.assertEqual(
+            set(phonetic_search_normalize("Queso Latti Mozzarella").split()),
+            set(phonetic_search_normalize("Queso Mozarela Latti").split()),
+        )
+        self.assertEqual(
+            build_product_group_key("arroz_blanco", "Diana", "tradicional"),
+            "arroz_blanco|diana|tradicional",
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            db = tmp_path / "test_v3.db"
+            out_dir = tmp_path / "lotes"
+            conn = sqlite3.connect(str(db))
+            conn.executescript(
+                """
+                CREATE TABLE canonical_categories (id INTEGER PRIMARY KEY, slug TEXT, name TEXT);
+                CREATE TABLE master_products (
+                    id TEXT PRIMARY KEY, canonical_category_id INTEGER, normalized_name TEXT,
+                    brand TEXT, unit_measure TEXT, product_type TEXT
+                );
+                CREATE TABLE store_skus (
+                    id TEXT PRIMARY KEY, store_id TEXT, master_product_id TEXT,
+                    raw_name TEXT, raw_category_path TEXT, is_mercado INTEGER
+                );
+                INSERT INTO canonical_categories VALUES
+                    (13, 'quesos-y-mantequillas', 'Quesos'),
+                    (15, 'carnes-pollo-pescado', 'Carnes');
+                INSERT INTO master_products VALUES
+                    ('m1', 13, 'pollo bucanero campesino 2400g', 'Bucanero', 'g', NULL),
+                    ('m2', 13, 'pollo bucanero campesino 1200g', 'Bucanero', 'g', NULL);
+                INSERT INTO store_skus VALUES
+                    ('s1', 'exito', 'm1', 'Pollo Bucanero Campesino 2400g', 'Mercado > Carnes > Pollo', 1),
+                    ('s2', 'exito', 'm2', 'Pollo Bucanero Campesino 1200g', 'Mercado > Carnes > Pollo', 1);
+                """
+            )
+            conn.commit()
+            conn.close()
+
+            exp_stats = export_llm_catalog_v3(db_path=db, out_dir=out_dir, batch_size=50)
+            self.assertEqual(exp_stats["total_masters"], 2)
+            self.assertEqual(exp_stats["total_groups"], 1)
+            self.assertEqual(exp_stats["p1_disagree"], 1)
+
+            solved = tmp_path / "solved.txt"
+            solved.write_text(
+                "G00001 | carnes-pollo-pescado | pollo_entero | campesino | Pollo Entero Campesino Bucanero\n",
+                encoding="utf-8",
+            )
+            imp_stats = import_llm_catalog_v3_local(
+                solved, db_path=db, group_map_path=out_dir / "group_map.json"
+            )
+            self.assertEqual(imp_stats.masters_updated, 2)
+
+            chk = sqlite3.connect(str(db))
+            try:
+                rows = chk.execute(
+                    "SELECT canonical_category_id, product_type, product_group_key, clean_canonical_name, canonical_search_text FROM master_products"
+                ).fetchall()
+                self.assertEqual(len(rows), 2)
+                for cat_id, ptype, gkey, cname, stxt in rows:
+                    self.assertEqual(cat_id, 15)
+                    self.assertEqual(ptype, "pollo_entero")
+                    self.assertEqual(gkey, "pollo_entero|bucanero|campesino")
+                    self.assertEqual(cname, "Pollo Entero Campesino Bucanero")
+                    self.assertIn("bucanero", stxt)
+            finally:
+                chk.close()
+
 
 if __name__ == "__main__":
     unittest.main()
