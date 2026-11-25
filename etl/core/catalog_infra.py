@@ -20,14 +20,25 @@ SUBSTITUTION_SEEDS: tuple[tuple[str, str, str, str], ...] = (
     # Proteínas diarias (alto impacto en factura)
     ("proteina_diaria", "pechuga_pollo", "high", "1.0"),
     ("proteina_diaria", "muslo_pollo", "high", "1.0"),
+    ("proteina_diaria", "pernil_pollo", "high", "1.0"),
+    ("proteina_diaria", "contramuslo_pollo", "high", "1.0"),
+    ("proteina_diaria", "alas_pollo", "high", "1.0"),
     ("proteina_diaria", "pollo_entero", "high", "1.0"),
     ("proteina_diaria", "lomo_cerdo", "high", "1.0"),
     ("proteina_diaria", "chuleta_cerdo", "high", "1.0"),
+    ("proteina_diaria", "costilla_cerdo", "high", "1.0"),
+    ("proteina_diaria", "carne_cerdo", "high", "1.0"),
+    ("proteina_diaria", "pernil_cerdo", "high", "1.0"),
     ("proteina_diaria", "carne_res", "high", "1.0"),
     ("proteina_diaria", "carne_molida", "high", "1.0"),
+    ("proteina_diaria", "carne_molida_res", "high", "1.0"),
     ("proteina_diaria", "filete_pescado", "high", "1.0"),
+    ("proteina_diaria", "pescado", "high", "1.0"),
     ("proteina_diaria", "atun_lata", "high", "1.0"),
+    ("proteina_diaria", "atun_pouch", "high", "1.0"),
+    ("proteina_diaria", "sardina_lata", "high", "1.0"),
     ("proteina_diaria", "huevo_gallina", "high", "1.0"),
+    ("proteina_diaria", "huevos_gallina", "high", "1.0"),
     # Aceites de cocina (alto impacto)
     ("aceite_cocina", "aceite_girasol", "high", "1.0"),
     ("aceite_cocina", "aceite_canola", "high", "1.0"),
@@ -37,17 +48,26 @@ SUBSTITUTION_SEEDS: tuple[tuple[str, str, str, str], ...] = (
     # Lavado de ropa (alto impacto)
     ("lavado_ropa", "detergente_liquido", "high", "1.0"),
     ("lavado_ropa", "detergente_polvo", "high", "1.0"),
+    ("lavado_ropa", "detergente_capsulas", "high", "1.0"),
     # Lácteos líquidos base
     ("leche_liquida", "leche_entera", "medium", "1.0"),
     ("leche_liquida", "leche_semidescremada", "medium", "1.0"),
     ("leche_liquida", "leche_deslactosada", "medium", "1.0"),
+    ("leche_liquida", "leche_descremada", "medium", "1.0"),
     # Carbohidratos base
     ("carbohidrato_base", "arroz_blanco", "medium", "1.0"),
+    ("carbohidrato_base", "arroz_integral", "medium", "1.0"),
     ("carbohidrato_base", "pasta_espagueti", "medium", "1.0"),
+    ("carbohidrato_base", "pasta_corta", "medium", "1.0"),
     ("carbohidrato_base", "papa_fresca", "medium", "1.0"),
     # Granos leguminosos
+    ("leguminosa_seca", "frijol", "medium", "1.0"),
     ("leguminosa_seca", "frijol_seco", "medium", "1.0"),
+    ("leguminosa_seca", "frijol_cargamanto", "medium", "1.0"),
+    ("leguminosa_seca", "frijol_caraota", "medium", "1.0"),
+    ("leguminosa_seca", "lenteja", "medium", "1.0"),
     ("leguminosa_seca", "lenteja_seca", "medium", "1.0"),
+    ("leguminosa_seca", "garbanzo", "medium", "1.0"),
     ("leguminosa_seca", "garbanzo_seco", "medium", "1.0"),
 )
 
