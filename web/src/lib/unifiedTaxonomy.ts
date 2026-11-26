@@ -228,6 +228,172 @@ const CANONICAL_TO_SUB: Record<string, string> = {
   "pollo-pechuga-1000g": "Pollo y aves",
 };
 
+function classifyFromCanonicalSlug(
+  slug: string,
+  hay: string
+): UnifiedTaxonomyMatch | null {
+  switch (slug) {
+    case "aceites-y-vinagres":
+      return matchOf("Aceites y vinagres");
+    case "aguas-jugos-y-gaseosas":
+      if (/\b(energizante|vive\s*100|red\s+bull|monster|speed\s+max|gatorade|powerade|electrolit|suero|hidratante)\b/.test(hay)) {
+        return matchOf("Hidratantes y energizantes");
+      }
+      if (/\b(gaseosa|coca\s*cola|pepsi|colombiana|manzana\s+postobon|quatro|sprite|seven\s+up|pony\s+malta|bretana|soda|ginger|tonica)\b/.test(hay)) {
+        return matchOf("Gaseosas y maltas");
+      }
+      if (/\b(te\s+(?:liquido|frio|helado|verde|negro|matcha)|fuze\s+tea|hatsu|mr\s+tea|lipton)\b/.test(hay)) {
+        return matchOf("Té líquido y bebidas listas");
+      }
+      if (/\b(agua\s+(?:pura|natural|sin\s+gas|con\s+gas|mineral|cristal|brisa|manantial|h2oh|saborizada))\b/.test(hay)) {
+        return matchOf("Aguas");
+      }
+      return matchOf("Jugos, néctares y refrescos");
+    case "arroces-y-granos":
+      if (/\b(cereal|granola|avena|corn\s+flakes|zucaritas|choco\s*krispis|froot\s+loops|muesli)\b/.test(hay)) {
+        return matchOf("Cereales, granolas y avenas");
+      }
+      return matchOf("Arroz, granos y semillas");
+    case "aseo-hogar-y-lavanderia":
+      if (/\b(detergente|suavizante|quitamancha|blanqueador|cloro|clorox|fab|ariel|tide|top\s+terra|bonaropa|suavitel|aromatel|vanish|jabon\s+rey|jabon\s+ropa)\b/.test(hay)) {
+        return matchOf("Detergentes y cuidado de ropa");
+      }
+      if (/\b(ambientador|glade|air\s+wick|poett|insecticida|raid|baygon|eliminador\s+de\s+olor)\b/.test(hay)) {
+        return matchOf("Ambientadores e insecticidas");
+      }
+      if (/\b(escoba|trapero|trapeador|esponja|fibra|guante|pano|cepillo)\b/.test(hay)) {
+        return matchOf("Implementos de limpieza");
+      }
+      if (/\b(papel\s+higienico|servilleta|toalla(?:s)?\s+(?:de\s+)?cocina|bolsa(?:s)?\s+de\s+basura)\b/.test(hay)) {
+        return matchOf("Papeles, desechables y empaques");
+      }
+      return matchOf("Limpiadores y lavalozas");
+    case "azucar-panela-miel":
+      return matchOf("Azúcar, panela y endulzantes");
+    case "bebes-y-maternidad":
+      if (/\b(panal(?:es)?|huggies|pequenin|winny|pampers|panito|toallita)\b/.test(hay)) {
+        return matchOf("Pañales y pañitos húmedos");
+      }
+      if (/\b(compota|papilla|cereal|nestum|formula|nan\b|enfamil|enfagrow|similac|alula|pediasure|leche)\b/.test(hay)) {
+        return matchOf("Alimentación infantil");
+      }
+      return matchOf("Aseo y accesorios del bebé");
+    case "cafe-te-y-chocolate":
+      return matchOf("Café, chocolate e infusiones");
+    case "carbon-lena-y-asados":
+      return matchOf("Hogar general y promociones");
+    case "carnes-pollo-pescado":
+      if (/\b(pollo|pechuga|muslo|pernil\s+de\s+pollo|contramuslo|alas|bucanero|mac\s+pollo|friko|pimpollo|pollocoa|pavo|gallina)\b/.test(hay)) {
+        return matchOf("Pollo y aves");
+      }
+      if (/\b(cerdo|costilla\s+de\s+cerdo|costilla\s+cerdo|lomo\s+de\s+cerdo|chuleta|tocino|pernil\s+de\s+cerdo|chicharron)\b/.test(hay)) {
+        return matchOf("Carne de cerdo");
+      }
+      if (/\b(pescado|tilapia|trucha|salmon|bagre|mojarra|robalo|corvina|corvinata|basa|camaron|langostino|calamar|marisco|atun)\b/.test(hay)) {
+        return matchOf("Pescados y mariscos");
+      }
+      if (/\b(res|molida|solomo|solomito|sobrebarriga|cadera|posta|muchacho|punta\s+de\s+anca|bife|chatas|higado|bofe)\b/.test(hay)) {
+        return matchOf("Carne de res");
+      }
+      return matchOf("Otras carnes");
+    case "congelados-y-helados":
+      if (/\b(helado|paleta|crem\s+helado|popsy|polet|chococono|bocatto|bonice|bolis)\b/.test(hay)) {
+        return matchOf("Helados y postres");
+      }
+      if (/\b(empanada|lasana|pizza|tamal|nugget|dedito|palito|comida|hamburguesa|croqueta)\b/.test(hay)) {
+        return matchOf("Comidas preparadas");
+      }
+      return matchOf("Congelados y hielo");
+    case "cuidado-del-calzado":
+      return matchOf("Implementos de limpieza");
+    case "cuidado-personal-e-higiene":
+      if (/\b(crema\s+dental|pasta\s+dental|colgate|oral\s*b|sensodyne|enjuague\s+bucal|listerine|seda\s+dental|cepillo\s+(?:dental|de\s+dientes))\b/.test(hay)) {
+        return matchOf("Cuidado oral");
+      }
+      if (/\b(shampoo|champu|acondicionador|crema\s+(?:para|de)\s+peinar|tratamiento\s+capilar|tinte|cabello|head\s*&\s*shoulders|pantene|sedal|savital|nutribela)\b/.test(hay)) {
+        return matchOf("Cuidado capilar");
+      }
+      if (/\b(toalla(?:s)?\s+higienica|nosotras|kotex|tampon|protector(?:es)?\s+diario|jabon\s+intimo|saba)\b/.test(hay)) {
+        return matchOf("Higiene íntima y protección");
+      }
+      if (/\b(afeitadora|prestobarba|gillette|schick|espuma\s+(?:de\s+)?afeitar|depilacion|repelente|cuchilla)\b/.test(hay)) {
+        return matchOf("Afeitado, depilación y repelentes");
+      }
+      return matchOf("Cuidado corporal, facial y solar");
+    case "dulces-y-chocolateria":
+      if (/\b(mermelada|arequipe|dulce\s+de\s+leche|nutella|crema\s+de\s+avellana|leche\s+condensada|lecherita|esparcible)\b/.test(hay)) {
+        return matchOf("Mermeladas, arequipes y untables");
+      }
+      return matchOf("Chocolates, dulces y confitería");
+    case "enlatados-y-conservas":
+      return matchOf("Enlatados y conservas");
+    case "frutas-y-verduras":
+      if (/\b(pulpa|congelad[oa])\b/.test(hay)) {
+        return matchOf("Pulpas y fruver congelado");
+      }
+      if (/\b(cilantro|perejil|albahaca|hierbabuena|romero|tomillo|laurel|menta|sabila|guasca|oregano)\b/.test(hay)) {
+        return matchOf("Hierbas, aromáticas y plantas");
+      }
+      if (/\b(tomate|cebolla|papa|zanahoria|lechuga|brocoli|coliflor|pepino|pimenton|ajo|espinaca|platano|yuca|arracacha|habichuela|mazorca|ahuyama|calabacin|arveja|frijol\s+verde)\b/.test(hay)) {
+        return matchOf("Verduras, hortalizas y tubérculos");
+      }
+      return matchOf("Frutas frescas");
+    case "galletas-y-snacks":
+      if (/\b(galleta|saltin|ducales|festival|oreo|wafer|club\s+social|toscanas|tosh|crakenas|noel)\b/.test(hay)) {
+        return matchOf("Galletas");
+      }
+      if (/\b(mani|almendra|nuez|nueces|maranon|pistacho|pasas|ciruela|frutos\s+secos|semilla|arandano)\b/.test(hay)) {
+        return matchOf("Frutos secos y semillas");
+      }
+      return matchOf("Pasabocas salados");
+    case "harinas-y-reposteria":
+      if (/\b(gelatina|flan|pudin|polvo\s+(?:para\s+)?hornear|levadura|esencia|royal|natilla)\b/.test(hay)) {
+        return matchOf("Repostería y gelatinas");
+      }
+      return matchOf("Harinas y premezclas");
+    case "hogar-y-desechables":
+      if (/\b(escoba|trapero|esponja|guante|pano)\b/.test(hay)) {
+        return matchOf("Implementos de limpieza");
+      }
+      if (/\b(vela|velon|pilas|bateria|bombillo|fosforo|encendedor)\b/.test(hay)) {
+        return matchOf("Hogar general y promociones");
+      }
+      return matchOf("Papeles, desechables y empaques");
+    case "huevos-y-derivados":
+      return matchOf("Huevos");
+    case "jamones-y-embutidos":
+      return matchOf("Carnes frías y charcutería");
+    case "lacteos-y-leches":
+      if (/\b(almendra|soya|soja|avena|coco|arroz|vegetal|silk|ades|natures\s+heart)\b/.test(hay)) {
+        return matchOf("Bebidas vegetales");
+      }
+      return matchOf("Leches");
+    case "mascotas":
+      return matchOf("Mascotas");
+    case "panaderia-y-arepas":
+      if (/\b(arepa|tortilla|taco\s+shell)\b/.test(hay)) {
+        return matchOf("Arepas y tortillas");
+      }
+      if (/\b(ponque|torta|brownie|muffin|cupcake|ramo|chocoramo|gansito|pinguino|pastel|dona)\b/.test(hay)) {
+        return matchOf("Tortas y pastelería dulce");
+      }
+      return matchOf("Panadería empacada");
+    case "pastas-y-fideos":
+      return matchOf("Pastas y fideos");
+    case "quesos-y-mantequillas":
+      if (/\b(mantequilla|margarina|rama|campi|la\s+fina|crema\s+de\s+leche|ghee|esparcible)\b/.test(hay)) {
+        return matchOf("Mantequillas, margarinas y cremas");
+      }
+      return matchOf("Quesos y cuajadas");
+    case "salsas-y-condimentos":
+      return matchOf("Salsas, condimentos y sopas");
+    case "yogures-y-kumis":
+      return matchOf("Yogures, kumis y avenas");
+    default:
+      return null;
+  }
+}
+
 /**
  * Clasifica cualquier oferta de tienda dentro de la taxonomía 10x59 de cara al cliente.
  */
@@ -245,6 +411,13 @@ export function classifyOfferUnifiedTaxonomy(
   const hay = normText(
     `${offer.rawUrl ?? ""} ${offer.displayName ?? ""} ${offer.rawName} ${offer.brand ?? ""} ${offer.subPresentation ?? ""}`
   );
+
+  if (slug) {
+    const byDbSlug = classifyFromCanonicalSlug(slug, hay);
+    if (byDbSlug) {
+      return byDbSlug;
+    }
+  }
 
   // Mascotas (prioridad sobre palabras compartidas como "alimento", "jabon", "shampoo")
   if (
@@ -338,14 +511,14 @@ export function classifyOfferUnifiedTaxonomy(
   if (/\b(yogurt|yogur|kumis|alpinito|yogo\s+yogo|yox|kefir|avena\s+(?:alpina|alqueria|colanta|liquida|vaso))\b/.test(hay)) {
     return matchOf("Yogures, kumis y avenas");
   }
-  if (/\b(queso|quesito|cuajada|mozzarella|campesino|parmesano|doble\s+crema|cheddar|brie|holandes|suero\s+costeno)\b/.test(hay)) {
+  if (/\b(arepa(?:s)?|tortilla(?:s)?\s+(?:de\s+trigo|maiz|bimbo|del\s+comal)|taco\s+shell)\b/.test(hay)) {
+    return matchOf("Arepas y tortillas");
+  }
+  if (/\b(queso|quesito|cuajada|mozzarella|parmesano|doble\s+crema|cheddar|brie|holandes|suero\s+costeno)\b/.test(hay) && !/\b(pollo|pechuga|muslo|contramuslo|carne|cerdo|chorizo)\b/.test(hay)) {
     return matchOf("Quesos y cuajadas");
   }
   if (/\b(mantequilla|margarina|rama|campi|la\s+fina|crema\s+de\s+leche|ghee)\b/.test(hay)) {
     return matchOf("Mantequillas, margarinas y cremas");
-  }
-  if (/\b(arepa(?:s)?|tortilla(?:s)?\s+(?:de\s+trigo|maiz|bimbo|del\s+comal)|taco\s+shell)\b/.test(hay)) {
-    return matchOf("Arepas y tortillas");
   }
   if (/\b(leche\s+(?:entera|deslactosada|semidescremada|descremada|en\s+polvo|uht|larga\s+vida)|alqueria|colanta|parmala|pomas|klim|medalla\s+de\s+oro)\b/.test(hay)) {
     return matchOf("Leches");
