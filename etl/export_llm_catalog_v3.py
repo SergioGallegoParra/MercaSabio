@@ -23,6 +23,7 @@ from pathlib import Path
 
 from etl.core.catalog_infra import ensure_local_catalog_infra
 from etl.core.local_gateway import DEFAULT_LOCAL_DB_PATH
+from etl.core.normalizer import normalize_product_name
 from etl.core.product_enrichment import infer_category_from_store_path
 
 DEFAULT_OUT_DIR = Path("etl/data/lotes_catalogo_completo")
@@ -104,11 +105,12 @@ def export_llm_catalog_v3(
             if inferred:
                 entry["vtex_slugs"][inferred] += 1  # type: ignore[index]
 
-    # Agrupar maestros en productos base (colapsando tamaños 500g / 1kg / 5kg)
+    # Agrupar maestros en productos base usando su raw_name real (evita agrupar por normalized_name corrupto)
     grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
     for m in by_master.values():
+        live_norm = normalize_product_name(str(m["sample_raw"])) or str(m["normalized_name"])
         gkey = _base_group_key(
-            str(m["normalized_name"]), str(m["brand"]), str(m["unit_measure"])
+            live_norm, str(m["brand"]), str(m["unit_measure"])
         )
         grouped[gkey].append(m)
 
